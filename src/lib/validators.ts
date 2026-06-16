@@ -3,8 +3,8 @@
  * boundaries so the UI can flag mistakes without a round-trip.
  */
 
-export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-export const PHONE_REGEX = /^\+959\d{7,9}$/
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PHONE_REGEX = /^\+959\d{7,9}$/
 
 export function isEmail(v: string): boolean {
   return EMAIL_REGEX.test(v.trim())
