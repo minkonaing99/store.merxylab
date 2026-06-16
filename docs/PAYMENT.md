@@ -4,22 +4,26 @@ Owner runbook for the Phase 9 checkout. Read this once. Refer back when adding m
 
 ## Payment methods supported
 
-| ID        | Name      | Kind   | Notes                                                                 |
-| --------- | --------- | ------ | --------------------------------------------------------------------- |
-| `kbz_pay` | KBZ Pay   | wallet | Most-used wallet in Myanmar. Owner provides merchant QR + account info. |
-| `aya_pay` | Aya Pay   | wallet | Second-tier wallet. Same shape as KBZ Pay.                            |
-| `uab_pay` | UAB Pay   | wallet | Third-tier wallet. Same shape.                                        |
-| `cod`     | Cash on Delivery | cod | Cap 500,000 MMK. Yangon + Mandalay only. Driver collects at door.     |
+| ID         | Name             | Kind   | Notes                                                                 |
+| ---------- | ---------------- | ------ | --------------------------------------------------------------------- |
+| `kbz_pay`  | KBZ Pay          | wallet | Most-used wallet in Myanmar. Owner provides merchant QR + account info. |
+| `aya_pay`  | Aya Pay          | wallet | Second-tier wallet.                                                   |
+| `uab_pay`  | UAB Pay          | wallet | Third-tier wallet.                                                    |
+| `kbz_bank` | KBZ Bank         | wallet | Manual bank transfer. `account_phone` field holds the bank account number; QR not required. |
+| `cod`      | Cash on Delivery | cod    | Cap 500,000 MMK. Yangon + Mandalay only. Driver collects at door.     |
 
-Methods only render on `/checkout` when `is_active = true` AND the wallet has complete data (account_name + account_phone + qr_image_url). COD additionally requires the destination division + order total to satisfy the COD rules.
+Methods render on `/checkout` when `is_active = true` AND `account_name` + `account_phone` are set. **QR is optional** — if the row has no `qr_image_url` the order page hides the QR slot and shows the account info column at full width. COD additionally requires the destination division + order total to satisfy the COD rules.
 
-## Adding / editing a wallet method
+## Adding / editing a payment method
 
-1. `/admin/payment-methods` → choose method (or create new row if introducing a new wallet).
-2. Upload QR image. Convert your wallet app's merchant QR PNG to WEBP first (`cwebp -q 90 in.png -o public/payment-qr/kbz_pay.webp` then point `qr_image_url` at the public path).
-3. Enter account name (as it appears on the wallet) + account phone.
-4. Toggle `is_active = true`.
-5. The method appears at `/checkout` immediately (no deploy).
+1. `/admin/payment-methods` → expand the method.
+2. (Optional) Pick a QR image. Preview shows immediately; the file uploads only when you click **Save**. JPG/PNG/WEBP, max 4 MB; server auto-resizes to 600×600 WEBP.
+3. Fill `Account name` and `Account phone` (use the bank account number here for `kbz_bank`).
+4. (Optional) Write `Instructions` in markdown to clarify ("Exact amount only", "Include order ID in note", etc.).
+5. Set the `Sort order` dropdown (1–5).
+6. Toggle `Active`.
+7. Click **Save**. Changes commit atomically: QR uploads first, then field PATCH, then local state.
+8. **Discard** reverts the row to the last saved state.
 
 ## Shipping (BeeExpress, Mandalay base)
 

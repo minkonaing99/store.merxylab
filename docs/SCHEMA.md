@@ -113,7 +113,7 @@ Seeded with all 15 Myanmar divisions. Blocked rows still exist; dropdown filters
 ### `payment_methods`
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
-| id | VARCHAR(40) | PK | `kbz_pay`, `aya_pay`, `uab_pay`, `cod` |
+| id | VARCHAR(40) | PK | `kbz_pay`, `aya_pay`, `uab_pay`, `kbz_bank`, `cod` |
 | name | VARCHAR(60) | NOT NULL | "KBZ Pay" |
 | kind | ENUM('wallet','cod') | NOT NULL | controls UI surface |
 | account_name | VARCHAR(120) | NULL | owner's name on the wallet account |
@@ -407,10 +407,13 @@ const SESSION_DAYS = 30
 **Admin (Phase 8 — `users.role = 'admin'` required)**
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| PATCH | `/api/v1/admin/products/[id]` | Partial update: price, stock, lowStockThreshold, featured, isActive, hasPhotos. Revalidates `products` cache tag. | Admin |
+| POST | `/api/v1/admin/products` | Create new product. Body: `{slug, name, categoryId, priceMmk, tagline, description, swatch, stockQty, lowStockThreshold, featured, isActive, specs[]}`. Slug regex `^[a-z0-9-]+$`, uniqueness checked server-side. `id = slug`. Inserts product + spec rows in a transaction. Revalidates `products` cache tag. | Admin |
+| PATCH | `/api/v1/admin/products/[id]` | Full or partial update of product columns and specs. Same body shape as POST minus id. Revalidates cache. | Admin |
+| POST | `/api/v1/admin/products/[id]/photos/[slot]` | Multipart upload of slot ∈ {01, 02, 03, 04}. JPG/PNG/WEBP ≤ 10 MB. `sharp` writes two files: `public/products/<slug>/0X.webp` (1600×1600 max, EXIF stripped) and `0X-thumb.webp` (600×600 max). Flips `products.has_photos = true` on the first slot-01 upload. Replaces any existing pair atomically. Rate-limit 30/hr/admin. | Admin |
+| DELETE | `/api/v1/admin/products/[id]/photos/[slot]` | Removes the hero + thumb pair for one slot. If the slot deleted was 01 and no other slots remain, sets `has_photos = false`. | Admin |
 | PATCH | `/api/v1/admin/orders/[id]` | Update `status`. Allowed transitions enforced server-side per status machine. Wallet: `payment_submitted` → `paid` → `shipped` → `delivered`. COD: `pending_payment` → `confirmed` → `shipped` → `delivered`. Any → `cancelled`. | Admin |
 | PATCH | `/api/v1/admin/reviews/[id]` | Update `status` (`pending` / `approved` / `rejected`). | Admin |
-| GET, POST, PATCH, DELETE | `/api/v1/admin/payment-methods[/[id]]` | CRUD + QR upload. Validates kind enum, regex on account_phone. | Admin |
+| GET, POST, PATCH, DELETE | `/api/v1/admin/payment-methods[/[id]]` | CRUD + QR upload. QR is optional — a wallet/bank method is "complete" with just account_name + account_phone. Validates kind enum, regex on account_phone. | Admin |
 | PATCH | `/api/v1/admin/divisions/[id]` | Edit `delivery_fee_mmk`, `cod_allowed`, `is_blocked`, `sort_order`. Name + id immutable. | Admin |
 
 ### Request/response example
@@ -465,6 +468,7 @@ Implemented in `src/lib/rate-limit.ts` — in-memory bucket, single instance. Sw
 | `POST /api/v1/orders` | 10/hour/user |
 | `POST /api/v1/orders/*/slip` | 10/hour/user |
 | `POST /api/v1/orders/*/cancel` | 5/hour/user |
+| `POST /api/v1/admin/products/*/photos/*` | 30/hour/admin |
 | `POST /api/v1/products/*/reviews` | 5/day/user |
 | `POST /api/v1/auth/signup` | 5/hour/IP |
 | `POST /api/auth/signin` (credentials, future) | 5/min/email + 20/min/IP |
@@ -477,7 +481,7 @@ No `audit_log` table yet — admin role is single-operator in MVP, and Drizzle S
 
 ### Payment surface
 - No card payments. No external gateway. Wallet apps (KBZ Pay / Aya Pay / UAB Pay) + Cash on Delivery only.
-- Each wallet method is a row in `payment_methods` with owner-provided account name, account phone, QR image. Customer scans QR in the wallet app, transfers exact MMK amount, returns to `/order/[id]`, uploads slip image (and optional tx ref) → `status='payment_submitted'`.
+- Each wallet/bank method is a row in `payment_methods` with owner-provided account name + account phone (or bank account number). QR is optional — if `qr_image_url` is null the order page hides the QR slot and renders account info at full width. Customer scans the QR (or types the account number manually), transfers exact MMK amount, returns to `/order/[id]`, uploads slip image (and optional tx ref) → `status='payment_submitted'`.
 - Owner verifies in bank app → flips to `paid` from `/admin/orders/[id]`. State transitions are idempotent.
 - COD: no slip. Status `pending_payment` → owner phone confirms → `confirmed` → ship → `delivered`. Driver collects cash at door.
 - Auto-cancel cron (`scripts/cancel-expired-orders.ts`, runs nightly) sets `status='cancelled'` and restores `stockQty` where `status='pending_payment' AND expires_at < NOW()`.

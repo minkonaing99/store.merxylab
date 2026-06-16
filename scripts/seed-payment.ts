@@ -45,7 +45,8 @@ const PAYMENT_METHODS = [
   { id: 'kbz_pay', name: 'KBZ Pay', kind: 'wallet' as const, sortOrder: 1 },
   { id: 'aya_pay', name: 'Aya Pay', kind: 'wallet' as const, sortOrder: 2 },
   { id: 'uab_pay', name: 'UAB Pay', kind: 'wallet' as const, sortOrder: 3 },
-  { id: 'cod', name: 'Cash on Delivery', kind: 'cod' as const, sortOrder: 4 },
+  { id: 'kbz_bank', name: 'KBZ Bank', kind: 'wallet' as const, sortOrder: 4 },
+  { id: 'cod', name: 'Cash on Delivery', kind: 'cod' as const, sortOrder: 5 },
 ]
 
 async function main(): Promise<void> {

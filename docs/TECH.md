@@ -268,6 +268,12 @@ merxylab-store/
 **Decision:** Persist a `divisions` table seeded with all 15 Myanmar divisions plus Naypyidaw Union Territory. Each row carries `delivery_fee_mmk`, `cod_allowed`, `is_blocked`. Kayah, Kayin, Sagaing are blocked (no BeeExpress coverage). COD allowed only for Yangon + Mandalay AND order total ≤ 500,000 MMK — enforced both client-side (radio hidden) and server-side at order creation.
 **Consequences:** Owner can adjust fees from `/admin/divisions` without redeploy. Adding a second courier (separate division tier) is a new column, not a new table.
 
+### [2026-06-16] Inline product CRUD + dual-resize photo pipeline (`/admin/products`)
+**Status:** Accepted
+**Context:** Adding a new SKU previously required editing `src/data/products.json`, regenerating the SQL bootstrap, and re-importing. Owner asked for an in-browser path so launches don't gate on developer time. Photo handling was completely missing from the admin.
+**Decision:** Build a Save/Discard inline editor on `/admin/products`. A "+ New product" button opens a top-of-page form (name → auto-slug, category dropdown, price MMK, tagline, description, swatch via native color picker, stock_qty, low_stock_threshold, featured, is_active). Specs editor is a dynamic list of `{label, value}` rows added/removed in place; the whole record (product + specs) is committed in a single transaction via `POST /api/v1/admin/products`. Editing an existing row uses the same form via expand-row; `PATCH /api/v1/admin/products/[id]` accepts the same shape. Photos live in `/admin/products` as an Expand → 4-slot grid (01..04). Each slot has its own `POST` (replace) and `DELETE` (remove) endpoint. Server runs `sharp` twice per upload: one 1600×1600 WEBP hero (`0X.webp`) and one 600×600 WEBP thumb (`0X-thumb.webp`), both EXIF-stripped. PDP gallery reads the hero; `<ProductCard>` and `<Tile>` read the thumb. Soft delete only via `is_active = false` — no hard-delete path because order history references stay referentially intact.
+**Consequences:** Two image files per slot per product = up to 8 disk objects per SKU. Acceptable footprint at retail volume on Hostinger persistent disk. No JSON ↔ DB sync step needed anymore (the JSON files remain only as legacy seed sources for the bootstrap SQL). Adding a new color picker requirement in the future means swapping the native control for a curated palette — schema unchanged.
+
 ---
 
 ## Security

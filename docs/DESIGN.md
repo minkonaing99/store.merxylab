@@ -133,7 +133,9 @@ Restrained, warm-tinted (no blue shadow).
   - `AdminNav` (in `admin/layout.tsx`) — Overview / Products / Orders / Reviews / Newsletter / Payment Methods / Divisions
   - `PaymentMethodTable` — `/admin/payment-methods` inline editor (name, kind, account info, QR upload, active toggle).
   - `DivisionTable` — `/admin/divisions` inline editor (delivery_fee_mmk, cod_allowed, is_blocked, sort_order). Name + id immutable.
-  - `AdminProductTable` — inline-edit grid: name + slug + view-link, price (MMK, tabular-nums), stock, low-stock threshold, isActive/featured/hasPhotos checkboxes. Saves on blur per cell.
+  - `AdminProductTable` — list with primary action "+ New product" at top. Row collapses to name + slug + view-link, price (MMK, tabular-nums), stock, low-stock threshold, isActive/featured pills. Two expand buttons per row: **Edit details** (opens an inline form pre-filled) and **Edit photos** (opens the 4-slot grid). Save / Discard pair per expanded section — no auto-save.
+  - `ProductDetailsForm` — used for both create + edit. Fields: name (drives auto-slug), slug (editable, regex-validated), category (select of 6), price MMK, tagline, description, swatch (`<input type="color">`), stock_qty, low_stock_threshold, featured + is_active toggles. Specs editor: list of `{label, value}` rows with `+` to add and trash to remove.
+  - `ProductPhotoGrid` — fixed 4-slot grid (01..04). Each cell shows the 600px thumb preview if uploaded, otherwise a swatch-tinted placeholder. Per-slot Replace (file picker) and Remove (trash). Client validates JPG/PNG/WEBP ≤ 10 MB before sending. Server writes both hero (1600px) + thumb (600px) WEBPs from one upload.
   - `AdminOrdersTable` — order id + customer + total + status dropdown + placed date.
   - `AdminReviewsList` — filter chips (pending / approved / rejected / all) + per-review card with status pill + approve/reject buttons.
   - `NewsletterExport` — single CSV download button (`Download` icon from lucide).

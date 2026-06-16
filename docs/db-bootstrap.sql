@@ -269,7 +269,8 @@ INSERT INTO `payment_methods` (`id`, `name`, `kind`, `sort_order`, `is_active`) 
 ('kbz_pay', 'KBZ Pay', 'wallet', 1, 0),
 ('aya_pay', 'Aya Pay', 'wallet', 2, 0),
 ('uab_pay', 'UAB Pay', 'wallet', 3, 0),
-('cod', 'Cash on Delivery', 'cod', 4, 0);
+('kbz_bank', 'KBZ Bank', 'wallet', 4, 0),
+('cod', 'Cash on Delivery', 'cod', 5, 0);
 
 -- =================================================================
 -- 4. Categories

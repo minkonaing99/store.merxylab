@@ -78,6 +78,10 @@ Computer peripheral shops feel like loud gamer marketplaces — RGB-saturated, s
 - As the shop owner, I want to manage payment methods (account name, phone, QR image, active flag) from `/admin/payment-methods` without redeploying.
 - As the shop owner, I want unpaid orders to auto-cancel after 24h so stock isn't locked forever.
 - As the shop owner, I want every new order and every slip submission to ping me by email AND Telegram bot so I can verify fast.
+- As the shop owner, I want to add a new product without touching the database — name, slug (auto from name), category, price, tagline, description, swatch (color picker), stock, specs (key/value rows), and four photos from one inline form on `/admin/products`.
+- As the shop owner, I want to edit an existing product's details, specs, and photos from the same screen — per-slot replace/remove on photos 01..04 — without redeploying.
+- As the shop owner, I want a Save / Discard pattern on the product editor so I can scratch a draft if I changed my mind. No auto-save.
+- As the shop owner, I want product photos to ship at two sizes — a 1600×1600 hero for the PDP and a 600×600 thumb for grid views — so PDP detail stays sharp while grids stay light.
 
 ### Constraints
 - TypeScript strict mode + `noUncheckedIndexedAccess`.

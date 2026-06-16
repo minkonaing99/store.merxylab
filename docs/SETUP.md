@@ -184,6 +184,25 @@ pnpm test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.12.0] — 2026-06-16 (docs only — implementation pending)
+- Phase 10 design locked: inline product CRUD + photo pipeline on `/admin/products`.
+- Adds `+ New product` button opening `ProductDetailsForm` with name → auto-slug, category select, price, tagline, description, swatch (native color picker), stock + threshold, featured/active toggles, and a dynamic specs editor (key/value rows).
+- Each row gets two expand buttons: **Edit details** + **Edit photos** (4-slot grid 01..04 with per-slot Replace + Remove).
+- Save / Discard pair per expanded section — no auto-save.
+- Photo pipeline: client validates JPG/PNG/WEBP ≤ 10 MB; server `sharp` produces 1600×1600 hero + 600×600 thumb WEBP per slot, EXIF stripped. Stored under `public/products/<slug>/0X.webp` + `0X-thumb.webp`.
+- Soft delete only (`is_active = false`).
+- Doc updates: `PRD.md` (4 new owner stories), `TECH.md` (new ADR: inline product CRUD + dual-resize photo pipeline), `SCHEMA.md` (new admin endpoints for products + photos, rate-limit row), `DESIGN.md` (rewritten `AdminProductTable` + new `ProductDetailsForm` + `ProductPhotoGrid`), `PLAN.md` (Phase 10.1–10.10 tasks).
+- Backlog: drag-to-reorder photos within `ProductPhotoGrid`.
+
+### [0.11.0] — 2026-06-16
+- Phase 9.x patch series shipped to `production`:
+  - Form validation across `/signin`, `/signup`, `/account/addresses`, `/checkout`: per-field error messages on blur, red border + helper text, required-asterisk indicators, Myanmar phone regex `+959XXXXXXXXX`, password strength rule (≥10 + mixed case + digit). New shared `TextField` / `SelectField` / `TextAreaField` in `src/components/ui/field.tsx` backed by `src/lib/validators.ts`.
+  - `/admin/payment-methods` switched from auto-save-on-blur to per-row Save / Discard. Pending QR file held client-side as object-URL preview, uploaded on Save. Atomic sequence: QR upload → field PATCH → local commit.
+  - QR is now optional. Server filter at `/api/v1/payment-methods` requires only `account_name + account_phone`. `/order/[id]` wallet panel hides the QR slot when empty and lets account info span full width.
+  - Sort order swapped from free-form number input to `<select>` 1..5 on both wallet and COD rows.
+  - Added `KBZ Bank` (id `kbz_bank`, kind `wallet`) as a 5th method. Treats `account_phone` field as the bank account number. Run once on prod DB: `INSERT INTO payment_methods (id, name, kind, sort_order, is_active) VALUES ('kbz_bank', 'KBZ Bank', 'wallet', 5, 0);`.
+  - Checkout UI: `+ Add new address` and "Continue to payment" buttons no longer overlap on the delivery step. Continue button has its own row, full-width on mobile, right-aligned on desktop. Payment step back/continue stack on mobile, space-between on desktop.
+
 ### [0.10.0] — 2026-06-16 (docs only — implementation pending)
 - Phase 9 design locked: multi-method checkout (KBZ Pay / Aya Pay / UAB Pay / COD), in-app slip upload, BeeExpress per-division shipping, Telegram owner alerts, 24h auto-cancel.
 - Doc updates: `CLAUDE.md` (payment stack rewritten), `docs/PRD.md` (new user stories + 0a/0b/0c/0d app flows + constraints), `docs/TECH.md` (two new ADRs: multi-method payment + BeeExpress shipping; security additions for slip upload + auto-cancel race), `docs/SCHEMA.md` (new `payment_methods` + `divisions` tables; expanded `orders.status` enum + new `orders` columns; rebuilt `addresses` for Myanmar shape; new public + admin endpoints), `docs/DESIGN.md` (three-step checkout component, per-status order confirmation panels, new components map), `docs/PLAN.md` (Phase 9.1–9.14 task list).
