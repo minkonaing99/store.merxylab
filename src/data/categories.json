@@ -1,0 +1,38 @@
+[
+  {
+    "id": "keyboards",
+    "name": "Keyboards",
+    "description": "Mechanical, low-profile, and hot-swap boards built for daily writing — not for tournaments.",
+    "order": 1
+  },
+  {
+    "id": "mice",
+    "name": "Mice",
+    "description": "Pointing devices with restraint. Quiet clicks, honest shapes, low-latency wireless.",
+    "order": 2
+  },
+  {
+    "id": "headsets",
+    "name": "Headsets",
+    "description": "Over-ear cans tuned for voices and music — wired and wireless.",
+    "order": 3
+  },
+  {
+    "id": "microphones",
+    "name": "Microphones",
+    "description": "Desktop USB mics for calls, streams, and clean voice capture.",
+    "order": 4
+  },
+  {
+    "id": "speakers",
+    "name": "Speakers",
+    "description": "Compact desk speakers with warmth and presence — no subwoofer required.",
+    "order": 5
+  },
+  {
+    "id": "accessories",
+    "name": "Accessories",
+    "description": "Mats, wrist rests, and the small things that finish a desk.",
+    "order": 6
+  }
+]

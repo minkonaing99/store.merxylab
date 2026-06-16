@@ -1,0 +1,393 @@
+# SETUP — merxylab store
+
+## Setup
+
+### Prerequisites
+- **Node.js** ≥ 20.0.0
+- **pnpm** ≥ 9 (preferred package manager)
+- **MySQL** ≥ 8.0 (Phase 5+) — local dev with `root` user, default port 3306
+- **cwebp** (libwebp) — for converting product photos to WebP (`brew install webp`)
+- Git
+- A modern browser (Chromium, Firefox, Safari)
+
+### Install steps
+```bash
+# Clone (when repo exists)
+git clone <repo-url> merxylab-store
+cd merxylab-store
+
+# Install dependencies
+pnpm install
+
+# Run dev server
+pnpm dev
+# → http://localhost:3000
+```
+
+### Env vars
+Placeholder phase has **no required env vars**. The catalog is inlined as JSON.
+
+**Phase 5+** uses `.env.local` (gitignored). A committed `.env.example` lists all keys with empty values.
+
+| Key | Description | Required from phase |
+|-----|-------------|---------------------|
+| `DATABASE_URL` | `mysql://root:Tkhantiang1@localhost:3306/merxylab` (local dev only) | 5 |
+| `AUTH_SECRET` | NextAuth JWT secret — generate via `openssl rand -base64 32` | 6 |
+| `AUTH_URL` | Canonical site URL (`http://localhost:3000` dev) | 6 |
+| `AUTH_GOOGLE_ID` | Google OAuth client ID | 6 |
+| `AUTH_GOOGLE_SECRET` | Google OAuth client secret | 6 |
+| `SMTP_HOST` | Hostinger SMTP (`smtp.hostinger.com`) | 6 |
+| `SMTP_PORT` | `465` (TLS) | 6 |
+| `SMTP_USER` | Mailbox username (e.g. `noreply@your-domain.com`) | 6 |
+| `SMTP_PASS` | Mailbox password from hPanel | 6 |
+| `EMAIL_FROM` | Display From: header (e.g. `merxylab <noreply@your-domain.com>`) | 6 |
+| `BANK_PAYMENT_INSTRUCTIONS` | Plain-text block included in order confirmation emails | 6 |
+| `NEXT_PUBLIC_SITE_URL` | Canonical site URL exposed to client (sitemap, OG) | 3 |
+| `UPSTASH_REDIS_REST_URL` | Optional rate-limit backend; falls back to in-memory if unset | 7 |
+| `UPSTASH_REDIS_REST_TOKEN` | Pair to URL | 7 |
+
+**Never commit `.env.local`. Never reuse the dev MySQL password (`Tkhantiang1`) in production.**
+
+### Local MySQL setup (Phase 5)
+```bash
+# install (macOS)
+brew install mysql
+brew services start mysql
+
+# secure + set root password
+mysql_secure_installation
+# pick: yes / Tkhantiang1 / yes / yes / yes / yes
+
+# create database
+mysql -u root -p
+# at the prompt:
+CREATE DATABASE merxylab CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+EXIT;
+
+# verify connection
+mysql -u root -p merxylab -e "SHOW TABLES;"
+```
+
+### Photo workflow (Phase 4)
+Photos live in `public/products/{slug}/{NN}.webp`, slot 01 required for `hasPhotos = true`.
+
+```bash
+# 1. Drop original photos into the slug folder
+mv ~/Downloads/mxk-keyboard-*.jpg public/products/mxk-65-walnut/
+
+# 2. Convert to WebP (quality 82, ≤200KB, max 1600px long edge)
+cd public/products/mxk-65-walnut
+cwebp -q 82 -resize 1600 0 mxk-keyboard-1.jpg -o 01.webp
+cwebp -q 82 -resize 1600 0 mxk-keyboard-2.jpg -o 02.webp
+# etc — up to 04.webp
+
+# 3. Clean up originals
+rm *.jpg
+
+# 4. Regenerate hasPhotos flags
+pnpm photos:check
+```
+
+### How to run locally
+```bash
+pnpm dev               # dev server with HMR
+pnpm build             # production build
+pnpm start             # serve production build
+pnpm lint              # ESLint
+pnpm typecheck         # tsc --noEmit
+pnpm test              # vitest
+pnpm test:e2e          # playwright
+pnpm format            # prettier write
+
+# Phase 4
+pnpm photos:check      # scan public/products/*/01.webp → set hasPhotos
+
+# Phase 5
+pnpm db:generate       # drizzle-kit generate (from schema diffs)
+pnpm db:migrate        # apply pending migrations
+pnpm db:studio         # open Drizzle Studio admin UI (local only)
+pnpm db:seed           # populate from src/data/*.json
+
+# Phase 6
+pnpm email:dev         # react-email preview server on :3030
+```
+
+### Common errors + fixes
+- **`Module not found: Can't resolve '@/...'`** — Ensure `tsconfig.json` `paths` maps `@/*` to `./src/*`.
+- **`Failed to compile. <some Tailwind utility>`** — Tailwind v4 expects all sources scanned via `@source` in CSS or `content` in config; verify `src/**/*.{ts,tsx}` is included.
+- **Hydration mismatch on cart drawer** — Cart state reads from localStorage; render shell server-side, hydrate qty client-side only (`useEffect` guard).
+- **Fonts flashing** — Confirm `next/font/google` is imported in `app/layout.tsx`, not a client component.
+- **`ECONNREFUSED 3306`** — MySQL not running. `brew services start mysql`.
+- **`ER_NOT_SUPPORTED_AUTH_MODE`** — older mysql2 + MySQL 8 auth plugin mismatch. Switch user to `mysql_native_password` or upgrade mysql2.
+- **`AUTH_SECRET missing`** — generate via `openssl rand -base64 32` and put in `.env.local`.
+- **SMTP timeout** — confirm port 465 (TLS) on Hostinger; some ISPs block 25/587.
+- **Drizzle Studio won't open** — needs `DATABASE_URL` set in `.env.local`; runs at `https://local.drizzle.studio`.
+
+---
+
+## Testing
+
+### Framework + runner
+- **Vitest** — unit + integration tests (fast, ESM-native, Jest-compatible API).
+- **Testing Library (React)** — component tests.
+- **Playwright** — E2E.
+
+### Coverage target
+**80%+ statements + branches.** Enforced via `vitest --coverage` threshold in CI.
+
+### Test types required
+1. **Unit** — utilities (`formatPrice`, `slugify`), cart store reducers, search index builder.
+2. **Integration** — homepage sections render with real JSON data; cart drawer mounts and updates on store action; search route filters correctly.
+3. **E2E** — critical flows from `docs/PRD.md`:
+   - Browse → add to cart → view cart → refresh → cart persists
+   - Category filter
+   - Search → click result → PDP
+   - Newsletter visual submit → toast
+   - Empty cart state
+
+### TDD workflow
+**RED → GREEN → REFACTOR.**
+1. Write the failing test first (clear assertion, descriptive name).
+2. Run it — it must fail.
+3. Write the minimum code to pass.
+4. Run it — it must pass.
+5. Refactor with tests as safety net.
+6. Verify coverage ≥ 80%.
+
+### How to run tests
+```bash
+pnpm test              # vitest run (watch mode off)
+pnpm test:watch        # vitest watch
+pnpm test:coverage     # vitest --coverage
+pnpm test:e2e          # playwright test
+pnpm test:e2e:ui       # playwright test --ui
+```
+
+### How to write new tests
+- Co-locate unit tests next to source: `cart-store.test.ts` next to `cart-store.ts`.
+- Component tests in `__tests__/` adjacent to component.
+- E2E specs in `e2e/` at repo root.
+- Use Testing Library queries by accessible role first (`getByRole`), text second, test-id only as last resort.
+- One assertion per test where reasonable; group related assertions in `describe` blocks.
+
+### Mocking strategy
+- **Cart store:** test against real store; reset between tests via `cart-store.getState().reset()`.
+- **Fuse.js search:** test against real index with a small fixture catalog.
+- **Toast (sonner):** mock the `toast()` call to assert invocation without rendering noise.
+- **Next.js `useRouter`:** mock via Vitest mock in `vitest.setup.ts`.
+- **localStorage:** Vitest's jsdom provides it; clear in `beforeEach`.
+
+---
+
+## Changelog
+
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versioning: SemVer.
+
+### [0.10.0] — 2026-06-16 (docs only — implementation pending)
+- Phase 9 design locked: multi-method checkout (KBZ Pay / Aya Pay / UAB Pay / COD), in-app slip upload, BeeExpress per-division shipping, Telegram owner alerts, 24h auto-cancel.
+- Doc updates: `CLAUDE.md` (payment stack rewritten), `docs/PRD.md` (new user stories + 0a/0b/0c/0d app flows + constraints), `docs/TECH.md` (two new ADRs: multi-method payment + BeeExpress shipping; security additions for slip upload + auto-cancel race), `docs/SCHEMA.md` (new `payment_methods` + `divisions` tables; expanded `orders.status` enum + new `orders` columns; rebuilt `addresses` for Myanmar shape; new public + admin endpoints), `docs/DESIGN.md` (three-step checkout component, per-status order confirmation panels, new components map), `docs/PLAN.md` (Phase 9.1–9.14 task list).
+- New doc: `docs/PAYMENT.md` (owner runbook — methods, shipping table, status machine, daily ops, slip security, failure modes, env vars).
+- `.env.example` extended with `TELEGRAM_BACKUP_USERNAME`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID`.
+
+### [0.9.0] — 2026-06-16
+- Catalog cut to 15 curated SKUs across 6 cats (keyboards/mice/headsets/microphones/speakers/accessories). Real brand names (HyperX, Keychron, Nuphy, Logitech, Razer, VXE, Edifier, etc.). Placeholder photos copied into all 15 `public/products/<slug>/` dirs.
+- Stripe integration removed (Myanmar retail = bank transfer only). Uninstalled SDK; deleted `src/lib/stripe.ts`, `/api/v1/stripe/webhook`, `/api/v1/orders/[id]/stripe-session`, `StripePayButton` from `/order/[id]`; scrubbed Stripe env keys from `.env.example`. Renamed `docs/STRIPE-AND-ADMIN.md` → `docs/ADMIN.md` with bank-transfer confirmation flow + admin promotion SQL.
+- Docs scrubbed of Stripe refs: PRD (user stories, app flow, gating), TECH (ADR rewritten, security surface), SCHEMA (endpoint table, payment surface), DESIGN (order confirmation state), LIGHTHOUSE (TBT row).
+
+### [0.8.0] — 2026-06-16
+- Phase 8: React Email templates, custom `/admin` UI, Lighthouse playbook.
+- Docs synced: `docs/PRD.md` (admin stories, payment flow, role gating), `docs/TECH.md` (5 new ADRs, expanded folder tree, Phase 8 security additions), `docs/SCHEMA.md` (admin endpoint tables, rate-limit table), `docs/DESIGN.md` (admin tone, KPI tiles), `docs/ADMIN.md`, `docs/LIGHTHOUSE.md`.
+
+### [0.7.0] — 2026-06-16
+- Phase 7: reviews + wishlist + newsletter + `output: 'standalone'`. `docs/AUTH-SETUP.md` + `docs/DEPLOY.md` shipped.
+
+### [0.6.0] — 2026-06-16
+- Phase 6: Auth.js v5, DB-backed cart, addresses, orders + checkout + bank-transfer confirmation, account pages.
+
+### [0.5.0] — 2026-06-16
+- Phase 5: MySQL backend via Drizzle, MMK currency, catalog APIs, stock badges.
+
+### [0.4.0] — 2026-06-15
+- Phase 4: photo folder convention + `hasPhotos` script + Gallery with fallback.
+
+### [0.3.0] — 2026-06-15
+- Phase 3: motion polish, sitemap, robots, OG metadata.
+
+### [0.2.0] — 2026-06-15
+- Phase 2: routes, cart drawer, search, checkout-less PDP.
+
+### [0.1.0] — 2026-06-15
+
+#### Added
+- Project documentation scaffold: `docs/PRD.md`, `docs/TECH.md`, `docs/SCHEMA.md`, `docs/DESIGN.md`, `docs/PLAN.md`, `docs/SETUP.md`.
+- Root `CLAUDE.md` with project rules and doc index.
+- `.gitignore` with Node / Next.js / Claude entries.
+- Initial design tokens (cream/ink/terracotta palette) defined in `docs/DESIGN.md`.
+- Architecture decisions recorded as ADRs in `docs/TECH.md`.
+- Future API contract drafted in `docs/SCHEMA.md` (placeholder phase has no live API).
+- **Phase 1.1:** Next.js 15 + React 19 + TypeScript 5.7 strict scaffold (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `pnpm-workspace.yaml`).
+- App Router shell: `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/globals.css`.
+- `public/favicon.ico` + `public/logo.png` (merxylab flask + circuit-trace logo).
+- **Phase 1.2-1.10:** Tailwind v4 CSS-first tokens, Fraunces + Inter via next/font, runtime deps (zustand, fuse.js, framer-motion, lucide-react, sonner, zod, clsx, tailwind-merge).
+- `src/lib/types.ts` — Product, Category, CartItem, CartState, constants.
+- `src/lib/utils.ts` — cn, formatPrice, slugify, clampQty.
+- `src/lib/products.ts` — JSON loaders + query helpers.
+- `src/lib/cart-store.ts` — zustand store with localStorage persistence.
+- `src/lib/search.ts` — Fuse.js fuzzy search index.
+- `src/data/products.json` — 32 products across 4 categories.
+- `src/data/categories.json` — 4 categories (keyboards, mice, audio, accessories).
+- **Phase 2:** All routes shipped — `/`, `/shop`, `/shop/[category]`, `/product/[slug]`, `/cart`, `/search`, `/not-found`.
+- Components: Nav, Footer, CartDrawer, Hero, Stats, ProductGrid, Why, CTABanner, Newsletter, ProductCard, Tile, AddToCartButton, GridControls.
+- Add-to-cart wired with toast feedback (sonner).
+- 43 static pages prerendered. Build, typecheck, lint all green.
+- **Phase 3 essentials:** `sitemap.xml` + `robots.txt` route handlers, Open Graph + Twitter card metadata, title template (`%s · merxylab`), `themeColor` viewport, MotionConfig with `reducedMotion="user"` honors prefers-reduced-motion globally for Framer Motion.
+- Hero inline product chip polished (rounded ring, tracking tightened).
+- Footer flask mark polished (proper invert filter + ring container).
+- Live dev verified at http://localhost:3001 — homepage, shop, PDP, sitemap render correctly.
+
+### [Unreleased] — Phase 4 (in progress, 2026-06-15)
+
+#### Added
+- `Product.hasPhotos: boolean` field on the Product type (required, default false).
+- `PHOTO_SLOTS` and `PHOTO_BASE` constants exported from `src/lib/types.ts`.
+- `public/products/{slug}/` folder for all 32 SKUs (with `.gitkeep` so git tracks them).
+- `scripts/check-photos.ts` — scans `public/products/{slug}/01.webp`, updates `products.json` `hasPhotos` flag, prints summary table with extras detection.
+- `pnpm photos:check` script wired in `package.json`.
+- `tsx` devDep for running TS scripts directly.
+- `Tile` component renders `next/image` of `/products/{slug}/01.webp` when `hasPhotos=true`; warm-palette swatch fallback otherwise.
+- New `Gallery` component on PDP — slots 01-04 with thumb grid, hides slots that 404 via `onError`, animated cross-fade on switch, `aria-pressed` on thumbs.
+- Verified live (port 3002): photo served via `_next/image` optimizer with srcset 384-3840 widths, flag flip works end-to-end.
+
+### [Unreleased] — Phase 5 (2026-06-16)
+
+#### Added
+- MySQL 9.6 local database `merxylab-store` (utf8mb4_0900_ai_ci collation).
+- `.env.local` (gitignored) with `DATABASE_URL` and `NEXT_PUBLIC_SITE_URL`; `.env.example` committed.
+- Drizzle ORM + `mysql2` driver; `drizzle.config.ts` loads `.env.local` via dotenv.
+- `src/db/index.ts` — mysql2 pool singleton (10 connections, dev global cache to survive HMR).
+- `src/db/schema/products.ts` — `products`, `categories`, `product_specs` tables with FKs + indexes (`idx_products_category`, `idx_products_featured`, `idx_products_is_active`, `idx_specs_product`).
+- First migration `0000_grey_hellcat.sql` generated + applied.
+- `scripts/seed.ts` — converts USD cents → MMK whole units (FX 2100, rounded to nearest 1,000) and seeds 4 categories + 32 products + 122 spec rows. Idempotent.
+- `src/lib/money.ts` with `formatMmk` (`Ks 249,000`); replaces all `formatPrice` callers.
+- `src/lib/catalog.ts` async DB-backed catalog helpers wrapped in `unstable_cache` (60s revalidate, tagged `products` + `categories`).
+- `src/components/product/stock-badge.tsx` — `In stock` (success), `Only N left` (warning), `Out of stock` (muted).
+- API routes: `GET /api/v1/products[?category=]`, `GET /api/v1/products/[slug]`, `GET /api/v1/categories`. Zod-validated query, structured error envelope.
+- `pnpm db:generate | db:migrate | db:push | db:studio | db:seed` scripts.
+- `dotenv` devDep for script env loading; `server-only` runtime guard.
+
+#### Changed
+- `Product` type: dropped `currency`, added optional `stockQty` + `lowStockThreshold`. Price now means whole-unit MMK throughout.
+- `src/data/products.json` — converted all 32 prices from USD cents to MMK whole units; removed `currency` field.
+- Home, Shop, Category, PDP pages → async, fetch catalog from MySQL via `catalog.ts`.
+- Hero, ProductGrid, Why, CTABanner refactored to accept products as props (no more module-scope JSON loads).
+- `AddToCartButton` honors `disabled` for out-of-stock products.
+- `ProductCard` shows StockBadge (low-stock variant inline next to category eyebrow); disables add button when out.
+
+#### Verified
+- 47 routes build (43 static + 3 dynamic API + sitemap/robots).
+- `GET /api/v1/products` returns 32 rows from MySQL.
+- `GET /api/v1/products?category=keyboards` returns 9.
+- `GET /api/v1/products/mxk-65-walnut` returns `Ks 523,000` price.
+- Homepage + PDP render MMK prices end-to-end.
+
+### [Unreleased] — Phase 6 (2026-06-16)
+
+#### Added
+- Schema: `users`, `accounts`, `sessions`, `verification_tokens`, `addresses`, `carts`, `cart_items`, `orders`, `order_items`. All PKs `varchar(36)` UUIDs to satisfy Drizzle adapter typing.
+- Auth.js v5 beta + `@auth/drizzle-adapter` + `bcryptjs` (12 rounds) + `nodemailer` + Google OAuth (conditional on env).
+- `src/lib/auth.ts` — NextAuth config (credentials + Google), JWT 30d, role passed through to session.
+- `/api/auth/[...nextauth]` route handler.
+- `src/lib/mail.ts` — Hostinger SMTP transport via nodemailer; falls back to console log if SMTP env unset.
+- `src/lib/rate-limit.ts` — in-memory bucket limiter w/ Retry-After.
+- `src/lib/cart-session.ts` — cookie-keyed guest carts in MySQL, user carts on sign-in, merge-on-login logic (sum qty per productId, cap at QTY_MAX).
+- Cart APIs: `GET /api/v1/cart`, `POST /api/v1/cart/items`, `PATCH/DELETE /api/v1/cart/items/[productId]`, `POST /api/v1/cart/merge`.
+- Signup API: bcrypt(12), sha256-hashed verification token, 30-min TTL, email via nodemailer, rate-limit 5/hr/IP, generic response to prevent account enumeration.
+- Verify API: token validation + sets `email_verified`.
+- Pages: `/signin` (credentials + Google), `/signup`, `/verify` (handles `?token=&email=`).
+- Address APIs: GET/POST list, PATCH/DELETE [id], zod schemas, IDOR-checked against `userId`.
+- Orders API: POST creates `pending_payment` order in MySQL transaction (decrement stock with `stockQty >= qty` guard, rollback on OOS), snapshots price+name, sends confirmation email + admin low-stock alerts. GET list own + GET one IDOR-checked.
+- Pages: `/checkout` (server-fetches addresses + cart, client `CheckoutForm` w/ radio addresses + notes), `/order/[id]` (confirmation + bank instructions w/ orderId substituted), `/account` (layout + dashboard + sub-nav), `/account/orders`, `/account/orders/[id]`, `/account/addresses` (AddressManager form), `/account/wishlist` (Phase 7 stub).
+- `src/components/auth-provider.tsx` wraps app with `SessionProvider`.
+- `src/components/account/sign-out-button.tsx`.
+- Nav adds account icon → `/account`.
+- `.env.local` env additions: `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST`, optional `AUTH_GOOGLE_ID/SECRET`, optional `SMTP_*`, `EMAIL_FROM`, `BANK_PAYMENT_INSTRUCTIONS`.
+
+#### Changed
+- `src/lib/cart-store.ts` rewritten as thin API-backed store; localStorage persistence removed (server is source of truth). `CartHydrator` mounts on layout, fetches on app load.
+- `CartDrawer` + `/cart` page use the new `CartLine` shape (no per-render product lookups).
+- `seed.ts` no longer double-converts USD→MMK (JSON is already MMK since Phase 5).
+- `Product` type unchanged; cart store now ships rich `CartLine` snapshots from server.
+
+#### Fixed
+- Drizzle adapter type compatibility: switched user/account/session/address/cart/order PK and FK fields from `char(36)` to `varchar(36)`; snake_case columns on `accounts` table (`refresh_token`, `access_token`, etc.) to match adapter contract.
+- Seed double-conversion bug — Phase 5 had already converted JSON prices to MMK; Phase 6 seed no longer applies FX.
+
+#### Verified
+- 60+ routes build (3 static auth pages, 11+ dynamic API routes, all account pages).
+- Guest cart cookie persists across requests, cart_items rows created in MySQL.
+- Signup → verification token row inserted → manual SQL `email_verified` flip → user becomes sign-in-eligible.
+- Subtotal math correct: `2 × Ks 523,000 = Ks 1,046,000`.
+
+### [Unreleased] — Phase 7 (2026-06-16)
+
+#### Added
+- Schema: `reviews`, `wishlists`, `newsletter_subscribers`.
+- Reviews API `GET/POST /api/v1/products/[slug]/reviews` with zod validation, HTML stripping on body, auto verified-purchase tag (orders → order_items lookup), 5/day/user rate-limit, unique-per-user-product constraint.
+- `src/components/reviews/{stars,review-block}.tsx` — average rating + count, `Stars` (read + interactive), `ReviewBlock` + `ReviewForm` + `ReviewCard` mounted on PDP. Awaiting-moderation toast.
+- Wishlist APIs: `GET /api/v1/wishlist` (joined product details), `POST/DELETE /api/v1/wishlist/[productId]`, `POST /api/v1/wishlist/merge`.
+- `src/lib/wishlist-store.ts` — zustand store, guest uses localStorage, authed uses DB, merge-on-login via `WishlistHydrator` watching `useSession().status`.
+- `HeartButton` on PDP next to Add to cart (filled when saved, optimistic toggle).
+- `/account/wishlist` lists saved products via `ProductCard` grid.
+- Newsletter API `POST /api/v1/newsletter` persists to MySQL, rate-limit 5/hr/IP, re-activates if previously unsubscribed; `GET /api/v1/newsletter/unsubscribe?token=` flips status. Homepage newsletter form now writes to DB.
+- `output: 'standalone'` enabled in `next.config.ts` for Hostinger Passenger compatibility.
+- `docs/AUTH-SETUP.md` — SMTP (Hostinger Webmail) + Google OAuth + bank instructions step-by-step.
+- `docs/DEPLOY.md` — Hostinger Business deploy end-to-end (hPanel Node app, remote MySQL migrate, env vars, SSL, photo sync, Drizzle Studio SSH tunnel, backups, rolling updates, smoke checklist).
+- `CLAUDE.md` docs index updated with `AUTH-SETUP.md` + `DEPLOY.md`.
+
+#### Verified
+- 70+ routes build (16 dynamic API routes + account flow + reviews + wishlist + newsletter).
+- Typecheck + ESLint clean.
+- Schema migration `0001_unknown_stryfe.sql` applied (3 new tables).
+
+### [Unreleased] — Phase 8 (2026-06-16)
+
+#### Added
+- React Email templates in `emails/`: `verify-email.tsx`, `order-confirmation.tsx`, `low-stock-alert.tsx`. Warm-palette inline styles, PreviewProps for `react-email dev`.
+- `@react-email/components`, `@react-email/render`. `tsconfig.json` `@emails/*` path alias.
+- `src/lib/mail.ts` now accepts either `text/html` or `react`; renders to HTML + plaintext via `@react-email/render`.
+- Custom `/admin` section (admin-only via `users.role`):
+  - `src/app/admin/layout.tsx` role-gate + sub-nav; `page.tsx` KPI overview tiles.
+  - `/admin/products` inline-editable table (price MMK, stock, lowStockThreshold, isActive, featured, hasPhotos). Saves on blur. Calls `PATCH /api/v1/admin/products/[id]`, invalidates `products` cache tag.
+  - `/admin/orders` status dropdown per order.
+  - `/admin/reviews` filter + approve/reject (one click each).
+  - `/admin/newsletter` subscribers list + CSV export client-side blob.
+- Admin APIs: `PATCH /api/v1/admin/products/[id]`, `/admin/orders/[id]`, `/admin/reviews/[id]` with `requireAdmin()` guard + zod.
+- `src/lib/admin-guard.ts` server-side role check.
+- `/order/[id]` (visible only when status = `pending_payment`) shows bank-transfer instructions card with the order UUID as the reference; green "Payment received" panel when `paid`. Owner flips status from `/admin/orders/[id]`.
+- `docs/LIGHTHOUSE.md` — local + prod audit commands, per-route loop, score targets, LHCI snippet.
+- `docs/ADMIN.md` — admin promotion via SQL, admin UI feature map, bank-transfer payment flow, smoke checklist.
+- `CLAUDE.md` docs index lists both new docs.
+
+#### Verified
+- Typecheck + ESLint clean.
+- Build green: admin pages + admin API + bank-transfer order confirmation; React Email components compile.
+
+### [Unreleased] — Phase 4-7 plan locked (2026-06-15)
+
+#### Changed
+- Docs updated with full e-commerce scope: MySQL backend, Auth.js, photos pipeline, MMK currency, stock tracking, reviews, wishlist, newsletter, manual bank-transfer orders.
+- 6 new ADRs in `docs/TECH.md` covering MySQL/Drizzle, Drizzle Studio admin, Hostinger deploy, manual payments, Auth.js v5, filesystem photos.
+- `docs/SCHEMA.md` rewritten with full DB schema + API contract.
+- `docs/DESIGN.md` extended with stock badges, reviews UI, wishlist heart, MMK currency formatting, photo style guide.
+- `docs/PLAN.md` extended with Phase 4 / 5 / 6 / 7 task lists, milestones M4-M8, done criteria, risk table.
+- This file documents new env vars, local MySQL setup, photo conversion workflow, and Phase 5+ scripts.
+
+#### Changed
+- N/A (initial release).
+
+#### Fixed
+- N/A.
+
+#### Removed
+- N/A.

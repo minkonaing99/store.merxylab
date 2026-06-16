@@ -1,0 +1,518 @@
+[
+  {
+    "id": "hyperx-alloy-origins-core",
+    "slug": "hyperx-alloy-origins-core",
+    "name": "HyperX Alloy Origins Core",
+    "category": "keyboards",
+    "price": 361000,
+    "tagline": "Tenkeyless wired with tactile aqua switches.",
+    "description": "A compact aluminium-body TKL with HyperX Aqua tactile switches and per-key RGB. USB-C detachable cable, three adjustable tilt angles.",
+    "specs": [
+      {
+        "label": "Layout",
+        "value": "TKL (87 keys)"
+      },
+      {
+        "label": "Switches",
+        "value": "HyperX Aqua Tactile"
+      },
+      {
+        "label": "Lighting",
+        "value": "Per-key RGB"
+      },
+      {
+        "label": "Connection",
+        "value": "USB-C, detachable"
+      }
+    ],
+    "swatch": "#2A2622",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 12,
+    "lowStockThreshold": 3,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "keychron-k2-pro",
+    "slug": "keychron-k2-pro",
+    "name": "Keychron K2 Pro",
+    "category": "keyboards",
+    "price": 545000,
+    "tagline": "75% hot-swap with tri-mode wireless.",
+    "description": "Keychron's flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.",
+    "specs": [
+      {
+        "label": "Layout",
+        "value": "75% (84 keys)"
+      },
+      {
+        "label": "Switches",
+        "value": "Hot-swap, Brown or Red"
+      },
+      {
+        "label": "Connection",
+        "value": "BT 5.1 + 2.4G + USB-C"
+      },
+      {
+        "label": "Firmware",
+        "value": "QMK / VIA"
+      }
+    ],
+    "swatch": "#3D342A",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 9,
+    "lowStockThreshold": 3,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "nuphy-halo65",
+    "slug": "nuphy-halo65",
+    "name": "Nuphy Halo65",
+    "category": "keyboards",
+    "price": 515000,
+    "tagline": "65% gasket with halo side light.",
+    "description": "A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.",
+    "specs": [
+      {
+        "label": "Layout",
+        "value": "65% (68 keys)"
+      },
+      {
+        "label": "Mount",
+        "value": "Gasket"
+      },
+      {
+        "label": "Switches",
+        "value": "Hot-swap, Night Breeze / Rose Glacier"
+      },
+      {
+        "label": "Connection",
+        "value": "BT + 2.4G + USB-C"
+      }
+    ],
+    "swatch": "#2C2825",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 5,
+    "lowStockThreshold": 2,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "vxe-r1se-plus",
+    "slug": "vxe-r1se-plus",
+    "name": "VXE R1SE+",
+    "category": "mice",
+    "price": 125000,
+    "tagline": "55-gram tri-mode at entry-level money.",
+    "description": "PAW3395SE sensor, 55-gram shell, and tri-mode wireless. The cheapest way into a serious lightweight mouse.",
+    "specs": [
+      {
+        "label": "Sensor",
+        "value": "PixArt PAW3395SE"
+      },
+      {
+        "label": "Weight",
+        "value": "55 g"
+      },
+      {
+        "label": "Connection",
+        "value": "BT + 2.4G + USB-C"
+      },
+      {
+        "label": "Battery",
+        "value": "70 hours"
+      }
+    ],
+    "swatch": "#E8DCC8",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 11,
+    "lowStockThreshold": 3,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "logitech-g304",
+    "slug": "logitech-g304",
+    "name": "Logitech G304",
+    "category": "mice",
+    "price": 195000,
+    "tagline": "LIGHTSPEED wireless, 250-hour battery.",
+    "description": "The HERO sensor at its most accessible. LIGHTSPEED wireless, AA-powered for 250 hours, six programmable buttons.",
+    "specs": [
+      {
+        "label": "Sensor",
+        "value": "HERO 12K"
+      },
+      {
+        "label": "Connection",
+        "value": "LIGHTSPEED 2.4G"
+      },
+      {
+        "label": "Battery",
+        "value": "250 hours (AA)"
+      },
+      {
+        "label": "Buttons",
+        "value": "6 programmable"
+      }
+    ],
+    "swatch": "#262320",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 13,
+    "lowStockThreshold": 3,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "logitech-g-pro-x-superlight-2",
+    "slug": "logitech-g-pro-x-superlight-2",
+    "name": "Logitech G PRO X Superlight 2",
+    "category": "mice",
+    "price": 650000,
+    "tagline": "Sub-60g flagship. The pro pick.",
+    "description": "HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.",
+    "specs": [
+      {
+        "label": "Sensor",
+        "value": "HERO 2, 32000 DPI"
+      },
+      {
+        "label": "Weight",
+        "value": "< 60 g"
+      },
+      {
+        "label": "Connection",
+        "value": "LIGHTSPEED 2.4G + USB-C"
+      },
+      {
+        "label": "Battery",
+        "value": "95 hours"
+      }
+    ],
+    "swatch": "#1A1816",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 4,
+    "lowStockThreshold": 2,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "razer-kraken-x-essential",
+    "slug": "razer-kraken-x-essential",
+    "name": "Razer Kraken X Essential",
+    "category": "headsets",
+    "price": 169000,
+    "tagline": "Featherweight wired headset. Honest budget pick.",
+    "description": "230 grams on the head, 40 mm drivers, 7.1 surround over USB. A clean entry-level headset that gets out of the way.",
+    "specs": [
+      {
+        "label": "Drivers",
+        "value": "40 mm"
+      },
+      {
+        "label": "Surround",
+        "value": "7.1 (software)"
+      },
+      {
+        "label": "Weight",
+        "value": "230 g"
+      },
+      {
+        "label": "Connection",
+        "value": "3.5 mm"
+      }
+    ],
+    "swatch": "#1A1816",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 10,
+    "lowStockThreshold": 3,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "hyperx-cloud-iii-wired",
+    "slug": "hyperx-cloud-iii-wired",
+    "name": "HyperX Cloud III Wired",
+    "category": "headsets",
+    "price": 459000,
+    "tagline": "53mm drivers and DTS spatial.",
+    "description": "The Cloud lineage, refined. 53 mm angled drivers, DTS Headphone:X, detachable mic, USB-C and 3.5 mm out of the box.",
+    "specs": [
+      {
+        "label": "Drivers",
+        "value": "53 mm angled"
+      },
+      {
+        "label": "Audio",
+        "value": "DTS Headphone:X spatial"
+      },
+      {
+        "label": "Mic",
+        "value": "Detachable"
+      },
+      {
+        "label": "Connection",
+        "value": "USB-C / USB-A / 3.5 mm"
+      }
+    ],
+    "swatch": "#1F1C1A",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 6,
+    "lowStockThreshold": 2,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "hyperx-cloud-iii-wireless",
+    "slug": "hyperx-cloud-iii-wireless",
+    "name": "HyperX Cloud III Wireless",
+    "category": "headsets",
+    "price": 690000,
+    "tagline": "120-hour battery. DTS spatial.",
+    "description": "Cloud III over 2.4 GHz with 120-hour battery, DTS spatial audio, 53 mm angled drivers, detachable mic.",
+    "specs": [
+      {
+        "label": "Drivers",
+        "value": "53 mm angled"
+      },
+      {
+        "label": "Audio",
+        "value": "DTS Headphone:X spatial"
+      },
+      {
+        "label": "Battery",
+        "value": "120 hours"
+      },
+      {
+        "label": "Connection",
+        "value": "2.4G + USB-C"
+      }
+    ],
+    "swatch": "#2A2622",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 4,
+    "lowStockThreshold": 2,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "hyperx-solocast",
+    "slug": "hyperx-solocast",
+    "name": "HyperX SoloCast",
+    "category": "microphones",
+    "price": 289000,
+    "tagline": "Cardioid USB mic with tap-mute.",
+    "description": "A plug-and-play USB condenser. Cardioid pickup, tap-to-mute on top, 24-bit/96 kHz capture, adjustable stand.",
+    "specs": [
+      {
+        "label": "Pattern",
+        "value": "Cardioid"
+      },
+      {
+        "label": "Sample",
+        "value": "24-bit / 96 kHz"
+      },
+      {
+        "label": "Control",
+        "value": "Tap-to-mute, LED indicator"
+      },
+      {
+        "label": "Connection",
+        "value": "USB-C"
+      }
+    ],
+    "swatch": "#1C1A18",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 9,
+    "lowStockThreshold": 2,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "hyperx-quadcast-s",
+    "slug": "hyperx-quadcast-s",
+    "name": "HyperX QuadCast S",
+    "category": "microphones",
+    "price": 750000,
+    "tagline": "Four polar patterns. RGB shock-mount.",
+    "description": "The full-featured streamer mic. Four polar patterns, anti-vibration mount, headphone monitoring jack, 24-bit/96 kHz capture.",
+    "specs": [
+      {
+        "label": "Patterns",
+        "value": "Cardioid / Stereo / Omni / Bidirectional"
+      },
+      {
+        "label": "Sample",
+        "value": "24-bit / 96 kHz"
+      },
+      {
+        "label": "Features",
+        "value": "Tap-mute, headphone monitor, RGB"
+      },
+      {
+        "label": "Connection",
+        "value": "USB-C"
+      }
+    ],
+    "swatch": "#28231F",
+    "inStock": true,
+    "stockQty": 3,
+    "lowStockThreshold": 1,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "edifier-m230-retro-brown",
+    "slug": "edifier-m230-retro-brown",
+    "name": "Edifier M230 Retro Brown",
+    "category": "speakers",
+    "price": 320000,
+    "tagline": "20W desk speaker with BT 5.0.",
+    "description": "A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.",
+    "specs": [
+      {
+        "label": "Output",
+        "value": "20 W"
+      },
+      {
+        "label": "Connectivity",
+        "value": "BT 5.0 / AUX / USB-C / TF"
+      },
+      {
+        "label": "Battery",
+        "value": "10 hours"
+      },
+      {
+        "label": "Finish",
+        "value": "Retro Brown"
+      }
+    ],
+    "swatch": "#7A4F36",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 6,
+    "lowStockThreshold": 2,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "premium-deskmat",
+    "slug": "premium-deskmat",
+    "name": "Premium DeskMat",
+    "category": "accessories",
+    "price": 60600,
+    "tagline": "900x400, 4mm cloth, washable.",
+    "description": "A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.",
+    "specs": [
+      {
+        "label": "Size",
+        "value": "900 × 400 mm"
+      },
+      {
+        "label": "Thickness",
+        "value": "4 mm"
+      },
+      {
+        "label": "Surface",
+        "value": "Cloth, non-slip rubber base"
+      },
+      {
+        "label": "Care",
+        "value": "Machine washable"
+      }
+    ],
+    "swatch": "#4A3E33",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 16,
+    "lowStockThreshold": 4,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "mouse-wrist-rest",
+    "slug": "mouse-wrist-rest",
+    "name": "Mouse Wrist Rest",
+    "category": "accessories",
+    "price": 25000,
+    "tagline": "Ergonomic support for long days.",
+    "description": "A contoured wrist rest sized for mouse pads. Memory foam core, fabric top, anti-slip base.",
+    "specs": [
+      {
+        "label": "Core",
+        "value": "Memory foam"
+      },
+      {
+        "label": "Top",
+        "value": "Fabric"
+      },
+      {
+        "label": "Base",
+        "value": "Anti-slip"
+      }
+    ],
+    "swatch": "#3D342A",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 20,
+    "lowStockThreshold": 5,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  },
+  {
+    "id": "8in1-cleaning-kit",
+    "slug": "8in1-cleaning-kit",
+    "name": "8-in-1 Cleaning Kit",
+    "category": "accessories",
+    "price": 19500,
+    "tagline": "For keyboards, earbuds, phones, tablets.",
+    "description": "Eight tools in one kit: brush, swab, putty, microfiber, spray bottle, and key-pullers. Covers the full desk surface.",
+    "specs": [
+      {
+        "label": "Tools",
+        "value": "8 pieces"
+      },
+      {
+        "label": "Targets",
+        "value": "Keyboard / earbuds / phone / tablet"
+      },
+      {
+        "label": "Form",
+        "value": "Compact case"
+      }
+    ],
+    "swatch": "#5A4A3E",
+    "inStock": true,
+    "featured": true,
+    "stockQty": 18,
+    "lowStockThreshold": 4,
+    "createdAt": "2026-06-16T00:00:00Z",
+    "updatedAt": "2026-06-16T00:00:00Z",
+    "hasPhotos": true
+  }
+]
