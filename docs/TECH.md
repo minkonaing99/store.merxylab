@@ -326,7 +326,14 @@ merxylab-store/
 - **Admin CSV export leaking PII:** CSV is generated client-side from already-authorized server data (admin-only `/admin/newsletter` page). No public route exposes the dataset.
 
 ### Dependency audit process
-- Run `pnpm audit` weekly.
+- Run `npm audit` weekly (project is on npm, not pnpm — see ADR-09).
 - Renovate / Dependabot for automated PRs (set up post-MVP).
 - Pin major versions in `package.json`.
 - Review every new dep — prefer < 50KB, > 1k weekly downloads, recent maintenance.
+- Use `package.json` `overrides` to force-patch transitive vulns when upstream lag exists (currently: `esbuild ^0.28.1` for drizzle-kit nested @esbuild-kit; `next > postcss ^8.5.10` for next's bundled postcss). Re-evaluate on next upstream major bump.
+- Last audit: 2026-06-17 — **0 vulnerabilities**. History: 9 → 0 after `next-auth` beta.25 → beta.31, `eslint` 9.17 → 9.39.4, and the overrides above.
+
+### Content Security Policy
+- CSP header set in `next.config.mjs` for all routes.
+- Production drops `'unsafe-eval'` from `script-src`; dev retains it for HMR/React Refresh (gated on `process.env.NODE_ENV === 'production'`).
+- `'unsafe-inline'` still permitted on `script-src` + `style-src` pending nonce middleware. Tightening to nonce-based CSP is a deferred follow-up — requires a `middleware.ts` that issues a per-request nonce and threads it through `<Script nonce={...} />` / `<style nonce={...}>` plus Next's internal injections.

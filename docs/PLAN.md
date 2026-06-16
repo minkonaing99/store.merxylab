@@ -276,6 +276,10 @@ Tasks:
 - [x] Phase 10.9 — `<Tile>` got a `useThumb` prop (defaults true for grid contexts). Hero + PDP swatch-only fallback opt in to `useThumb={false}`. PDP gallery thumb strip switched to `0X-thumb.webp`.
 - [x] Phase 10.10 — Docs synced: PRD owner stories, TECH ADR, SCHEMA endpoint table, DESIGN component sketches, ADMIN runbook, PLAN this section, SETUP changelog. `docs/PAYMENT.md` already covered QR-optional + KBZ Bank. `docs/db-bootstrap.sql` updated to include `kbz_bank`.
 
+### Phase 10.x patches — Refactor + security (shipped to testing 2026-06-17)
+- [x] `refactor-clean` pass — deleted unused `scripts/dump-sql.ts`; unexported `EMAIL_REGEX` + `PHONE_REGEX` in `src/lib/validators.ts` (used only internally). Commit `cb87598`.
+- [x] Security audit + patches — npm audit 9 → 0. Bumped `next-auth` beta.25 → beta.31, `eslint` 9.17 → 9.39.4. Added `package.json` overrides for `esbuild ^0.28.1` and `next > postcss ^8.5.10`. Tightened production CSP to drop `'unsafe-eval'` from `script-src`. Commit `51244ff`.
+
 ### Backlog
 - [ ] Hostinger deploy (follow `docs/DEPLOY.md` once domain + DB credentials ready)
 - [ ] Configure SMTP + Google OAuth env (`docs/AUTH-SETUP.md`)

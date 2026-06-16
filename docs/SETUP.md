@@ -184,6 +184,23 @@ pnpm test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.13.2] — 2026-06-17 (shipped to testing)
+- Security audit: patched all outstanding HIGH/MEDIUM npm-audit findings. `npm audit` now reports **0 vulnerabilities** (was 9: 2 high, 5 moderate, 2 low).
+- `package.json` deps:
+  - `next-auth` `5.0.0-beta.25` → `5.0.0-beta.31` (closes `GHSA-5jpx-9hw9-2fx4` email misdelivery).
+  - `eslint` `9.17.0` → `9.39.4` (closes `GHSA-xffm-g5w8-qvg7` plugin-kit ReDoS).
+- `package.json` overrides:
+  - `esbuild: ^0.28.1` forces drizzle-kit's nested `@esbuild-kit/core-utils` off vulnerable esbuild (`GHSA-gv7w-rqvm-qjhr` RCE via NPM_CONFIG_REGISTRY + `GHSA-67mh-4wv8-2f99` dev-server SSRF). Dev-only path, but cleaned up.
+  - `next > postcss: ^8.5.10` forces next's bundled postcss off `GHSA-qx2v-qp2m-jg93` CSS stringify XSS.
+- `next.config.mjs` CSP tightened: production `script-src` drops `'unsafe-eval'`. Dev keeps `'unsafe-eval'` for HMR/React Refresh. `'unsafe-inline'` still present pending nonce middleware (deferred).
+- typecheck ✅, build ✅. Held with Phase 10 — production push pending owner smoke-test.
+
+### [0.13.1] — 2026-06-17 (shipped to testing)
+- `refactor-clean` pass:
+  - Deleted unused `scripts/dump-sql.ts` (docs/db-bootstrap.sql already shipped).
+  - Unexported `EMAIL_REGEX` + `PHONE_REGEX` in `src/lib/validators.ts` — used only internally by `isEmail`/`isMyanmarPhone`.
+- knip + depcheck residuals reviewed; remaining hits are false positives (Tailwind v4 PostCSS pipeline, React 19 types, Next lint deps, tsconfig path alias `@emails/*`, React Email default exports kept by convention).
+
 ### [0.13.0] — 2026-06-17 (shipped to testing)
 - Phase 10 implemented and pushed to `testing` + `main` at `6bb7623`. Production held until owner smoke-tests.
 - New endpoints: `POST /api/v1/admin/products`, extended `PATCH /api/v1/admin/products/[id]` with specs REPLACE, `POST` and `DELETE /api/v1/admin/products/[id]/photos/[slot]`. `sharp` dual-resize per upload: 1600×1600 hero + 600×600 thumb, EXIF stripped. Rate-limit 30/hr/admin on photo uploads.
