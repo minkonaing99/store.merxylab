@@ -227,10 +227,13 @@ merxylab-store/
 **Consequences:** v5 still beta — pinned version, all flows E2E tested. Password reset uses time-limited tokens via verification_tokens table.
 
 ### [2026-06-15] Photos on filesystem, not S3 (yet)
-**Status:** Accepted
-**Context:** Hostinger Business has disk space. Adding S3 = extra vendor.
-**Decision:** Photos live in `public/products/{slug}/{01-04}.webp`. Build-time script populates `products.has_photos`. Gallery hides missing slots.
-**Consequences:** Disk-bound. Lift to R2 / S3 later by rewriting Tile/Gallery URL source — folder convention is already lift-compatible (`s3://bucket/products/{slug}/01.webp`).
+**Status:** Accepted (reaffirmed 2026-06-17)
+**Context:** Hostinger Business has 200 GB NVMe persistent disk. Adding S3 / R2 = extra vendor + new failure modes (token rotation, signed URLs, edge cache invalidation).
+**Decision:** Photos live in `public/products/{slug}/{01-04}.webp` + thumbs. Payment-method QRs in `public/payment-qr/{methodId}.webp`. Customer slips in `<repo>/private-uploads/slips/{orderId}/{uuid}.webp` (NOT public — served via authed route). Build-time script populates `products.has_photos`. Gallery hides missing slots.
+**Consequences:**
+- Disk-bound and origin-bound. No edge cache; viewers in Myanmar eat ~60–100 ms RTT to Hostinger SG per uncached image. Mitigated by `Cache-Control: public, max-age=31536000, immutable` on `/products/*` (cache-busted by admin via `?v=`) + 30-day cache on `/payment-qr/*`.
+- Lift to R2 / S3 later by rewriting `PHOTO_BASE` source + the slip-streaming route's `readFile` to `GetObject` — folder convention is already lift-compatible (`s3://bucket/products/{slug}/01.webp`).
+- **Triggers to revisit:** (a) real-user perf complaints from Myanmar viewers, (b) disk > 5 GB, (c) compliance-grade slip retention (e.g. 7-year audit), (d) multi-region deploy, (e) Easy Deploy ever fails to preserve `public/*` / `private-uploads/*`.
 
 ### [2026-06-16] Custom `/admin` UI alongside Drizzle Studio
 **Status:** Accepted (supersedes earlier ADR "Drizzle Studio as admin UI, no custom /admin")
@@ -319,7 +322,7 @@ merxylab-store/
 - **Email injection:** all email headers via nodemailer's typed API, never string-concatenated. React Email renders auto-escape interpolated values.
 - **Bank-ref forgery:** order ID is server-generated UUID, used as the payment reference; can't be forged client-side.
 - **Order status tampering:** only the owner (admin role, server-checked) can flip `status` from `pending_payment` to `paid`/`confirmed`/`shipped`/`delivered`. Customer-side API exposes only slip upload (→ `payment_submitted`) and self-cancel (→ `cancelled`, allowed only while `pending_payment`). Server-enforced state machine rejects illegal transitions.
-- **Slip upload abuse:** rate-limit 10/hour/user. File magic-byte sniffed (`image/jpeg`, `image/png`, `image/webp` only — no SVG, no PDF, no HEIC). Server-side resize via `sharp` strips EXIF + caps at 1600×1600. Stored under `public/slips/<orderId>/` where folder name is the server-generated UUID — no user-controlled paths. Customer can re-upload only while status is `pending_payment` or `payment_submitted`; replacement deletes prior file.
+- **Slip upload abuse:** rate-limit 10/hour/user. File magic-byte sniffed (`image/jpeg`, `image/png`, `image/webp` only — no SVG, no PDF, no HEIC). Server-side resize via `sharp` strips EXIF + caps at 1600×1600. Stored under `<repo>/private-uploads/slips/<orderId>/` (NOT under `public/`) where folder name is the server-generated UUID — no user-controlled paths. `orders.payment_proof_url` stores only the basename (`<uuid>.webp`). Slips served exclusively via `GET /api/v1/orders/[id]/slip`, which auth-checks (`order.userId === session.user.id` OR `role === 'admin'`) on every read and responds with `Cache-Control: private, no-store`. Customer can re-upload only while status is `pending_payment` or `payment_submitted`; replacement deletes prior file.
 - **Auto-cancel race:** auto-cancel cron updates `status = 'cancelled'` and increments `stockQty` only when current `status = 'pending_payment'` (conditional UPDATE). Concurrent slip upload that flipped to `payment_submitted` first wins; cron skips that row.
 - **Stock oversell:** order creation runs in a transaction that decrements `stockQty` with a `stockQty >= qty` guard and rolls back if any item goes below 0.
 - **Photo path traversal:** photo paths constructed only from `slug` field (regex `^[a-z0-9-]+$`); never from user input.

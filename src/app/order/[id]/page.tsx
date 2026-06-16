@@ -85,7 +85,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           </p>
           {order.paymentProofUrl && (
             <img
-              src={order.paymentProofUrl}
+              src={`/api/v1/orders/${order.id}/slip`}
               alt="Submitted slip"
               className="mt-4 max-h-64 rounded-[var(--radius)] border border-line"
             />

@@ -52,7 +52,18 @@ const nextConfig = {
   poweredByHeader: false,
   output: 'standalone',
   async headers() {
-    return [{ source: '/(.*)', headers: SECURITY_HEADERS }]
+    // Photo slots are content-identified by (slug, slot); the admin UI cache-busts
+    // with `?v=Date.now()` on replace, so long-lived immutable caching is safe.
+    const productPhotoCache = [
+      { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+    ]
+    // QR codes change rarely and are cache-busted by methodId; 30-day cache.
+    const qrCache = [{ key: 'Cache-Control', value: 'public, max-age=2592000' }]
+    return [
+      { source: '/(.*)', headers: SECURITY_HEADERS },
+      { source: '/products/:path*', headers: productPhotoCache },
+      { source: '/payment-qr/:path*', headers: qrCache },
+    ]
   },
   webpack: (config) => {
     config.resolve = config.resolve ?? {}

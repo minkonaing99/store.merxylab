@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile, unlink } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, writeFile, unlink, readFile } from 'node:fs/promises'
 import { and, eq } from 'drizzle-orm'
 import sharp from 'sharp'
 import { db } from '@/db'
@@ -12,6 +11,7 @@ import { sendMail } from '@/lib/mail'
 import { sendTelegram } from '@/lib/telegram'
 import { formatMmk } from '@/lib/money'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
+import { slipBasenameFrom, slipDir, slipPath } from '@/lib/slip-storage'
 import { SlipReceived } from '@emails/slip-received'
 import { SlipSubmittedAlert } from '@emails/slip-submitted-alert'
 
@@ -90,25 +90,21 @@ export async function POST(
   }
 
   const fileName = `${randomUUID()}.webp`
-  const dir = join(process.cwd(), 'public', 'slips', id)
+  const dir = slipDir(id)
   await mkdir(dir, { recursive: true })
 
-  if (order.paymentProofUrl) {
-    const existing = order.paymentProofUrl.split('/').pop()
-    if (existing) {
-      await unlink(join(dir, existing)).catch(() => {})
-    }
+  const prior = slipBasenameFrom(order.paymentProofUrl)
+  if (prior) {
+    await unlink(slipPath(id, prior)).catch(() => {})
   }
 
-  await writeFile(join(dir, fileName), processed)
-
-  const publicUrl = `/slips/${id}/${fileName}`
+  await writeFile(slipPath(id, fileName), processed)
 
   await db
     .update(orders)
     .set({
       status: 'payment_submitted',
-      paymentProofUrl: publicUrl,
+      paymentProofUrl: fileName,
       paymentTxRef: typeof txRef === 'string' && txRef ? txRef.slice(0, 120) : null,
     })
     .where(eq(orders.id, id))
@@ -134,5 +130,39 @@ export async function POST(
     `💳 Slip submitted for ${id.slice(0, 8)}\nMethod: ${method?.name ?? order.paymentMethodId}\nTotal: ${formatMmk(Number(order.totalMmk))}`,
   )
 
-  return NextResponse.json({ data: { ok: true, paymentProofUrl: publicUrl }, error: null })
+  return NextResponse.json({ data: { ok: true }, error: null })
+}
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const session = await auth()
+  if (!session?.user?.id) return jsonError('UNAUTHENTICATED', 'Sign in required.', 401)
+
+  const { id } = await params
+  if (!UUID_RE.test(id)) return jsonError('VALIDATION_ERROR', 'Invalid id.', 400)
+
+  const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
+  if (!order) return jsonError('NOT_FOUND', 'Order not found.', 404)
+
+  const isOwner = order.userId === session.user.id
+  const isAdmin = session.user.role === 'admin'
+  if (!isOwner && !isAdmin) return jsonError('FORBIDDEN', 'Not your order.', 403)
+
+  const basename = slipBasenameFrom(order.paymentProofUrl)
+  if (!basename) return jsonError('NOT_FOUND', 'No slip on this order.', 404)
+
+  const bytes = await readFile(slipPath(id, basename)).catch(() => null)
+  if (!bytes) return jsonError('NOT_FOUND', 'Slip file missing.', 404)
+
+  return new NextResponse(new Uint8Array(bytes), {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/webp',
+      'Content-Length': String(bytes.byteLength),
+      'Cache-Control': 'private, no-store',
+      'Content-Disposition': `inline; filename="${basename}"`,
+    },
+  })
 }

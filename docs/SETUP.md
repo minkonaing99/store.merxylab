@@ -184,6 +184,14 @@ pnpm test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.13.3] — 2026-06-17 (shipped to testing)
+- Disk-only hardening pass (no R2 yet — see TECH.md decision).
+- **Slips moved out of `public/`.** New storage path: `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (gitignored). `orders.payment_proof_url` now stores the bare basename, not a path. Existing rows with legacy `/slips/<id>/<uuid>.webp` values still resolve via `slipBasenameFrom()` which strips to basename.
+- New route: `GET /api/v1/orders/[id]/slip` — auth-gated (order owner OR admin), reads from `private-uploads/`, streams `image/webp` with `Cache-Control: private, no-store`. Replaces the static `/slips/...` URL that previously lived under `public/`.
+- `src/lib/slip-storage.ts` centralises slip path resolution + basename validation.
+- `next.config.mjs` adds long-lived cache headers: `/products/:path*` → `public, max-age=31536000, immutable` (admin UI cache-busts on replace via `?v=`), `/payment-qr/:path*` → `public, max-age=2592000` (30d). Single biggest perf win without a CDN.
+- `src/app/order/[id]/page.tsx` slip render now points at the streaming route, not the public path.
+
 ### [0.13.2] — 2026-06-17 (shipped to testing)
 - Security audit: patched all outstanding HIGH/MEDIUM npm-audit findings. `npm audit` now reports **0 vulnerabilities** (was 9: 2 high, 5 moderate, 2 low).
 - `package.json` deps:

@@ -48,3 +48,6 @@ CLAUDE.md
 # Runtime user uploads (owner-managed via admin UI)
 public/slips/
 public/payment-qr/
+
+# Private uploads (slips). Never under public/ — served via authed route only.
+private-uploads/
