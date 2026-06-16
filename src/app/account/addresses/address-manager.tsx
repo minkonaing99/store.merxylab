@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { SelectField, TextField } from '@/components/ui/field'
+import { isMyanmarPhone, required } from '@/lib/validators'
 
 interface AddressForm {
   id?: string
@@ -40,17 +42,70 @@ interface ManagerProps {
   divisions: DivisionLite[]
 }
 
+type FieldKey = 'label' | 'recipient' | 'phone' | 'divisionId' | 'city' | 'township' | 'street'
+type Errors = Partial<Record<FieldKey, string>>
+type Touched = Partial<Record<FieldKey, boolean>>
+
 export function AddressManager({ initial, divisions }: ManagerProps) {
   const router = useRouter()
   const [form, setForm] = useState<AddressForm>(EMPTY)
+  const [errors, setErrors] = useState<Errors>({})
+  const [touched, setTouched] = useState<Touched>({})
   const [saving, setSaving] = useState(false)
 
   function set<K extends keyof AddressForm>(key: K, val: AddressForm[K]) {
     setForm((f) => ({ ...f, [key]: val }))
   }
 
+  function validate(values: AddressForm): Errors {
+    const next: Errors = {}
+    const label = required(values.label, 'Label')
+    if (label) next.label = label
+    const recipient = required(values.recipient, 'Recipient name')
+    if (recipient) next.recipient = recipient
+    const phone = required(values.phone, 'Phone')
+    if (phone) next.phone = phone
+    else if (!isMyanmarPhone(values.phone)) {
+      next.phone = 'Use +959 followed by 7–9 digits.'
+    }
+    const division = required(values.divisionId, 'Division')
+    if (division) next.divisionId = 'Choose a division.'
+    const city = required(values.city, 'City')
+    if (city) next.city = city
+    const township = required(values.township, 'Township')
+    if (township) next.township = township
+    const street = required(values.street, 'Street')
+    if (street) next.street = street
+    return next
+  }
+
+  function markTouched(field: FieldKey) {
+    setTouched((t) => ({ ...t, [field]: true }))
+    setErrors(validate(form))
+  }
+
+  function liveError(field: FieldKey): string | null {
+    if (!touched[field]) return null
+    return errors[field] ?? null
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault()
+    const v = validate(form)
+    setErrors(v)
+    setTouched({
+      label: true,
+      recipient: true,
+      phone: true,
+      divisionId: true,
+      city: true,
+      township: true,
+      street: true,
+    })
+    if (Object.keys(v).length > 0) {
+      toast('Fix the highlighted fields.')
+      return
+    }
     setSaving(true)
     const res = await fetch('/api/v1/addresses', {
       method: 'POST',
@@ -68,6 +123,8 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
     }
     toast('Address saved.')
     setForm(EMPTY)
+    setErrors({})
+    setTouched({})
     router.refresh()
   }
 
@@ -123,51 +180,100 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
 
       <section>
         <h3 className="font-display text-[20px]">Add address</h3>
-        <form onSubmit={save} className="mt-4 grid gap-3 md:grid-cols-2">
-          <Field label="Label" value={form.label} onChange={(v) => set('label', v)} required />
-          <Field
+        <form onSubmit={save} noValidate className="mt-4 grid gap-3 md:grid-cols-2">
+          <TextField
+            label="Label"
+            required
+            value={form.label}
+            onChange={(v) => {
+              set('label', v)
+              if (touched.label) setErrors(validate({ ...form, label: v }))
+            }}
+            onBlur={() => markTouched('label')}
+            error={liveError('label')}
+          />
+          <TextField
             label="Recipient name"
+            required
+            autoComplete="name"
             value={form.recipient}
-            onChange={(v) => set('recipient', v)}
-            required
+            onChange={(v) => {
+              set('recipient', v)
+              if (touched.recipient) setErrors(validate({ ...form, recipient: v }))
+            }}
+            onBlur={() => markTouched('recipient')}
+            error={liveError('recipient')}
           />
-          <Field
-            label="Phone (+959XXXXXXXXX)"
+          <TextField
+            label="Phone"
+            required
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="+9591234567"
+            helper="Format: +959 followed by 7–9 digits."
             value={form.phone}
-            onChange={(v) => set('phone', v)}
-            required
+            onChange={(v) => {
+              set('phone', v)
+              if (touched.phone) setErrors(validate({ ...form, phone: v }))
+            }}
+            onBlur={() => markTouched('phone')}
+            error={liveError('phone')}
           />
-          <label className="block">
-            <span className="text-[12px] text-muted">Division</span>
-            <select
-              value={form.divisionId}
-              onChange={(e) => set('divisionId', e.target.value)}
-              required
-              className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-ink/40"
-            >
-              <option value="">Choose a division</option>
-              {divisions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field label="City" value={form.city} onChange={(v) => set('city', v)} required />
-          <Field
+          <SelectField
+            label="Division"
+            required
+            value={form.divisionId}
+            onChange={(v) => {
+              set('divisionId', v)
+              if (touched.divisionId) setErrors(validate({ ...form, divisionId: v }))
+            }}
+            onBlur={() => markTouched('divisionId')}
+            error={liveError('divisionId')}
+          >
+            <option value="">Choose a division</option>
+            {divisions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </SelectField>
+          <TextField
+            label="City"
+            required
+            autoComplete="address-level2"
+            value={form.city}
+            onChange={(v) => {
+              set('city', v)
+              if (touched.city) setErrors(validate({ ...form, city: v }))
+            }}
+            onBlur={() => markTouched('city')}
+            error={liveError('city')}
+          />
+          <TextField
             label="Township"
-            value={form.township}
-            onChange={(v) => set('township', v)}
             required
+            value={form.township}
+            onChange={(v) => {
+              set('township', v)
+              if (touched.township) setErrors(validate({ ...form, township: v }))
+            }}
+            onBlur={() => markTouched('township')}
+            error={liveError('township')}
           />
-          <Field
+          <TextField
             className="md:col-span-2"
             label="Street + house no."
-            value={form.street}
-            onChange={(v) => set('street', v)}
             required
+            autoComplete="street-address"
+            value={form.street}
+            onChange={(v) => {
+              set('street', v)
+              if (touched.street) setErrors(validate({ ...form, street: v }))
+            }}
+            onBlur={() => markTouched('street')}
+            error={liveError('street')}
           />
-          <Field
+          <TextField
             className="md:col-span-2"
             label="Landmark (optional)"
             value={form.landmark}
@@ -191,28 +297,5 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
         </form>
       </section>
     </div>
-  )
-}
-
-interface FieldProps {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  required?: boolean
-  className?: string
-}
-
-function Field({ label, value, onChange, required, className }: FieldProps) {
-  return (
-    <label className={`block ${className ?? ''}`}>
-      <span className="text-[12px] text-muted">{label}</span>
-      <input
-        type="text"
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-ink/40"
-      />
-    </label>
   )
 }

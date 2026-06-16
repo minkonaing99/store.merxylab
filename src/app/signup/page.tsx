@@ -3,16 +3,59 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { TextField } from '@/components/ui/field'
+import { checkPassword, isEmail, maxLen, required } from '@/lib/validators'
+
+interface FieldErrors {
+  name?: string
+  email?: string
+  password?: string
+}
 
 export default function SignupPage() {
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [touched, setTouched] = useState<{ name: boolean; email: boolean; password: boolean }>({
+    name: false,
+    email: false,
+    password: false,
+  })
+
+  function validate(): FieldErrors {
+    const next: FieldErrors = {}
+    if (name) {
+      const m = maxLen(name, 120, 'Name')
+      if (m) next.name = m
+    }
+    const emailReq = required(email, 'Email')
+    if (emailReq) next.email = emailReq
+    else if (!isEmail(email)) next.email = 'Enter a valid email address.'
+
+    const pwReq = required(password, 'Password')
+    if (pwReq) next.password = pwReq
+    else {
+      const c = checkPassword(password)
+      if (!c.ok && c.reason) next.password = c.reason
+    }
+    return next
+  }
+
+  function markTouched(field: keyof FieldErrors) {
+    setTouched((t) => ({ ...t, [field]: true }))
+    setErrors(validate())
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const v = validate()
+    setErrors(v)
+    setTouched({ name: true, email: true, password: true })
+    if (Object.keys(v).length > 0) return
+
     setLoading(true)
     const res = await fetch('/api/v1/auth/signup', {
       method: 'POST',
@@ -55,39 +98,46 @@ export default function SignupPage() {
         Save addresses, track orders, keep a wishlist.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-        <label className="block">
-          <span className="text-[13px] text-muted">Name (optional)</span>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-4 py-3 text-[15px] focus:outline-none focus:border-ink/40"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[13px] text-muted">Email</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-4 py-3 text-[15px] focus:outline-none focus:border-ink/40"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[13px] text-muted">
-            Password (≥10 chars, mixed case + digit)
-          </span>
-          <input
-            type="password"
-            required
-            minLength={10}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-4 py-3 text-[15px] focus:outline-none focus:border-ink/40"
-          />
-        </label>
+      <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
+        <TextField
+          label="Name (optional)"
+          type="text"
+          autoComplete="name"
+          value={name}
+          onChange={(v) => {
+            setName(v)
+            if (touched.name) setErrors(validate())
+          }}
+          onBlur={() => markTouched('name')}
+          error={touched.name ? errors.name : null}
+        />
+        <TextField
+          label="Email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(v) => {
+            setEmail(v)
+            if (touched.email) setErrors(validate())
+          }}
+          onBlur={() => markTouched('email')}
+          error={touched.email ? errors.email : null}
+        />
+        <TextField
+          label="Password"
+          type="password"
+          autoComplete="new-password"
+          required
+          value={password}
+          onChange={(v) => {
+            setPassword(v)
+            if (touched.password) setErrors(validate())
+          }}
+          onBlur={() => markTouched('password')}
+          helper="At least 10 characters with upper, lower, and a digit."
+          error={touched.password ? errors.password : null}
+        />
         <button
           type="submit"
           disabled={loading}

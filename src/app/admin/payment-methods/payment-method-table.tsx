@@ -32,7 +32,24 @@ export function PaymentMethodTable({ initial }: { initial: Row[] }) {
     if (!res.ok) toast('Save failed.')
   }
 
+  const [uploading, setUploading] = useState<Record<string, boolean>>({})
+  const [uploadError, setUploadError] = useState<Record<string, string>>({})
+
   async function uploadQr(id: string, file: File) {
+    setUploadError((m) => ({ ...m, [id]: '' }))
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      const msg = 'Use JPG, PNG, or WEBP.'
+      setUploadError((m) => ({ ...m, [id]: msg }))
+      toast(msg)
+      return
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      const msg = 'File over 4 MB. Compress before uploading.'
+      setUploadError((m) => ({ ...m, [id]: msg }))
+      toast(msg)
+      return
+    }
+    setUploading((m) => ({ ...m, [id]: true }))
     const form = new FormData()
     form.append('methodId', id)
     form.append('qr', file)
@@ -40,9 +57,12 @@ export function PaymentMethodTable({ initial }: { initial: Row[] }) {
       method: 'POST',
       body: form,
     })
+    setUploading((m) => ({ ...m, [id]: false }))
     const json = await res.json().catch(() => null)
     if (!res.ok) {
-      toast(json?.error?.message ?? 'Upload failed.')
+      const msg = json?.error?.message ?? `Upload failed (HTTP ${res.status}).`
+      setUploadError((m) => ({ ...m, [id]: msg }))
+      toast(msg)
       return
     }
     update(id, { qrImageUrl: json.data.qrImageUrl })
@@ -83,18 +103,33 @@ export function PaymentMethodTable({ initial }: { initial: Row[] }) {
                 ) : (
                   <div className="aspect-square w-[160px] rounded border border-line bg-cream" />
                 )}
-                <label className="mt-2 block text-[12px] text-muted">
-                  Upload QR
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) void uploadQr(r.id, file)
-                    }}
-                    className="mt-1 block w-full text-[12px]"
-                  />
-                </label>
+                <div className="mt-2">
+                  <label className="block text-[12px] text-muted">
+                    Upload QR
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={Boolean(uploading[r.id])}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) void uploadQr(r.id, file)
+                        e.target.value = ''
+                      }}
+                      className="mt-1 block w-full text-[12px] file:mr-2 file:rounded-[var(--radius-pill)] file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-[11px] file:font-medium file:text-cream file:transition-colors hover:file:bg-accent disabled:opacity-60"
+                    />
+                  </label>
+                  <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                    JPG, PNG, or WEBP · max 4&nbsp;MB · square works best.
+                    <br />
+                    Server auto-resizes to 600&times;600.
+                  </p>
+                  {uploading[r.id] && (
+                    <p className="mt-1 text-[11px] text-accent">Uploading…</p>
+                  )}
+                  {uploadError[r.id] && (
+                    <p className="mt-1 text-[11px] text-error">{uploadError[r.id]}</p>
+                  )}
+                </div>
               </div>
               <div className="grid gap-3">
                 <Field

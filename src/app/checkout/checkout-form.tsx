@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatMmk } from '@/lib/money'
+import { SelectField, TextField, TextAreaField } from '@/components/ui/field'
+import { isMyanmarPhone, required } from '@/lib/validators'
 import type { CartLine } from '@/lib/cart-session'
 
 const COD_CAP_MMK = 500_000
-const PHONE_REGEX = /^\+959\d{7,9}$/
 
 interface AddressLite {
   id: string
@@ -57,7 +58,7 @@ interface AddressDraft {
 const EMPTY_DRAFT: AddressDraft = {
   label: 'Home',
   recipient: '',
-  phone: '+959',
+  phone: '+9591',
   divisionId: '',
   city: '',
   township: '',
@@ -67,6 +68,35 @@ const EMPTY_DRAFT: AddressDraft = {
 }
 
 type Step = 'delivery' | 'payment' | 'review'
+type DraftFieldKey =
+  | 'label'
+  | 'recipient'
+  | 'phone'
+  | 'divisionId'
+  | 'city'
+  | 'township'
+  | 'street'
+type DraftErrors = Partial<Record<DraftFieldKey, string>>
+type DraftTouched = Partial<Record<DraftFieldKey, boolean>>
+
+function validateDraft(d: AddressDraft): DraftErrors {
+  const next: DraftErrors = {}
+  const label = required(d.label, 'Label')
+  if (label) next.label = label
+  const recipient = required(d.recipient, 'Recipient name')
+  if (recipient) next.recipient = recipient
+  const phone = required(d.phone, 'Phone')
+  if (phone) next.phone = phone
+  else if (!isMyanmarPhone(d.phone)) next.phone = 'Use +959 followed by 7–9 digits.'
+  if (!d.divisionId) next.divisionId = 'Choose a division.'
+  const city = required(d.city, 'City')
+  if (city) next.city = city
+  const township = required(d.township, 'Township')
+  if (township) next.township = township
+  const street = required(d.street, 'Street')
+  if (street) next.street = street
+  return next
+}
 
 export function CheckoutForm({
   addresses,
@@ -81,8 +111,11 @@ export function CheckoutForm({
   const [useNewAddress, setUseNewAddress] = useState(addresses.length === 0)
   const [selectedAddressId, setSelectedAddressId] = useState(addresses[0]?.id ?? '')
   const [draft, setDraft] = useState<AddressDraft>(EMPTY_DRAFT)
+  const [draftErrors, setDraftErrors] = useState<DraftErrors>({})
+  const [draftTouched, setDraftTouched] = useState<DraftTouched>({})
 
   const [paymentMethodId, setPaymentMethodId] = useState<string>('')
+  const [paymentTouched, setPaymentTouched] = useState(false)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -93,28 +126,64 @@ export function CheckoutForm({
   const deliveryFee = division?.deliveryFeeMmk ?? 0
   const total = subtotal + deliveryFee
 
-  const codEligible =
-    Boolean(division?.codAllowed) && total <= COD_CAP_MMK
+  const codEligible = Boolean(division?.codAllowed) && total <= COD_CAP_MMK
   const visibleMethods = useMemo(
     () => methods.filter((m) => (m.kind === 'cod' ? codEligible : true)),
     [methods, codEligible],
   )
 
-  function setField<K extends keyof AddressDraft>(key: K, val: AddressDraft[K]) {
-    setDraft((d) => ({ ...d, [key]: val }))
-  }
-
-  function deliveryValid(): boolean {
-    if (!useNewAddress) return Boolean(selectedAddressId)
-    if (!PHONE_REGEX.test(draft.phone)) return false
-    if (!draft.recipient || !draft.divisionId || !draft.city || !draft.township || !draft.street) {
-      return false
+  function setDraftField<K extends keyof AddressDraft>(key: K, val: AddressDraft[K]) {
+    const next: AddressDraft = { ...draft, [key]: val }
+    setDraft(next)
+    if (key in draftTouched && draftTouched[key as DraftFieldKey]) {
+      setDraftErrors(validateDraft(next))
     }
-    return true
   }
 
-  function paymentValid(): boolean {
-    return Boolean(paymentMethodId)
+  function markDraftTouched(field: DraftFieldKey) {
+    setDraftTouched((t) => ({ ...t, [field]: true }))
+    setDraftErrors(validateDraft(draft))
+  }
+
+  function liveDraftError(field: DraftFieldKey): string | null {
+    if (!draftTouched[field]) return null
+    return draftErrors[field] ?? null
+  }
+
+  function attemptContinueDelivery() {
+    if (!useNewAddress) {
+      if (!selectedAddressId) {
+        toast('Choose a saved address or add a new one.')
+        return
+      }
+      setStep('payment')
+      return
+    }
+    const v = validateDraft(draft)
+    setDraftErrors(v)
+    setDraftTouched({
+      label: true,
+      recipient: true,
+      phone: true,
+      divisionId: true,
+      city: true,
+      township: true,
+      street: true,
+    })
+    if (Object.keys(v).length > 0) {
+      toast('Fix the highlighted fields.')
+      return
+    }
+    setStep('payment')
+  }
+
+  function attemptContinuePayment() {
+    setPaymentTouched(true)
+    if (!paymentMethodId) {
+      toast('Pick a payment method.')
+      return
+    }
+    setStep('review')
   }
 
   async function placeOrder() {
@@ -166,14 +235,10 @@ export function CheckoutForm({
             selectedAddressId={selectedAddressId}
             setSelectedAddressId={setSelectedAddressId}
             draft={draft}
-            setField={setField}
-            onContinue={() => {
-              if (!deliveryValid()) {
-                toast('Complete every required delivery field.')
-                return
-              }
-              setStep('payment')
-            }}
+            setField={setDraftField}
+            liveError={liveDraftError}
+            markTouched={markDraftTouched}
+            onContinue={attemptContinueDelivery}
           />
         ) : (
           <SummaryLine
@@ -201,16 +266,14 @@ export function CheckoutForm({
           <PaymentSection
             methods={visibleMethods}
             paymentMethodId={paymentMethodId}
-            setPaymentMethodId={setPaymentMethodId}
+            setPaymentMethodId={(id) => {
+              setPaymentMethodId(id)
+              setPaymentTouched(true)
+            }}
+            paymentTouched={paymentTouched}
             codEligible={codEligible}
             onBack={() => setStep('delivery')}
-            onContinue={() => {
-              if (!paymentValid()) {
-                toast('Pick a payment method.')
-                return
-              }
-              setStep('review')
-            }}
+            onContinue={attemptContinuePayment}
           />
         ) : step === 'review' ? (
           <SummaryLine
@@ -222,16 +285,13 @@ export function CheckoutForm({
         <StepHeader index={3} label="Review and place" active={step === 'review'} />
         {step === 'review' && (
           <section className="mt-4 rounded-[var(--radius)] border border-line bg-surface p-6">
-            <label className="block">
-              <span className="text-[12px] text-muted">Order notes (optional)</span>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value.slice(0, 1000))}
-                rows={3}
-                className="mt-1.5 w-full rounded-[var(--radius)] border border-line bg-cream p-3 text-[14px] focus:outline-none focus:border-ink/40"
-                placeholder="Anything we should know about delivery."
-              />
-            </label>
+            <TextAreaField
+              label="Order notes (optional)"
+              value={notes}
+              onChange={(v) => setNotes(v.slice(0, 1000))}
+              placeholder="Anything we should know about delivery."
+              rows={3}
+            />
             <button
               onClick={placeOrder}
               disabled={loading}
@@ -327,6 +387,8 @@ interface DeliverySectionProps {
   setSelectedAddressId: (v: string) => void
   draft: AddressDraft
   setField: <K extends keyof AddressDraft>(key: K, val: AddressDraft[K]) => void
+  liveError: (field: DraftFieldKey) => string | null
+  markTouched: (field: DraftFieldKey) => void
   onContinue: () => void
 }
 
@@ -340,6 +402,8 @@ function DeliverySection(props: DeliverySectionProps) {
     setSelectedAddressId,
     draft,
     setField,
+    liveError,
+    markTouched,
     onContinue,
   } = props
 
@@ -388,63 +452,92 @@ function DeliverySection(props: DeliverySectionProps) {
         </div>
       )}
 
-      <label className="inline-flex items-center gap-2 text-[13px] text-accent">
-        <input
-          type="radio"
-          name="addr"
-          checked={useNewAddress}
-          onChange={() => setUseNewAddress(true)}
-        />
-        + Add new address
-      </label>
+      <div className="mt-2">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-accent hover:opacity-80">
+          <input
+            type="radio"
+            name="addr"
+            checked={useNewAddress}
+            onChange={() => setUseNewAddress(true)}
+          />
+          + Add new address
+        </label>
+      </div>
 
       {useNewAddress && (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <Field label="Label" value={draft.label} onChange={(v) => setField('label', v)} required />
-          <Field
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <TextField
+            label="Label"
+            required
+            value={draft.label}
+            onChange={(v) => setField('label', v)}
+            onBlur={() => markTouched('label')}
+            error={liveError('label')}
+          />
+          <TextField
             label="Recipient name"
+            required
+            autoComplete="name"
             value={draft.recipient}
             onChange={(v) => setField('recipient', v)}
-            required
+            onBlur={() => markTouched('recipient')}
+            error={liveError('recipient')}
           />
-          <Field
-            label="Phone (+959XXXXXXXXX)"
+          <TextField
+            label="Phone"
+            required
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="+9591234567"
+            helper="Format: +959 followed by 7–9 digits."
             value={draft.phone}
             onChange={(v) => setField('phone', v)}
-            required
-            placeholder="+9591234567"
+            onBlur={() => markTouched('phone')}
+            error={liveError('phone')}
           />
-          <label className="block">
-            <span className="text-[12px] text-muted">Division</span>
-            <select
-              value={draft.divisionId}
-              onChange={(e) => setField('divisionId', e.target.value)}
-              className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-ink/40"
-              required
-            >
-              <option value="">Choose a division</option>
-              {divisions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} · {formatMmk(d.deliveryFeeMmk)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field label="City" value={draft.city} onChange={(v) => setField('city', v)} required />
-          <Field
+          <SelectField
+            label="Division"
+            required
+            value={draft.divisionId}
+            onChange={(v) => setField('divisionId', v)}
+            onBlur={() => markTouched('divisionId')}
+            error={liveError('divisionId')}
+          >
+            <option value="">Choose a division</option>
+            {divisions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name} · {formatMmk(d.deliveryFeeMmk)}
+              </option>
+            ))}
+          </SelectField>
+          <TextField
+            label="City"
+            required
+            autoComplete="address-level2"
+            value={draft.city}
+            onChange={(v) => setField('city', v)}
+            onBlur={() => markTouched('city')}
+            error={liveError('city')}
+          />
+          <TextField
             label="Township"
+            required
             value={draft.township}
             onChange={(v) => setField('township', v)}
-            required
+            onBlur={() => markTouched('township')}
+            error={liveError('township')}
           />
-          <Field
+          <TextField
             className="md:col-span-2"
             label="Street + house no."
+            required
+            autoComplete="street-address"
             value={draft.street}
             onChange={(v) => setField('street', v)}
-            required
+            onBlur={() => markTouched('street')}
+            error={liveError('street')}
           />
-          <Field
+          <TextField
             className="md:col-span-2"
             label="Landmark (optional)"
             value={draft.landmark}
@@ -461,12 +554,14 @@ function DeliverySection(props: DeliverySectionProps) {
         </div>
       )}
 
-      <button
-        onClick={onContinue}
-        className="mt-6 inline-flex items-center justify-center rounded-[var(--radius-pill)] bg-ink px-6 py-3 text-[14px] font-medium text-cream transition-colors hover:bg-accent"
-      >
-        Continue to payment
-      </button>
+      <div className="mt-8 flex justify-end">
+        <button
+          onClick={onContinue}
+          className="inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink px-8 py-3 text-[14px] font-medium text-cream transition-colors hover:bg-accent md:w-auto"
+        >
+          Continue to payment
+        </button>
+      </div>
     </section>
   )
 }
@@ -475,13 +570,22 @@ interface PaymentSectionProps {
   methods: PaymentMethodLite[]
   paymentMethodId: string
   setPaymentMethodId: (id: string) => void
+  paymentTouched: boolean
   codEligible: boolean
   onBack: () => void
   onContinue: () => void
 }
 
 function PaymentSection(props: PaymentSectionProps) {
-  const { methods, paymentMethodId, setPaymentMethodId, codEligible, onBack, onContinue } = props
+  const {
+    methods,
+    paymentMethodId,
+    setPaymentMethodId,
+    paymentTouched,
+    codEligible,
+    onBack,
+    onContinue,
+  } = props
 
   if (methods.length === 0) {
     return (
@@ -491,13 +595,19 @@ function PaymentSection(props: PaymentSectionProps) {
     )
   }
 
+  const showError = paymentTouched && !paymentMethodId
+
   return (
     <section className="mt-4 space-y-3">
       {methods.map((m) => (
         <label
           key={m.id}
           className={`flex cursor-pointer items-center gap-3 rounded-[var(--radius)] border bg-surface p-4 transition-colors ${
-            paymentMethodId === m.id ? 'border-ink/50' : 'border-line hover:border-ink/30'
+            paymentMethodId === m.id
+              ? 'border-ink/50'
+              : showError
+                ? 'border-error/60'
+                : 'border-line hover:border-ink/30'
           }`}
         >
           <input
@@ -515,50 +625,28 @@ function PaymentSection(props: PaymentSectionProps) {
           </div>
         </label>
       ))}
+      {showError && (
+        <p className="text-[12px] text-error">Choose a payment method to continue.</p>
+      )}
       {!codEligible && (
         <p className="text-[12px] text-muted">
           Cash on Delivery available only for Yangon + Mandalay orders under {formatMmk(500_000)}.
         </p>
       )}
-      <div className="flex gap-3 pt-2">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-between">
         <button
           onClick={onBack}
-          className="inline-flex items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-6 py-3 text-[14px] font-medium text-ink hover:border-ink/40"
+          className="inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-6 py-3 text-[14px] font-medium text-ink hover:border-ink/40 sm:w-auto"
         >
           Back
         </button>
         <button
           onClick={onContinue}
-          className="inline-flex items-center justify-center rounded-[var(--radius-pill)] bg-ink px-6 py-3 text-[14px] font-medium text-cream transition-colors hover:bg-accent"
+          className="inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink px-8 py-3 text-[14px] font-medium text-cream transition-colors hover:bg-accent sm:w-auto"
         >
           Continue to review
         </button>
       </div>
     </section>
-  )
-}
-
-interface FieldProps {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  required?: boolean
-  placeholder?: string
-  className?: string
-}
-
-function Field({ label, value, onChange, required, placeholder, className }: FieldProps) {
-  return (
-    <label className={`block ${className ?? ''}`}>
-      <span className="text-[12px] text-muted">{label}</span>
-      <input
-        type="text"
-        required={required}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-ink/40"
-      />
-    </label>
   )
 }

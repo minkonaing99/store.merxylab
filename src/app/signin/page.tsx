@@ -5,6 +5,13 @@ import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
+import { TextField } from '@/components/ui/field'
+import { isEmail, required } from '@/lib/validators'
+
+interface FieldErrors {
+  email?: string
+  password?: string
+}
 
 function SignInForm() {
   const router = useRouter()
@@ -12,10 +19,35 @@ function SignInForm() {
   const callbackUrl = params.get('callbackUrl') ?? '/account'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [touched, setTouched] = useState<Record<keyof FieldErrors, boolean>>({
+    email: false,
+    password: false,
+  })
   const [loading, setLoading] = useState(false)
+
+  function validate(): FieldErrors {
+    const next: FieldErrors = {}
+    const emailReq = required(email, 'Email')
+    if (emailReq) next.email = emailReq
+    else if (!isEmail(email)) next.email = 'Enter a valid email address.'
+    const pwReq = required(password, 'Password')
+    if (pwReq) next.password = pwReq
+    return next
+  }
+
+  function markTouched(field: keyof FieldErrors) {
+    setTouched((t) => ({ ...t, [field]: true }))
+    setErrors(validate())
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const v = validate()
+    setErrors(v)
+    setTouched({ email: true, password: true })
+    if (Object.keys(v).length > 0) return
+
     setLoading(true)
     const res = await signIn('credentials', {
       email,
@@ -27,7 +59,6 @@ function SignInForm() {
       toast('Invalid email or password, or email not verified.')
       return
     }
-    // merge guest cart into user cart
     await fetch('/api/v1/cart/merge', { method: 'POST', credentials: 'same-origin' })
     router.push(callbackUrl)
     router.refresh()
@@ -38,27 +69,33 @@ function SignInForm() {
       <div className="eyebrow">Welcome back</div>
       <h1 className="mt-3 font-display text-[40px] leading-[1.05]">Sign in.</h1>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-        <label className="block">
-          <span className="text-[13px] text-muted">Email</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-4 py-3 text-[15px] focus:outline-none focus:border-ink/40"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[13px] text-muted">Password</span>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-4 py-3 text-[15px] focus:outline-none focus:border-ink/40"
-          />
-        </label>
+      <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
+        <TextField
+          label="Email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(v) => {
+            setEmail(v)
+            if (touched.email) setErrors(validate())
+          }}
+          onBlur={() => markTouched('email')}
+          error={touched.email ? errors.email : null}
+        />
+        <TextField
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(v) => {
+            setPassword(v)
+            if (touched.password) setErrors(validate())
+          }}
+          onBlur={() => markTouched('password')}
+          error={touched.password ? errors.password : null}
+        />
         <button
           type="submit"
           disabled={loading}
