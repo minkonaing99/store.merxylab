@@ -12,6 +12,7 @@ Until SMTP is configured, sign-up emails get logged to the dev server console an
 ## 1. SMTP via Hostinger Webmail
 
 ### A. Create a mailbox in hPanel
+
 1. Sign in to Hostinger → hPanel → Emails → **Email Accounts**.
 2. Click **Create email account** under your domain.
 3. Suggested mailboxes (Business plan gives 5):
@@ -21,19 +22,21 @@ Until SMTP is configured, sign-up emails get logged to the dev server console an
 4. Copy the password Hostinger generates (or set your own).
 
 ### B. Find SMTP settings
+
 Hostinger SMTP defaults (Business shared plan):
 
-| Setting   | Value                  |
-|-----------|------------------------|
-| SMTP host | `smtp.hostinger.com`   |
+| Setting   | Value                   |
+| --------- | ----------------------- |
+| SMTP host | `smtp.hostinger.com`    |
 | SMTP port | `465` (TLS) — preferred |
-| Port alt  | `587` (STARTTLS)       |
-| Username  | the full email address |
-| Password  | the mailbox password   |
+| Port alt  | `587` (STARTTLS)        |
+| Username  | the full email address  |
+| Password  | the mailbox password    |
 
 If your domain is on a different mail provider, find that provider's SMTP details and use them — the rest is the same.
 
 ### C. Fill `.env.local`
+
 Open `.env.local` and replace the commented SMTP block:
 
 ```env
@@ -47,12 +50,14 @@ EMAIL_FROM="merxylab <noreply@your-domain.com>"
 Then restart `pnpm dev` so the new env is loaded.
 
 ### D. Test the flow
+
 1. Visit `http://localhost:3000/signup`, sign up with a real address you own.
 2. Check that address (and spam) for the verification email.
 3. Click the link → `/verify?token=...&email=...` → "All set." page.
 4. Sign in at `/signin` with the same email + password.
 
 ### E. If no SMTP yet — manual verification
+
 If you want to test before SMTP is ready:
 
 ```bash
@@ -65,6 +70,7 @@ UPDATE users SET email_verified = NOW() WHERE email = 'YOU@example.com';
 Then sign in normally. The dev server logs the would-be verification email to the console — copy the link from there if you still want to click through.
 
 ### F. Security notes
+
 - Never commit `.env.local`. It is already in `.gitignore`.
 - Use a unique mailbox password — do not reuse account passwords.
 - Hostinger SMTP has rate caps on shared plans (commonly ~300 emails/hour). For real campaigns later, integrate a provider like Resend or Postmark — leave Hostinger for transactional traffic only.
@@ -74,6 +80,7 @@ Then sign in normally. The dev server logs the would-be verification email to th
 ## 2. Google OAuth
 
 ### A. Create OAuth client in Google Cloud Console
+
 1. Open [console.cloud.google.com](https://console.cloud.google.com/).
 2. Top-left project picker → **New Project** → name it `merxylab` → Create.
 3. Sidebar → **APIs & Services** → **OAuth consent screen**.
@@ -97,6 +104,7 @@ Then sign in normally. The dev server logs the would-be verification email to th
 5. Google shows a dialog with **Client ID** and **Client secret**. Copy both.
 
 ### B. Fill `.env.local`
+
 ```env
 AUTH_GOOGLE_ID="<the client id, ends in .apps.googleusercontent.com>"
 AUTH_GOOGLE_SECRET="<the client secret>"
@@ -105,6 +113,7 @@ AUTH_GOOGLE_SECRET="<the client secret>"
 Restart `pnpm dev`. The signin page automatically shows the "Continue with Google" button once these env vars are present (`hasGoogle` flag in `src/lib/auth.ts`).
 
 ### C. Test
+
 1. Visit `/signin`.
 2. Click **Continue with Google**.
 3. Pick your Google account → consent.
@@ -113,6 +122,7 @@ Restart `pnpm dev`. The signin page automatically shows the "Continue with Googl
 If the redirect fails, double-check the redirect URI in step A.4 matches **exactly** (including `http` vs `https` and trailing slash absence).
 
 ### D. Going to production
+
 - Add the production origin + redirect URI to the same OAuth client.
 - Update `AUTH_URL` to the production URL in production env.
 - When ready for non-test users, on the OAuth consent screen click **Publish app** and pass Google's verification (only needed for sensitive scopes; default scopes here usually go through quickly).
