@@ -3,6 +3,13 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const isProd = process.env.NODE_ENV === 'production'
+
+// 'unsafe-eval' required by Next dev (HMR/React Refresh). Drop in prod.
+const scriptSrc = isProd
+  ? "script-src 'self' 'unsafe-inline'"
+  : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+
 const SECURITY_HEADERS = [
   // Force HTTPS for two years across all subdomains.
   {
@@ -20,13 +27,13 @@ const SECURITY_HEADERS = [
     key: 'Permissions-Policy',
     value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
   },
-  // CSP — permissive baseline (Next.js needs unsafe-inline/eval without nonce middleware).
-  // Tighten later by introducing a nonce via middleware if budget allows.
+  // CSP — prod drops 'unsafe-eval'. 'unsafe-inline' (scripts/styles) remains
+  // until nonce middleware is wired (deferred — see docs/TECH.md).
   {
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",

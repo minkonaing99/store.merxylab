@@ -30,7 +30,7 @@
     "lucide-react": "^1.18.0",
     "mysql2": "^3.22.5",
     "next": "^15.5.19",
-    "next-auth": "5.0.0-beta.25",
+    "next-auth": "5.0.0-beta.31",
     "nodemailer": "^9.0.0",
     "postcss": "^8.5.15",
     "react": "19.0.0",
@@ -51,7 +51,7 @@
     "@types/react-dom": "19.0.2",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
-    "eslint": "9.17.0",
+    "eslint": "9.39.4",
     "eslint-config-next": "15.1.0",
     "tsx": "^4.22.4",
     "typescript": "5.7.2"
@@ -66,5 +66,11 @@
     "sharp@0.35.1": true,
     "unrs-resolver@1.12.2": true,
     "sharp@0.34.5": true
+  },
+  "overrides": {
+    "esbuild": "^0.28.1",
+    "next": {
+      "postcss": "^8.5.10"
+    }
   }
 }
