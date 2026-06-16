@@ -10,6 +10,8 @@ import {
   getProductBySlug,
 } from '@/lib/catalog'
 
+export const dynamic = 'force-dynamic'
+
 export default async function HomePage() {
   const [featured, all, showcase, ctaProduct] = await Promise.all([
     getFeaturedProducts(),

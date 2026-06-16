@@ -7,6 +7,8 @@ export const metadata = {
     'Every peripheral on the bench. Keyboards, mice, headsets, mics, speakers, accessories.',
 }
 
+export const dynamic = 'force-dynamic'
+
 export default async function ShopPage() {
   const products = await getAllProducts()
 

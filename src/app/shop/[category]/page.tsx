@@ -1,12 +1,9 @@
 import { notFound } from 'next/navigation'
 import { GridControls } from '@/components/shop/grid-controls'
-import { getAllCategories, getCategoryById, getProductsByCategory } from '@/lib/catalog'
+import { getCategoryById, getProductsByCategory } from '@/lib/catalog'
 import type { CategoryId } from '@/lib/types'
 
-export async function generateStaticParams() {
-  const cats = await getAllCategories()
-  return cats.map((c) => ({ category: c.id }))
-}
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({
   params,

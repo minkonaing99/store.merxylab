@@ -8,17 +8,13 @@ import { StockBadge } from '@/components/product/stock-badge'
 import { HeartButton } from '@/components/wishlist/heart-button'
 import { ReviewBlock } from '@/components/reviews/review-block'
 import {
-  getAllProducts,
   getCategoryById,
   getProductBySlug,
   getRelatedProducts,
 } from '@/lib/catalog'
 import { formatMmk } from '@/lib/money'
 
-export async function generateStaticParams() {
-  const products = await getAllProducts()
-  return products.map((p) => ({ slug: p.slug }))
-}
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
