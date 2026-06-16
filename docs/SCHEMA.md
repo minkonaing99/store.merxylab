@@ -165,7 +165,7 @@ PK: `(user_id, product_id)`. Guests use localStorage only; merge on login.
 | total_mmk | BIGINT | NOT NULL, ≥ 0 | `subtotal_mmk + delivery_fee_mmk` |
 | shipping_address_id | CHAR(36) | NULL, FK → addresses.id ON DELETE SET NULL | |
 | payment_method_id | VARCHAR(40) | NOT NULL, FK → payment_methods.id ON DELETE RESTRICT | |
-| payment_proof_url | VARCHAR(255) | NULL | `/slips/<orderId>/<uuid>.webp` once uploaded |
+| payment_proof_url | VARCHAR(255) | NULL | Bare basename `<uuid>.webp` of the slip file on disk under `private-uploads/slips/<order_id>/`. Legacy rows may hold the full `/slips/<orderId>/<uuid>.webp` path — the slip-streaming route strips to basename via `slipBasenameFrom()`. Never a public URL. |
 | payment_tx_ref | VARCHAR(120) | NULL | optional customer-entered wallet tx ID |
 | payment_ref | VARCHAR(64) | NULL | mirror of order UUID by default; owner can overwrite with bank-side ref |
 | expires_at | TIMESTAMP | NOT NULL | `placed_at + 24h`; auto-cancel cron checks this |
@@ -370,7 +370,8 @@ const SESSION_DAYS = 30
 | POST | `/api/v1/orders` | Place order from current cart. Body: `{shippingAddressId \| newAddress, paymentMethodId, notes?}`. Server snapshots delivery_fee from `divisions`, sets `expires_at = now() + 24h`, decrements `stockQty` in a transaction. | Yes |
 | GET | `/api/v1/orders` | List own orders | Yes |
 | GET | `/api/v1/orders/[id]` | Get one (IDOR-checked) | Yes |
-| POST | `/api/v1/orders/[id]/slip` | Upload payment proof (multipart, image ≤ 8MB). Server validates magic-byte, stores under `public/slips/<orderId>/`, sets `payment_proof_url` + `payment_tx_ref` (optional), flips status `pending_payment` → `payment_submitted`. Rejects if status not `pending_payment` or method `kind = 'cod'`. | Yes |
+| POST | `/api/v1/orders/[id]/slip` | Upload payment proof (multipart, image ≤ 8MB). Server validates magic-byte + MIME (JPG/PNG/WEBP), `sharp` resize to ≤1600px + WebP re-encode (EXIF stripped), stores under `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (NOT under `public/`). Sets `payment_proof_url` = basename, `payment_tx_ref` (optional), flips status `pending_payment` → `payment_submitted`. Rejects if status not `pending_payment`/`payment_submitted` or method `kind = 'cod'`. Rate-limit 10/hour/user. | Yes |
+| GET  | `/api/v1/orders/[id]/slip` | Stream the slip back as `image/webp` after auth check (`order.user_id === session.user.id` OR `users.role = 'admin'`). Response headers: `Cache-Control: private, no-store`. 404 if no slip on the order. Used by both customer order page and admin order view; the static `/slips/...` path is no longer served. | Yes |
 | POST | `/api/v1/orders/[id]/cancel` | Customer-initiated cancel. Allowed only when `status = 'pending_payment'`. Restores `stockQty` in a transaction. | Yes |
 
 **Payment methods**
@@ -485,4 +486,4 @@ No `audit_log` table yet — admin role is single-operator in MVP, and Drizzle S
 - Owner verifies in bank app → flips to `paid` from `/admin/orders/[id]`. State transitions are idempotent.
 - COD: no slip. Status `pending_payment` → owner phone confirms → `confirmed` → ship → `delivered`. Driver collects cash at door.
 - Auto-cancel cron (`scripts/cancel-expired-orders.ts`, runs nightly) sets `status='cancelled'` and restores `stockQty` where `status='pending_payment' AND expires_at < NOW()`.
-- Slip file storage: `public/slips/<orderId>/<uuid>.webp` (client-resized to 1600px before upload, magic-byte validated server-side, 8MB cap).
+- Slip file storage: `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (gitignored, outside `public/`). `sharp` server-side resize to ≤1600px + EXIF strip + WebP re-encode, 8MB cap on upload. Served only via authed `GET /api/v1/orders/[id]/slip` streaming route — never directly addressable on the public web.

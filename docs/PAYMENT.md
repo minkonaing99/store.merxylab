@@ -82,7 +82,7 @@ Customer can self-cancel only while `pending_payment`. After `payment_submitted`
 
 - Magic-byte sniffed server-side (jpg/png/webp only).
 - `sharp` resizes to 1600×1600 max, strips EXIF.
-- Saved as `public/slips/<orderId>/<uuid>.webp`. The folder name = order UUID so a leaked slip URL doesn't reveal other customers' slips.
+- Saved as `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` — **outside `public/`**, gitignored, never directly addressable on the public web. `orders.payment_proof_url` stores just the basename. Served via authed `GET /api/v1/orders/[id]/slip` streaming route (owner OR admin), `Cache-Control: private, no-store`. Folder name = order UUID (122-bit entropy) so even an admin-side leak isolates one customer's slip.
 - Rate-limited: 10 uploads/hour/user.
 - Customer can re-upload only while `pending_payment` or `payment_submitted`. Replacing deletes the prior file.
 

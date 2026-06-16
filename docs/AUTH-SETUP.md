@@ -47,7 +47,7 @@ SMTP_PASS="<the mailbox password>"
 EMAIL_FROM="merxylab <noreply@your-domain.com>"
 ```
 
-Then restart `pnpm dev` so the new env is loaded.
+Then restart `npm run dev` so the new env is loaded.
 
 ### D. Test the flow
 
@@ -110,7 +110,7 @@ AUTH_GOOGLE_ID="<the client id, ends in .apps.googleusercontent.com>"
 AUTH_GOOGLE_SECRET="<the client secret>"
 ```
 
-Restart `pnpm dev`. The signin page automatically shows the "Continue with Google" button once these env vars are present (`hasGoogle` flag in `src/lib/auth.ts`).
+Restart `npm run dev`. The signin page automatically shows the "Continue with Google" button once these env vars are present (`hasGoogle` flag in `src/lib/auth.ts`).
 
 ### C. Test
 
@@ -151,11 +151,11 @@ BANK_PAYMENT_INSTRUCTIONS="KBZ Bank\nAccount: 0000-0000-0000\nBeneficiary: merxy
 
 After SMTP + Google OAuth + bank text are set:
 
-- [ ] `pnpm dev` runs without warnings about missing env.
+- [ ] `npm run dev` runs without warnings about missing env.
 - [ ] `/signup` with a real email lands a verification email.
 - [ ] The verify link flips `users.email_verified` and shows "All set."
 - [ ] `/signin` (credentials) lands on `/account`.
 - [ ] `/signin` → **Continue with Google** lands on `/account`.
 - [ ] Add a product to cart → `/checkout` → place order → email arrives with bank instructions including the order UUID as `Reference`.
 - [ ] `/account/orders/[id]` shows the order with `pending_payment` status.
-- [ ] In Drizzle Studio (`pnpm db:studio`) flip `orders.status` to `paid` → reload `/account/orders` shows the new status label.
+- [ ] In Drizzle Studio (`npm run db:studio`) flip `orders.status` to `paid` → reload `/account/orders` shows the new status label.

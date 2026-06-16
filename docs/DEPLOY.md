@@ -14,7 +14,7 @@ End-to-end deploy from local to your Hostinger Business plan. Single host runs t
 - MySQL database created (hPanel → Databases → MySQL Databases).
 - SMTP mailbox set up (see `docs/AUTH-SETUP.md`).
 - Google OAuth client set up (optional, see `docs/AUTH-SETUP.md`).
-- Local repo at the version you want to ship; `pnpm build` runs clean.
+- Local repo at the version you want to ship; `npm run build` runs clean.
 
 ---
 
@@ -40,12 +40,12 @@ Two options. Pick **A** for simplicity (run migrations from your laptop pointed 
 2. On your laptop, point Drizzle at prod:
    ```bash
    DATABASE_URL="mysql://merxylab:PROD_PASSWORD@PROD_HOST:3306/merxylab-store" \
-     pnpm db:migrate
+     npm run db:migrate
    ```
 3. Seed if you want catalog data immediately:
    ```bash
    DATABASE_URL="mysql://merxylab:PROD_PASSWORD@PROD_HOST:3306/merxylab-store" \
-     pnpm db:seed
+     npm run db:seed
    ```
 4. **Disable remote MySQL after** to reduce surface. Only re-enable for ad-hoc admin.
 
@@ -75,8 +75,8 @@ Build is small thanks to `output: 'standalone'`.
 
 ```bash
 # from project root
-pnpm install --frozen-lockfile
-pnpm build
+npm ci
+npm run build
 ```
 
 This produces `.next/standalone/` (the minimal runtime) plus `.next/static/` and `public/`.
@@ -157,15 +157,15 @@ Photos live in `public/products/{slug}/{01-04}.webp` on the running app's filesy
 
 ```bash
 # from your local repo, after dropping new photos
-pnpm photos:check
+npm run photos:check
 rsync -avz public/products/ user@your-domain.com:/home/user/domains/your-domain.com/merxylab/public/products/
 ```
 
-You can also use hPanel's File Manager to drop files into the same path — just remember to re-run `pnpm photos:check` locally **and** re-deploy `src/data/products.json` so `hasPhotos` updates land in seed source.
+You can also use hPanel's File Manager to drop files into the same path — just remember to re-run `npm run photos:check` locally **and** re-deploy `src/data/products.json` so `hasPhotos` updates land in seed source.
 
 To re-sync the `has_photos` column in the live DB after dropping photos:
 ```bash
-DATABASE_URL="mysql://merxylab:PASS@PROD_HOST:3306/merxylab-store" pnpm db:seed
+DATABASE_URL="mysql://merxylab:PASS@PROD_HOST:3306/merxylab-store" npm run db:seed
 ```
 (Re-seed reinserts catalog rows from `products.json` — only run when you intentionally want to overwrite catalog state. To update only `has_photos` in place, do it via Drizzle Studio or a one-off SQL `UPDATE`.)
 
@@ -180,7 +180,7 @@ After hPanel restarts the Node app:
 3. `/signup` with a real email → verification email lands.
 4. Sign in → `/account` accessible.
 5. Add to cart → `/checkout` → place order → `/order/[id]` shows bank instructions; email arrives.
-6. `pnpm db:studio` locally against prod (via SSH tunnel) shows the new order row.
+6. `npm run db:studio` locally against prod (via SSH tunnel) shows the new order row.
 
 If a step fails, hPanel → Node.js → app → **Logs** has stdout/stderr.
 
@@ -193,7 +193,7 @@ Studio should **never** be exposed publicly. Tunnel it:
 ```bash
 ssh -L 3307:127.0.0.1:3306 user@your-domain.com
 # in another terminal:
-DATABASE_URL="mysql://merxylab:PASS@127.0.0.1:3307/merxylab-store" pnpm db:studio
+DATABASE_URL="mysql://merxylab:PASS@127.0.0.1:3307/merxylab-store" npm run db:studio
 ```
 
 This forwards your laptop's `localhost:3307` to the host's MySQL through SSH. Open `https://local.drizzle.studio` as normal.
@@ -219,10 +219,10 @@ For each new release:
 
 ```bash
 git pull
-pnpm install --frozen-lockfile
-pnpm build
-pnpm db:generate          # if schema changed
-DATABASE_URL=... pnpm db:migrate
+npm ci
+npm run build
+npm run db:generate          # if schema changed
+DATABASE_URL=... npm run db:migrate
 # rebuild deploy bundle
 rsync -avz --delete deploy/ user@your-domain.com:/home/user/domains/your-domain.com/merxylab/
 # hPanel → Node.js → app → Restart

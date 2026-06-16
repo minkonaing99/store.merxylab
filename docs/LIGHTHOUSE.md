@@ -1,6 +1,6 @@
 # LIGHTHOUSE — performance, a11y, SEO audit
 
-Run Lighthouse against the local production build before any release. The dev server's HMR overhead hides real scores — always audit `pnpm start`, not `pnpm dev`.
+Run Lighthouse against the local production build before any release. The dev server's HMR overhead hides real scores — always audit `npm run start`, not `npm run dev`.
 
 ---
 
@@ -9,8 +9,8 @@ Run Lighthouse against the local production build before any release. The dev se
 ### 1. Local audit (one-shot)
 
 ```bash
-pnpm build
-pnpm start &
+npm run build
+npm run start &
 sleep 5
 npx -y lighthouse http://localhost:3000 \
   --only-categories=performance,accessibility,best-practices,seo \
@@ -64,7 +64,7 @@ If any score falls below the hard floor, **block the release** until fixed.
 | LCP > 2.5s                  | Hero image not `priority`                | `<Tile priority>` on hero, preload key tile      |
 | CLS > 0.1                   | Web font loading, missing dimensions     | `next/font` is already used; verify Image `fill` w/ explicit aspect ratio |
 | TBT high                    | Big JS bundles on route                  | Dynamic-import heavy client components (Fuse, admin tables) |
-| Unused JS                   | Dead deps                                | Audit `pnpm why <pkg>`, remove unused            |
+| Unused JS                   | Dead deps                                | Audit `npm why <pkg>`, remove unused            |
 | Slow server response (TTFB) | Drizzle cold cache                       | `unstable_cache` revalidate 60s already wired; verify route handlers awaiting needed work only |
 
 ### Accessibility < 100
@@ -95,7 +95,7 @@ If any score falls below the hard floor, **block the release** until fixed.
 Add `@lhci/cli` for automated scoring on PRs:
 
 ```bash
-pnpm add -D @lhci/cli
+npm install -D @lhci/cli
 ```
 
 `.lighthouserc.json` at repo root:
@@ -104,7 +104,7 @@ pnpm add -D @lhci/cli
 {
   "ci": {
     "collect": {
-      "startServerCommand": "pnpm start",
+      "startServerCommand": "npm run start",
       "url": [
         "http://localhost:3000",
         "http://localhost:3000/shop",
@@ -157,7 +157,7 @@ Lighthouse catches the obvious. For thorough WCAG 2.1 AA:
 
 ## Smoke after deploy
 
-- [ ] `pnpm build && pnpm start` clean on local prod build.
+- [ ] `npm run build && npm run start` clean on local prod build.
 - [ ] Lighthouse `/`, `/shop`, `/product/[slug]` ≥ 90 mobile.
 - [ ] axe DevTools shows 0 serious / critical violations on the same routes.
 - [ ] No console errors when clicking through Add to cart → Checkout → Place order on a verified test account.

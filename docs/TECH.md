@@ -25,7 +25,7 @@
 
 **Operator surface**
 - **Custom `/admin` UI** — role-gated React pages (overview KPIs, products inline-edit, orders status, reviews moderation, newsletter CSV). All admin mutations call `requireAdmin()` guard server-side, never trust client claims.
-- **Drizzle Studio** — local-only fallback for ad-hoc inspection (`pnpm db:studio`). Production access only via SSH tunnel.
+- **Drizzle Studio** — local-only fallback for ad-hoc inspection (`npm run db:studio`). Production access only via SSH tunnel.
 
 **Deploy target**
 - **Hostinger Business shared** — Node.js via Phusion Passenger, MySQL local, SMTP local. Next.js built with `output: 'standalone'`.
@@ -205,7 +205,7 @@ merxylab-store/
 ### [2026-06-15] Drizzle Studio as admin UI, no custom /admin
 **Status:** Accepted
 **Context:** Owner needs to add products, moderate reviews, fulfill orders. Custom admin is weeks of work.
-**Decision:** `pnpm drizzle-kit studio` opens local-only web UI for CRUD. Photos dropped into `public/products/{slug}/`. Never deployed to production.
+**Decision:** `npm run db:studio` opens local-only web UI for CRUD. Photos dropped into `public/products/{slug}/`. Never deployed to production.
 **Consequences:** Owner must run admin tasks from local checkout connected to prod DB (or via SSH tunnel). No multi-user admin. Trade-off accepted for speed.
 
 ### [2026-06-15] Hostinger Business shared (Node via Passenger), not Vercel
@@ -263,7 +263,7 @@ merxylab-store/
 **Status:** Accepted
 **Context:** Bank-transfer-only with the order UUID as reference (previous ADR) was the simplest possible flow but leaves the customer doing all the coordination: opening a separate bank app, copying the UUID, then sending the slip outside the site (Slack/Telegram/email). Friction lost orders.
 **Decision:** Build a multi-method checkout. Customer picks from KBZ Pay / Aya Pay / UAB Pay / COD at `/checkout`. Methods configured by the owner in `/admin/payment-methods` (DB-backed `payment_methods` table). On `/order/[id]` the wallet path shows merchant QR + account name + phone; customer uploads slip image (JPG/PNG/WEBP, 8MB cap, client-resized to 1600px) + optional tx ref. Slip upload flips order to `payment_submitted`. Owner verifies in their bank app and flips to `paid`. COD path uses an extra `confirmed` state set after owner phone-confirms the buyer.
-**Consequences:** New tables (`payment_methods`, `divisions`), expanded `orders.status` enum (adds `payment_submitted`, `confirmed`, `shipped`, `delivered`), new fields on `orders` (`payment_method_id`, `payment_proof_url`, `payment_tx_ref`, `subtotal_mmk`, `delivery_fee_mmk`, `expires_at`). New cron `scripts/cancel-expired-orders.ts` auto-cancels stale `pending_payment` orders after 24h and restores `stockQty`. Slip storage on local disk (`public/slips/<orderId>/<uuid>.webp`) keeps the Hostinger footprint minimal — swap to object storage if storage cap hit. Telegram is a backup contact link (`t.me/<username>`), not a primary submission path.
+**Consequences:** New tables (`payment_methods`, `divisions`), expanded `orders.status` enum (adds `payment_submitted`, `confirmed`, `shipped`, `delivered`), new fields on `orders` (`payment_method_id`, `payment_proof_url`, `payment_tx_ref`, `subtotal_mmk`, `delivery_fee_mmk`, `expires_at`). New cron `scripts/cancel-expired-orders.ts` auto-cancels stale `pending_payment` orders after 24h and restores `stockQty`. Slip storage on local disk under `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (outside `public/`, served only via authed `GET /api/v1/orders/[id]/slip` route) keeps the Hostinger footprint minimal — swap to object storage if storage cap hit. See ADR "Photos on filesystem, not S3 (yet)" for the revisit triggers. Telegram is a backup contact link (`t.me/<username>`), not a primary submission path.
 
 ### [2026-06-16] BeeExpress per-division flat-fee shipping
 **Status:** Accepted

@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - **Node.js** ≥ 20.0.0
-- **pnpm** ≥ 9 (preferred package manager)
+- **npm** ≥ 10 (project standardised on npm — see TECH ADR-09. Hostinger's corepack chokes on pnpm 11.)
 - **MySQL** ≥ 8.0 (Phase 5+) — local dev with `root` user, default port 3306
 - **cwebp** (libwebp) — for converting product photos to WebP (`brew install webp`)
 - Git
@@ -17,10 +17,10 @@ git clone <repo-url> merxylab-store
 cd merxylab-store
 
 # Install dependencies
-pnpm install
+npm install
 
 # Run dev server
-pnpm dev
+npm run dev
 # → http://localhost:3000
 ```
 
@@ -68,6 +68,21 @@ EXIT;
 mysql -u root -p merxylab -e "SHOW TABLES;"
 ```
 
+### Database bootstrap — fresh DB via SQL (preferred for prod)
+For a clean install (local or Hostinger), don't run the seed scripts — paste `docs/db-bootstrap.sql` directly:
+
+```bash
+# Local
+mysql -u root -p merxylab < docs/db-bootstrap.sql
+
+# Hostinger
+# hPanel → MySQL Databases → phpMyAdmin → select `u<acct>_merxylab_store` DB → Import → upload docs/db-bootstrap.sql → Go.
+```
+
+The file is a single, idempotent-on-empty-DB script: 17 CREATE TABLEs + reference seed (divisions, payment_methods, categories) + 15 products + product_specs. No app code or env vars touched. Hand-maintained from `src/db/schema/*.ts` + `src/data/*.json` — if you change schema or seed JSON, regenerate the relevant sections manually.
+
+The Drizzle-managed migration path (`npm run db:generate`, `npm run db:migrate`, `npm run db:push`) is still wired and works on already-seeded DBs, but is **not** the recommended deploy path — Hostinger's phpMyAdmin paste is simpler and avoids dragging drizzle-kit's dev deps near prod.
+
 ### Photo workflow (Phase 4)
 Photos live in `public/products/{slug}/{NN}.webp`, slot 01 required for `hasPhotos = true`.
 
@@ -85,31 +100,31 @@ cwebp -q 82 -resize 1600 0 mxk-keyboard-2.jpg -o 02.webp
 rm *.jpg
 
 # 4. Regenerate hasPhotos flags
-pnpm photos:check
+npm run photos:check
 ```
 
 ### How to run locally
 ```bash
-pnpm dev               # dev server with HMR
-pnpm build             # production build
-pnpm start             # serve production build
-pnpm lint              # ESLint
-pnpm typecheck         # tsc --noEmit
-pnpm test              # vitest
-pnpm test:e2e          # playwright
-pnpm format            # prettier write
+npm run dev               # dev server with HMR
+npm run build             # production build
+npm run start             # serve production build
+npm run lint              # ESLint
+npm run typecheck         # tsc --noEmit
+npm test              # vitest
+npm run test:e2e          # playwright
+npm run format            # prettier write
 
 # Phase 4
-pnpm photos:check      # scan public/products/*/01.webp → set hasPhotos
+npm run photos:check      # scan public/products/*/01.webp → set hasPhotos
 
 # Phase 5
-pnpm db:generate       # drizzle-kit generate (from schema diffs)
-pnpm db:migrate        # apply pending migrations
-pnpm db:studio         # open Drizzle Studio admin UI (local only)
-pnpm db:seed           # populate from src/data/*.json
+npm run db:generate       # drizzle-kit generate (from schema diffs)
+npm run db:migrate        # apply pending migrations
+npm run db:studio         # open Drizzle Studio admin UI (local only)
+npm run db:seed           # populate from src/data/*.json
 
 # Phase 6
-pnpm email:dev         # react-email preview server on :3030
+npm run email:dev         # react-email preview server on :3030
 ```
 
 ### Common errors + fixes
@@ -156,11 +171,11 @@ pnpm email:dev         # react-email preview server on :3030
 
 ### How to run tests
 ```bash
-pnpm test              # vitest run (watch mode off)
-pnpm test:watch        # vitest watch
-pnpm test:coverage     # vitest --coverage
-pnpm test:e2e          # playwright test
-pnpm test:e2e:ui       # playwright test --ui
+npm test              # vitest run (watch mode off)
+npm run test:watch        # vitest watch
+npm run test:coverage     # vitest --coverage
+npm run test:e2e          # playwright test
+npm run test:e2e:ui       # playwright test --ui
 ```
 
 ### How to write new tests
@@ -183,6 +198,13 @@ pnpm test:e2e:ui       # playwright test --ui
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
+
+### [0.13.4] — 2026-06-17 (docs only)
+- Doc sweep: replaced every stale `pnpm` command with `npm` equivalents across SETUP, DEPLOY, PLAN, AUTH-SETUP, LIGHTHOUSE, TECH (project standardised on npm — TECH ADR-09). Historical mentions inside ADRs + Phase 1.1 scaffold notes left as-is.
+- Slip storage references corrected in SCHEMA, PAYMENT, TECH ADR-Phase-9 consequences, PLAN Phase 9.8 task: now point at `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` + the streaming `GET /api/v1/orders/[id]/slip` route. Stale `public/slips/...` text removed.
+- SCHEMA.md endpoints table gains a row for `GET /api/v1/orders/[id]/slip`.
+- SETUP.md adds a "Database bootstrap — fresh DB via SQL" section: paste `docs/db-bootstrap.sql` into phpMyAdmin (or `mysql <` locally) for a fresh install. Recommended path over `npm run db:seed` for prod deploys.
+- `docs/db-bootstrap.sql` header rewritten — drops reference to deleted `scripts/dump-sql.ts`; file is now hand-maintained from `src/db/schema/*.ts` + `src/data/*.json`.
 
 ### [0.13.3] — 2026-06-17 (shipped to testing)
 - Disk-only hardening pass (no R2 yet — see TECH.md decision).
@@ -306,7 +328,7 @@ Versioning: SemVer.
 - `PHOTO_SLOTS` and `PHOTO_BASE` constants exported from `src/lib/types.ts`.
 - `public/products/{slug}/` folder for all 32 SKUs (with `.gitkeep` so git tracks them).
 - `scripts/check-photos.ts` — scans `public/products/{slug}/01.webp`, updates `products.json` `hasPhotos` flag, prints summary table with extras detection.
-- `pnpm photos:check` script wired in `package.json`.
+- `npm run photos:check` script wired in `package.json`.
 - `tsx` devDep for running TS scripts directly.
 - `Tile` component renders `next/image` of `/products/{slug}/01.webp` when `hasPhotos=true`; warm-palette swatch fallback otherwise.
 - New `Gallery` component on PDP — slots 01-04 with thumb grid, hides slots that 404 via `onError`, animated cross-fade on switch, `aria-pressed` on thumbs.
@@ -326,7 +348,7 @@ Versioning: SemVer.
 - `src/lib/catalog.ts` async DB-backed catalog helpers wrapped in `unstable_cache` (60s revalidate, tagged `products` + `categories`).
 - `src/components/product/stock-badge.tsx` — `In stock` (success), `Only N left` (warning), `Out of stock` (muted).
 - API routes: `GET /api/v1/products[?category=]`, `GET /api/v1/products/[slug]`, `GET /api/v1/categories`. Zod-validated query, structured error envelope.
-- `pnpm db:generate | db:migrate | db:push | db:studio | db:seed` scripts.
+- `npm run db:generate | db:migrate | db:push | db:studio | db:seed` scripts.
 - `dotenv` devDep for script env loading; `server-only` runtime guard.
 
 #### Changed

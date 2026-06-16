@@ -17,7 +17,7 @@ Tasks (in dependency order):
 9. Implement `src/lib/search.ts` (Fuse setup)
 10. Author `src/lib/utils.ts` (formatPrice, cn helper, slugify guard)
 
-**Deliverables:** Repo runs `pnpm dev`, base layout renders empty homepage with nav + footer, tokens visible in inspector, cart store wired (no UI yet).
+**Deliverables:** Repo runs `npm run dev`, base layout renders empty homepage with nav + footer, tokens visible in inspector, cart store wired (no UI yet).
 **Effort:** TBD
 
 ### Phase 2 — Core features
@@ -72,10 +72,10 @@ Tasks:
 3. Write `scripts/check-photos.ts` — Node script that scans each folder, sets `hasPhotos: true` if `01.webp` exists, writes updated JSON. Bonus: prints summary table.
 4. Update `Tile` component — if `hasPhotos`, render `next/image` of `/products/{slug}/01.webp`; otherwise current swatch.
 5. Build new `Gallery` component for PDP — renders slots 01-04, hides slots that 404 via `onError`.
-6. Add `check-photos` to `package.json` scripts: `pnpm photos:check`.
+6. Add `check-photos` to `package.json` scripts: `npm run photos:check`.
 7. Document workflow in `docs/SETUP.md`: how to drop new photos, regenerate `hasPhotos`.
 
-**Deliverables:** Drop a `01.webp` into `public/products/mxk-65-walnut/`, run `pnpm photos:check`, see it appear on homepage + PDP. Removing it returns swatch.
+**Deliverables:** Drop a `01.webp` into `public/products/mxk-65-walnut/`, run `npm run photos:check`, see it appear on homepage + PDP. Removing it returns swatch.
 **Effort:** TBD (small)
 
 ### Phase 5 — Backend foundation (catalog only)
@@ -83,11 +83,11 @@ Tasks:
 
 Tasks:
 1. Install MySQL 8 locally; create `merxylab` database (`CREATE DATABASE merxylab CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`).
-2. `pnpm add drizzle-orm mysql2 zod && pnpm add -D drizzle-kit @types/node`
+2. `npm install drizzle-orm mysql2 zod && npm install -D drizzle-kit @types/node`
 3. Author `drizzle.config.ts` pointing at `DATABASE_URL`.
 4. Schema files: `src/db/schema/products.ts` (products, categories, product_specs).
-5. `pnpm drizzle-kit generate` → first migration.
-6. `pnpm drizzle-kit migrate` → run against local MySQL.
+5. `npm run db:generate` → first migration.
+6. `npm run db:migrate` → run against local MySQL.
 7. Seed script `scripts/seed.ts` — reads `src/data/products.json` + `categories.json`, converts USD cents → MMK (placeholder FX 1 USD = 2100 MMK), inserts rows.
 8. `src/db/index.ts` — Drizzle client singleton.
 9. Rewrite `src/lib/products.ts` query helpers to use Drizzle (keep same exported function names).
@@ -189,7 +189,7 @@ Tasks:
 ## Done criteria
 
 **Phase 1 done** when:
-- [ ] `pnpm dev` runs without errors
+- [ ] `npm run dev` runs without errors
 - [ ] Empty homepage renders with nav + footer
 - [ ] Tokens visible in inspector match DESIGN.md
 - [ ] `Product`, `Category`, `CartItem` types compile
@@ -256,7 +256,7 @@ Tasks:
 - [ ] Phase 9.5 — `/checkout` rebuild: three-step state machine (delivery / payment method / review). Address form with `+95` phone mask + Myanmar fields. Division dropdown drives delivery fee. Payment method radios (COD conditional). Place-order CTA.
 - [ ] Phase 9.6 — `POST /api/v1/orders` updated: snapshot delivery_fee from `divisions`, set `expires_at = now() + 24h`, reject if division blocked, reject COD if cap/city rules fail. Stock decrement in transaction.
 - [ ] Phase 9.7 — `/order/[id]` rebuild: wallet path renders `WalletInstructionsCard` + `SlipUploadForm`; COD path renders `CodConfirmationCard`; status-based panels for `payment_submitted` / `confirmed` / `paid` / `shipped` / `delivered` / `cancelled`. Telegram backup link visible on wallet path.
-- [ ] Phase 9.8 — `POST /api/v1/orders/[id]/slip` multipart upload. `sharp` resize + EXIF strip + magic-byte sniff. Save to `public/slips/<orderId>/<uuid>.webp`. Flip status to `payment_submitted`. Rate-limit 10/hr/user.
+- [ ] Phase 9.8 — `POST /api/v1/orders/[id]/slip` multipart upload. `sharp` resize + EXIF strip + magic-byte sniff. Save to `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (NOT under `public/`). Flip status to `payment_submitted`. Rate-limit 10/hr/user. Add companion `GET /api/v1/orders/[id]/slip` to stream the slip after auth (owner OR admin).
 - [ ] Phase 9.9 — `POST /api/v1/orders/[id]/cancel` (customer self-cancel) — allowed only when status = `pending_payment`. Restore stock in transaction. Rate-limit 5/hr/user.
 - [ ] Phase 9.10 — Admin: extended `PATCH /api/v1/admin/orders/[id]` with status-machine validation. New `/admin/payment-methods` (CRUD + QR upload). New `/admin/divisions` (edit fee + COD/block flags).
 - [ ] Phase 9.11 — React Email: `order-placed`, `slip-received`, `paid`, `shipped` customer templates. `new-order-alert`, `slip-submitted-alert` owner templates.
@@ -324,7 +324,7 @@ Tasks:
 - [x] Footer logo polish (proper invert filter + ring on flask)
 - [x] Phase 4.1 — `hasPhotos: boolean` added to Product type + 32 JSON entries
 - [x] Phase 4.2 — Created `public/products/{slug}/` for all 32 SKUs + `.gitkeep` files
-- [x] Phase 4.3 — `scripts/check-photos.ts` + `pnpm photos:check` (verified flips both ways)
+- [x] Phase 4.3 — `scripts/check-photos.ts` + `npm run photos:check` (verified flips both ways)
 - [x] Phase 4.4 — Tile renders `next/image` of `01.webp` when `hasPhotos`; new Gallery component renders slots 01-04, hides missing slots via `onError`, animated slot switch, accessible thumb buttons (aria-pressed)
 - [x] Phase 4.5 — Photo workflow documented in SETUP.md (cwebp + photos:check pipeline)
 - [x] Phase 5.1 — MySQL 9.6 local database `merxylab-store` created (utf8mb4)
@@ -341,7 +341,7 @@ Tasks:
 - [x] Phase 5.12 — `StockBadge` component (in stock / low / out) on PDP + ProductCard
 - [x] Phase 5.13 — `AddToCartButton` honors `disabled` for out-of-stock
 - [x] Phase 5.14 — API routes: `GET /api/v1/products`, `?category=`, `/[slug]`, `/api/v1/categories` with zod validation + structured error envelope
-- [x] Phase 5.15 — `pnpm db:generate / db:migrate / db:push / db:studio / db:seed` scripts
+- [x] Phase 5.15 — `npm run db:generate / db:migrate / db:push / db:studio / db:seed` scripts
 - [x] Phase 5.16 — Verified live: API serves DB rows, MMK prices render across home/PDP/shop, 47 routes (43 static + 3 dynamic API + sitemap)
 - [x] Phase 6.1 — Schema: users, accounts, sessions, verification_tokens, addresses, carts, cart_items, orders, order_items (varchar PKs to satisfy Drizzle adapter typing)
 - [x] Phase 6.2 — Auth.js v5 + @auth/drizzle-adapter + bcryptjs + nodemailer installed
