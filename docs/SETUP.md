@@ -199,6 +199,18 @@ npm run test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.13.6] — 2026-06-17 (shipped to testing)
+- Stock commit moves to payment confirmation, not order placement. Closes the "ghost reservation" failure mode where checkout decremented stock but slip upload 500'd (e.g. during the sharp/libvips outage) leaving items stuck.
+  - `POST /api/v1/orders` now does a read-only `stockQty >= qty` snapshot check per line and returns 409 `OUT_OF_STOCK` if any line fails — **no UPDATE on `products`**. Order row is inserted in `pending_payment` with no inventory side effects.
+  - `PATCH /api/v1/admin/orders/[id]` now performs the decrement transactionally when transitioning to `paid` (wallet flow) or `confirmed` (COD flow), with a `stockQty >= qty` guard per line; admin gets 409 `OUT_OF_STOCK` if anything was oversold in the race window. Cancelling out of `paid`/`confirmed` restores stock.
+  - `POST /api/v1/orders/[id]/cancel` and `scripts/cancel-expired-orders.ts` no longer touch stock — pending orders never held any.
+  - `LowStockAlert` email now fires on payment-confirmation (where the deduction actually happens), not at order placement.
+- DB reset SQL for prod (one-off cleanup of phantom pending orders from the sharp-500 era) is in this commit's body — paste into phpMyAdmin to release held stock + cancel stuck orders.
+- TECH.md "Stock oversell" + Phase 9 ADR consequences updated. SCHEMA.md endpoint descriptions for POST `/orders`, POST `/orders/[id]/cancel`, and the order-status flow section updated.
+
+### [0.13.5] — 2026-06-17 (shipped to production)
+- `sharp` ^0.35.1 → ^0.34.5. Hostinger CloudLinux glibc is below the 2.28 floor sharp 0.35's libvips 8.18 needs (`ERR_DLOPEN_FAILED: libvips-cpp.so.8.18.3`), so every upload route (product photo, slip, QR) 500'd through Passenger as an hPanel gateway error. Sharp 0.34.5 bundles libvips 8.17.3 (per `@img/sharp-libvips-* 1.2.4`) which CloudLinux satisfies. Lockfile regenerated; `@img/sharp-linux-*` variants are now recorded so Hostinger's `npm install --omit=dev` resolves linux binaries from a darwin-generated lockfile. Stale `allowScripts` entries for esbuild 0.18/0.25 and sharp 0.35 trimmed.
+
 ### [0.13.4] — 2026-06-17 (docs only)
 - Doc sweep: replaced every stale `pnpm` command with `npm` equivalents across SETUP, DEPLOY, PLAN, AUTH-SETUP, LIGHTHOUSE, TECH (project standardised on npm — TECH ADR-09). Historical mentions inside ADRs + Phase 1.1 scaffold notes left as-is.
 - Slip storage references corrected in SCHEMA, PAYMENT, TECH ADR-Phase-9 consequences, PLAN Phase 9.8 task: now point at `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` + the streaming `GET /api/v1/orders/[id]/slip` route. Stale `public/slips/...` text removed.

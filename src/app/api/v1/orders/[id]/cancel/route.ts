@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
-import { orders, orderItems } from '@/db/schema/orders'
-import { products } from '@/db/schema/products'
+import { orders } from '@/db/schema/orders'
 import { auth } from '@/lib/auth'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { sendMail } from '@/lib/mail'
@@ -37,6 +36,8 @@ export async function POST(
     )
   }
 
+  // Pending orders never held physical stock (committed only at `paid`/
+  // `confirmed`), so cancel is a pure status flip — no inventory math.
   const result = await db.transaction(async (tx) => {
     const [order] = await tx
       .select()
@@ -45,15 +46,6 @@ export async function POST(
       .limit(1)
     if (!order) return { kind: 'NOT_FOUND' as const }
     if (order.status !== 'pending_payment') return { kind: 'CONFLICT' as const }
-
-    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id))
-
-    for (const it of items) {
-      await tx
-        .update(products)
-        .set({ stockQty: sql`${products.stockQty} + ${it.qty}` })
-        .where(eq(products.id, it.productId))
-    }
 
     await tx.update(orders).set({ status: 'cancelled' }).where(eq(orders.id, id))
 

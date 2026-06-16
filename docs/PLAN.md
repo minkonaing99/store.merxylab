@@ -279,6 +279,10 @@ Tasks:
 ### Phase 10.x patches — Refactor + security (shipped to testing 2026-06-17)
 - [x] `refactor-clean` pass — deleted unused `scripts/dump-sql.ts`; unexported `EMAIL_REGEX` + `PHONE_REGEX` in `src/lib/validators.ts` (used only internally). Commit `cb87598`.
 - [x] Security audit + patches — npm audit 9 → 0. Bumped `next-auth` beta.25 → beta.31, `eslint` 9.17 → 9.39.4. Added `package.json` overrides for `esbuild ^0.28.1` and `next > postcss ^8.5.10`. Tightened production CSP to drop `'unsafe-eval'` from `script-src`. Commit `51244ff`.
+- [x] Slip storage moved to `<repo>/private-uploads/slips/...` + auth-streaming `GET /api/v1/orders/[id]/slip` + long-cache headers on `/products/*` + `/payment-qr/*`. Commit `9995aad`.
+- [x] Doc sweep — slip-path correctness + pnpm → npm + fresh-DB SQL bootstrap surfaced. Commit `5a23196`.
+- [x] Hotfix — sharp 0.35.1 → 0.34.5 for Hostinger CloudLinux glibc compat (libvips 8.18 needed glibc ≥ 2.28; 0.34.5's libvips 8.17.3 works). Shipped to production as `71390f1`.
+- [x] Stock-commit moved from order placement to payment confirmation. Pending orders no longer hold inventory; `paid`/`confirmed` transition runs the decrement with `stockQty >= qty` guard. Cancel-out-of-paid restores. Customer cancel + auto-cancel cron drop their old restore blocks (nothing to restore).
 
 ### Backlog
 - [ ] Hostinger deploy (follow `docs/DEPLOY.md` once domain + DB credentials ready)

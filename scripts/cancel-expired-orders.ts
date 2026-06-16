@@ -11,10 +11,9 @@ import { config } from 'dotenv'
 config({ path: '.env.local' })
 config({ path: '.env', override: false })
 
-import { and, eq, lt, sql } from 'drizzle-orm'
+import { and, eq, lt } from 'drizzle-orm'
 import { db } from '../src/db'
-import { orders, orderItems } from '../src/db/schema/orders'
-import { products } from '../src/db/schema/products'
+import { orders } from '../src/db/schema/orders'
 import { users } from '../src/db/schema/auth'
 import { sendMail } from '../src/lib/mail'
 import { OrderCancelled } from '../emails/order-cancelled'
@@ -34,27 +33,12 @@ async function main(): Promise<void> {
   console.log(`expiring ${stale.length} order(s)`)
 
   for (const { id, userId } of stale) {
-    await db.transaction(async (tx) => {
-      const [latest] = await tx
-        .select({ status: orders.status })
-        .from(orders)
-        .where(eq(orders.id, id))
-        .limit(1)
-      // race-safe: only act if still pending_payment
-      if (!latest || latest.status !== 'pending_payment') return
-
-      const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id))
-      for (const it of items) {
-        await tx
-          .update(products)
-          .set({ stockQty: sql`${products.stockQty} + ${it.qty}` })
-          .where(eq(products.id, it.productId))
-      }
-      await tx
-        .update(orders)
-        .set({ status: 'cancelled' })
-        .where(and(eq(orders.id, id), eq(orders.status, 'pending_payment')))
-    })
+    // race-safe status-only flip. Pending orders never held stock under the
+    // commit-at-payment model, so no inventory restore is needed.
+    await db
+      .update(orders)
+      .set({ status: 'cancelled' })
+      .where(and(eq(orders.id, id), eq(orders.status, 'pending_payment')))
 
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
     if (user?.email) {

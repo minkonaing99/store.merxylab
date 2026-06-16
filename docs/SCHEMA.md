@@ -367,12 +367,12 @@ const SESSION_DAYS = 30
 **Orders**
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| POST | `/api/v1/orders` | Place order from current cart. Body: `{shippingAddressId \| newAddress, paymentMethodId, notes?}`. Server snapshots delivery_fee from `divisions`, sets `expires_at = now() + 24h`, decrements `stockQty` in a transaction. | Yes |
+| POST | `/api/v1/orders` | Place order from current cart. Body: `{shippingAddressId \| newAddress, paymentMethodId, notes?}`. Server snapshots delivery_fee from `divisions`, sets `expires_at = now() + 24h`. Performs a per-line `stockQty >= qty` snapshot check (returns 409 `OUT_OF_STOCK` if any fails) but **does not** decrement stock — see TECH "Stock oversell". Order is created in `pending_payment` and physical inventory is committed later when admin flips status to `paid`/`confirmed`. | Yes |
 | GET | `/api/v1/orders` | List own orders | Yes |
 | GET | `/api/v1/orders/[id]` | Get one (IDOR-checked) | Yes |
 | POST | `/api/v1/orders/[id]/slip` | Upload payment proof (multipart, image ≤ 8MB). Server validates magic-byte + MIME (JPG/PNG/WEBP), `sharp` resize to ≤1600px + WebP re-encode (EXIF stripped), stores under `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (NOT under `public/`). Sets `payment_proof_url` = basename, `payment_tx_ref` (optional), flips status `pending_payment` → `payment_submitted`. Rejects if status not `pending_payment`/`payment_submitted` or method `kind = 'cod'`. Rate-limit 10/hour/user. | Yes |
 | GET  | `/api/v1/orders/[id]/slip` | Stream the slip back as `image/webp` after auth check (`order.user_id === session.user.id` OR `users.role = 'admin'`). Response headers: `Cache-Control: private, no-store`. 404 if no slip on the order. Used by both customer order page and admin order view; the static `/slips/...` path is no longer served. | Yes |
-| POST | `/api/v1/orders/[id]/cancel` | Customer-initiated cancel. Allowed only when `status = 'pending_payment'`. Restores `stockQty` in a transaction. | Yes |
+| POST | `/api/v1/orders/[id]/cancel` | Customer-initiated cancel. Allowed only when `status = 'pending_payment'`. Pure status flip — pending orders never held stock under the commit-at-payment model. | Yes |
 
 **Payment methods**
 | Method | Path | Description | Auth |
@@ -485,5 +485,5 @@ No `audit_log` table yet — admin role is single-operator in MVP, and Drizzle S
 - Each wallet/bank method is a row in `payment_methods` with owner-provided account name + account phone (or bank account number). QR is optional — if `qr_image_url` is null the order page hides the QR slot and renders account info at full width. Customer scans the QR (or types the account number manually), transfers exact MMK amount, returns to `/order/[id]`, uploads slip image (and optional tx ref) → `status='payment_submitted'`.
 - Owner verifies in bank app → flips to `paid` from `/admin/orders/[id]`. State transitions are idempotent.
 - COD: no slip. Status `pending_payment` → owner phone confirms → `confirmed` → ship → `delivered`. Driver collects cash at door.
-- Auto-cancel cron (`scripts/cancel-expired-orders.ts`, runs nightly) sets `status='cancelled'` and restores `stockQty` where `status='pending_payment' AND expires_at < NOW()`.
+- Auto-cancel cron (`scripts/cancel-expired-orders.ts`, runs periodically) sets `status='cancelled'` where `status='pending_payment' AND expires_at < NOW()`. No stock math — pending orders never held inventory under the commit-at-payment model.
 - Slip file storage: `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (gitignored, outside `public/`). `sharp` server-side resize to ≤1600px + EXIF strip + WebP re-encode, 8MB cap on upload. Served only via authed `GET /api/v1/orders/[id]/slip` streaming route — never directly addressable on the public web.

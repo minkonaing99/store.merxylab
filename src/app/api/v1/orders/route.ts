@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { orders, orderItems } from '@/db/schema/orders'
-import { products } from '@/db/schema/products'
 import { addresses } from '@/db/schema/addresses'
 import { divisions } from '@/db/schema/divisions'
 import { paymentMethods } from '@/db/schema/payment-methods'
@@ -16,7 +15,6 @@ import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { sendTelegram } from '@/lib/telegram'
 import { OrderPlaced } from '@emails/order-placed'
 import { NewOrderAlert } from '@emails/new-order-alert'
-import { LowStockAlert } from '@emails/low-stock-alert'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PHONE_REGEX = /^\+959\d{7,9}$/
@@ -45,8 +43,6 @@ const bodySchema = z
   .refine((b) => Boolean(b.shippingAddressId) !== Boolean(b.newAddress), {
     message: 'Provide either shippingAddressId or newAddress (not both).',
   })
-
-const LOW_STOCK_DEFAULT = 3
 
 export async function POST(req: Request): Promise<NextResponse> {
   const session = await auth()
@@ -185,61 +181,50 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
   }
 
-  const orderId = randomUUID()
-  const expiresAt = new Date(Date.now() + ORDER_EXPIRY_MS)
-  const lowStockBreaches: { id: string; remaining: number; name: string }[] = []
-
-  try {
-    await db.transaction(async (tx) => {
-      for (const l of lines) {
-        const res = await tx
-          .update(products)
-          .set({ stockQty: sql`${products.stockQty} - ${l.qty}` })
-          .where(and(eq(products.id, l.productId), sql`${products.stockQty} >= ${l.qty}`))
-        const affected = (res as unknown as { affectedRows?: number }).affectedRows ?? 0
-        if (affected === 0) {
-          throw new Error(`OUT_OF_STOCK:${l.productId}`)
-        }
-        const remaining = l.product.stockQty - l.qty
-        if (remaining <= LOW_STOCK_DEFAULT) {
-          lowStockBreaches.push({ id: l.productId, remaining, name: l.product.name })
-        }
-      }
-
-      await tx.insert(orders).values({
-        id: orderId,
-        userId,
-        status: 'pending_payment',
-        subtotalMmk: subtotal,
-        deliveryFeeMmk: deliveryFee,
-        totalMmk: total,
-        shippingAddressId,
-        paymentMethodId: method.id,
-        paymentRef: orderId,
-        expiresAt,
-        notes: parsed.data.notes ?? null,
-      })
-
-      await tx.insert(orderItems).values(
-        lines.map((l) => ({
-          orderId,
-          productId: l.productId,
-          qty: l.qty,
-          unitPriceMmkSnapshot: l.product.priceMmk,
-          nameSnapshot: l.product.name,
-        })),
-      )
-    })
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.startsWith('OUT_OF_STOCK')) {
+  // Snapshot stock check only — no decrement yet. Stock is held against the
+  // physical inventory at payment confirmation (admin flips to `paid` for
+  // wallet, `confirmed` for COD). Avoids "ghost reservations" when checkout
+  // succeeds but slip upload fails or customer abandons.
+  for (const l of lines) {
+    if (l.product.stockQty < l.qty) {
       return NextResponse.json(
-        { data: null, error: { code: 'OUT_OF_STOCK', message: msg, status: 409 } },
+        {
+          data: null,
+          error: { code: 'OUT_OF_STOCK', message: `OUT_OF_STOCK:${l.productId}`, status: 409 },
+        },
         { status: 409 },
       )
     }
-    throw err
   }
+
+  const orderId = randomUUID()
+  const expiresAt = new Date(Date.now() + ORDER_EXPIRY_MS)
+
+  await db.transaction(async (tx) => {
+    await tx.insert(orders).values({
+      id: orderId,
+      userId,
+      status: 'pending_payment',
+      subtotalMmk: subtotal,
+      deliveryFeeMmk: deliveryFee,
+      totalMmk: total,
+      shippingAddressId,
+      paymentMethodId: method.id,
+      paymentRef: orderId,
+      expiresAt,
+      notes: parsed.data.notes ?? null,
+    })
+
+    await tx.insert(orderItems).values(
+      lines.map((l) => ({
+        orderId,
+        productId: l.productId,
+        qty: l.qty,
+        unitPriceMmkSnapshot: l.product.priceMmk,
+        nameSnapshot: l.product.name,
+      })),
+    )
+  })
 
   await clearCart()
 
@@ -275,14 +260,6 @@ export async function POST(req: Request): Promise<NextResponse> {
   await sendTelegram(
     `🆕 New order ${orderId.slice(0, 8)}\nMethod: ${method.name}\nTotal: ${formatMmk(total)}\nCustomer: ${session.user.email ?? userId}`,
   )
-
-  for (const b of lowStockBreaches) {
-    await sendMail({
-      to: ownerEmail,
-      subject: `Low stock: ${b.name}`,
-      react: LowStockAlert({ productName: b.name, remaining: b.remaining }),
-    }).catch(() => {})
-  }
 
   return NextResponse.json({ data: { orderId }, error: null })
 }
