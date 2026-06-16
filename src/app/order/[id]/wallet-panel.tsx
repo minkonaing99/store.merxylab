@@ -69,8 +69,12 @@ export function WalletPanel({
   return (
     <section className="mt-10 rounded-[var(--radius-lg)] border border-line bg-surface p-6 md:p-8">
       <h2 className="font-display text-[22px]">Pay with {method.name}</h2>
-      <div className="mt-5 grid gap-6 md:grid-cols-[220px_1fr] md:items-start">
-        {method.qrImageUrl ? (
+      <div
+        className={`mt-5 grid gap-6 md:items-start ${
+          method.qrImageUrl ? 'md:grid-cols-[220px_1fr]' : ''
+        }`}
+      >
+        {method.qrImageUrl && (
           <img
             src={method.qrImageUrl}
             alt={`${method.name} merchant QR`}
@@ -78,8 +82,6 @@ export function WalletPanel({
             height={220}
             className="rounded-[var(--radius)] border border-line bg-cream"
           />
-        ) : (
-          <div className="aspect-square w-[220px] rounded-[var(--radius)] border border-line bg-cream" />
         )}
         <div className="text-[14px] text-ink-soft">
           <div className="mb-2 flex justify-between">

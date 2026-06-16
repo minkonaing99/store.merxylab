@@ -15,7 +15,9 @@ export async function GET(): Promise<NextResponse> {
 
   const complete = rows.filter((m) => {
     if (m.kind === 'cod') return true
-    return Boolean(m.accountName && m.accountPhone && m.qrImageUrl)
+    // QR optional. Account name + phone/number are the minimum required
+    // for a wallet/bank method to be usable.
+    return Boolean(m.accountName && m.accountPhone)
   })
 
   return NextResponse.json({

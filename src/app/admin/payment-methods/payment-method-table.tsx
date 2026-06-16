@@ -232,18 +232,42 @@ export function PaymentMethodTable({ initial }: { initial: Row[] }) {
                       className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-3 py-2 text-[13px] focus:outline-none focus:border-ink/40"
                     />
                   </label>
-                  <Field
-                    label="Sort order"
-                    type="number"
-                    value={d.sortOrder}
-                    onChange={(v) => updateDraft(r.id, { sortOrder: v })}
-                  />
+                  <label className="block">
+                    <span className="text-[12px] text-muted">Sort order</span>
+                    <select
+                      value={d.sortOrder}
+                      onChange={(e) => updateDraft(r.id, { sortOrder: e.target.value })}
+                      className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-3 py-2 text-[13px] focus:outline-none focus:border-ink/40"
+                    >
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <option key={n} value={String(n)}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
             ) : (
-              <p className="mt-5 text-[13px] text-muted">
-                Cash on Delivery has no account info. Toggle Active to enable it for eligible orders.
-              </p>
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <p className="text-[13px] text-muted">
+                  Cash on Delivery has no account info. Toggle Active to enable it for eligible orders.
+                </p>
+                <label className="block max-w-[160px]">
+                  <span className="text-[12px] text-muted">Sort order</span>
+                  <select
+                    value={d.sortOrder}
+                    onChange={(e) => updateDraft(r.id, { sortOrder: e.target.value })}
+                    className="mt-1 w-full rounded-[var(--radius)] border border-line bg-cream px-3 py-2 text-[13px] focus:outline-none focus:border-ink/40"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={String(n)}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             )}
 
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
