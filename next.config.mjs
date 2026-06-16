@@ -1,5 +1,7 @@
-import type { NextConfig } from 'next'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const SECURITY_HEADERS = [
   // Force HTTPS for two years across all subdomains.
@@ -37,7 +39,8 @@ const SECURITY_HEADERS = [
   },
 ]
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: 'standalone',

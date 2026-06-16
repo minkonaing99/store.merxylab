@@ -3,6 +3,9 @@ import { z } from 'zod'
 import { getAllProducts, getProductsByCategory } from '@/lib/catalog'
 import type { CategoryId } from '@/lib/types'
 
+export const dynamic = "force-dynamic"
+
+
 const querySchema = z.object({
   category: z
     .enum(['keyboards', 'mice', 'headsets', 'microphones', 'speakers', 'accessories'])

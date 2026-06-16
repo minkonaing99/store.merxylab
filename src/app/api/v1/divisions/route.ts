@@ -3,6 +3,9 @@ import { asc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { divisions } from '@/db/schema/divisions'
 
+export const dynamic = "force-dynamic"
+
+
 export async function GET(): Promise<NextResponse> {
   const rows = await db
     .select()
