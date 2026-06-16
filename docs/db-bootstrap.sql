@@ -13,6 +13,11 @@
 --
 -- Run order (already in file): schema -> divisions -> payment_methods ->
 --                              categories -> products -> product_specs.
+--
+-- After the install steps, see the appendix at the bottom for:
+--   * Stock-commit model (informational, since 0.13.6).
+--   * One-off "release phantom-held stock" SQL for legacy prod DBs that
+--     ran on the old "decrement at order placement" code.
 
 -- =================================================================
 -- 1. Schema
@@ -382,4 +387,66 @@ INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUE
 -- Bootstrap complete.
 -- Next steps (manual, via SSH or phpMyAdmin):
 --   UPDATE users SET role='admin' WHERE email='you@example.com';
+-- =================================================================
+
+-- =================================================================
+-- Stock-commit model (informational — no DDL/DML below this point
+-- runs automatically; everything is for reference and one-off ops).
+-- =================================================================
+--
+-- As of 0.13.6 the app commits inventory at payment confirmation, not
+-- at order placement:
+--
+--   POST  /api/v1/orders                       — snapshot stockQty >= qty
+--                                                check only; rejects with
+--                                                409 OUT_OF_STOCK on fail.
+--                                                NO write to products.
+--   PATCH /api/v1/admin/orders/[id] -> paid    — decrement stockQty per
+--                                                line in a transaction
+--                                                with stockQty >= qty
+--                                                guard; admin sees 409
+--                                                if oversold in race.
+--   PATCH /api/v1/admin/orders/[id] -> confirmed (COD path) — same.
+--   PATCH /api/v1/admin/orders/[id] -> cancelled (from paid/confirmed)
+--                                                — restores stockQty.
+--   POST  /api/v1/orders/[id]/cancel            — pure status flip; no
+--                                                stock math (pending
+--                                                orders never held any).
+--   scripts/cancel-expired-orders.ts            — pure status flip; no
+--                                                stock math.
+--
+-- See docs/TECH.md "Stock oversell" + "Phase 9 ADR consequences".
+
+-- =================================================================
+-- Maintenance: release phantom-held stock + cancel stuck orders.
+--
+-- Run this ONCE on any DB that was running the old (pre-0.13.6) order
+-- code, where placing an order decremented stockQty even before payment
+-- was confirmed. If checkout completed but slip upload failed (sharp /
+-- libvips outage in 0.13.4), customers abandoned, or the auto-cancel
+-- cron wasn't yet scheduled, inventory got silently held by orders that
+-- will never reach `paid`. This SQL returns that held stock to physical
+-- inventory and cancels the holding orders.
+--
+-- Do NOT run on a brand-new DB or one that's already on 0.13.6 — there
+-- is nothing to recover.
+-- =================================================================
+-- START TRANSACTION;
+--
+-- -- Return stock the old order code decremented on still-unpaid orders.
+-- UPDATE products p
+-- JOIN order_items oi ON oi.product_id = p.id
+-- JOIN orders o      ON o.id = oi.order_id
+-- SET p.stock_qty = p.stock_qty + oi.qty
+-- WHERE o.status IN ('pending_payment', 'payment_submitted');
+--
+-- -- Cancel those orders so they don't sit forever.
+-- UPDATE orders
+-- SET status = 'cancelled'
+-- WHERE status IN ('pending_payment', 'payment_submitted');
+--
+-- COMMIT;
+--
+-- -- Sanity check (expect seeded values to be restored).
+-- SELECT id, stock_qty FROM products ORDER BY id;
 -- =================================================================

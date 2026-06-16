@@ -79,9 +79,20 @@ mysql -u root -p merxylab < docs/db-bootstrap.sql
 # hPanel → MySQL Databases → phpMyAdmin → select `u<acct>_merxylab_store` DB → Import → upload docs/db-bootstrap.sql → Go.
 ```
 
-The file is a single, idempotent-on-empty-DB script: 17 CREATE TABLEs + reference seed (divisions, payment_methods, categories) + 15 products + product_specs. No app code or env vars touched. Hand-maintained from `src/db/schema/*.ts` + `src/data/*.json` — if you change schema or seed JSON, regenerate the relevant sections manually.
+The file is a single, idempotent-on-empty-DB script: 17 CREATE TABLEs + 18 FK constraints + 13 indexes + reference seed (15 divisions, 5 payment methods incl. KBZ Bank, 6 categories) + 15 products + 56 product_specs rows. No app code or env vars touched. Hand-maintained from `src/db/schema/*.ts` + `src/data/*.json` — if you change schema or seed JSON, regenerate the relevant sections manually.
 
 The Drizzle-managed migration path (`npm run db:generate`, `npm run db:migrate`, `npm run db:push`) is still wired and works on already-seeded DBs, but is **not** the recommended deploy path — Hostinger's phpMyAdmin paste is simpler and avoids dragging drizzle-kit's dev deps near prod.
+
+The tail of `db-bootstrap.sql` also documents the **stock-commit model** (0.13.6+) and includes a commented-out one-off **"release phantom-held stock"** SQL block for any DB that ran on the pre-0.13.6 order code. Uncomment + run that block once on prod if upload-failures left orders stuck in `pending_payment` / `payment_submitted` with stock decremented but never confirmed. Skip on fresh DBs.
+
+### Granting admin role
+After the first signup (admin user creates a normal account via the signup flow), promote the user via SQL — there is no UI escalation path by design:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
+```
+
+Run from phpMyAdmin → SQL tab. Verify with `SELECT id, email, role FROM users WHERE role='admin';`. From then on `/admin/*` UI + `/api/v1/admin/*` routes accept the session.
 
 ### Photo workflow (Phase 4)
 Photos live in `public/products/{slug}/{NN}.webp`, slot 01 required for `hasPhotos = true`.
@@ -205,7 +216,7 @@ Versioning: SemVer.
   - `PATCH /api/v1/admin/orders/[id]` now performs the decrement transactionally when transitioning to `paid` (wallet flow) or `confirmed` (COD flow), with a `stockQty >= qty` guard per line; admin gets 409 `OUT_OF_STOCK` if anything was oversold in the race window. Cancelling out of `paid`/`confirmed` restores stock.
   - `POST /api/v1/orders/[id]/cancel` and `scripts/cancel-expired-orders.ts` no longer touch stock — pending orders never held any.
   - `LowStockAlert` email now fires on payment-confirmation (where the deduction actually happens), not at order placement.
-- DB reset SQL for prod (one-off cleanup of phantom pending orders from the sharp-500 era) is in this commit's body — paste into phpMyAdmin to release held stock + cancel stuck orders.
+- DB reset SQL for prod (one-off cleanup of phantom pending orders from the sharp-500 era) is in `docs/db-bootstrap.sql` under "Maintenance: release phantom-held stock + cancel stuck orders". Uncomment + paste into phpMyAdmin to release held stock + cancel stuck orders. Skip on fresh DBs.
 - TECH.md "Stock oversell" + Phase 9 ADR consequences updated. SCHEMA.md endpoint descriptions for POST `/orders`, POST `/orders/[id]/cancel`, and the order-status flow section updated.
 
 ### [0.13.5] — 2026-06-17 (shipped to production)
