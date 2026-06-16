@@ -71,7 +71,7 @@ export function Hero({ featured }: HeroProps) {
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             className="flex-1"
           >
-            <Tile product={current} ratio="portrait" priority />
+            <Tile product={current} ratio="portrait" priority useThumb={false} />
           </motion.div>
           <div className="flex w-[88px] flex-col gap-3">
             {thumbs.map((p, i) => (

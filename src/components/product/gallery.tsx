@@ -35,7 +35,7 @@ export function Gallery({ product }: GalleryProps) {
   if (!product.hasPhotos) {
     return (
       <div>
-        <Tile product={product} ratio="square" showLabel={false} priority />
+        <Tile product={product} ratio="square" showLabel={false} priority useThumb={false} />
       </div>
     )
   }
@@ -81,7 +81,7 @@ export function Gallery({ product }: GalleryProps) {
                 style={{ background: product.swatch }}
               >
                 <Image
-                  src={`${PHOTO_BASE}/${product.slug}/${slot}.webp`}
+                  src={`${PHOTO_BASE}/${product.slug}/${slot}-thumb.webp`}
                   alt=""
                   fill
                   sizes="100px"

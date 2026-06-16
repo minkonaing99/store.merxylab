@@ -3,139 +3,408 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { Plus } from 'lucide-react'
 import { formatMmk } from '@/lib/money'
+import { SLUG_REGEX } from '@/lib/slugify'
+import { ProductDetailsForm, type ProductFormValues, type CategoryLite } from './product-details-form'
+import { ProductPhotoGrid } from './product-photo-grid'
 
-interface Row {
+export interface Row {
   id: string
   name: string
   slug: string
   categoryId: string
   priceMmk: number
+  tagline: string
+  description: string
+  swatch: string
   stockQty: number
   lowStockThreshold: number
   featured: boolean
   isActive: boolean
   hasPhotos: boolean
+  specs: Array<{ label: string; value: string }>
 }
 
-interface AdminProductTableProps {
+interface Props {
   initial: Row[]
+  categories: CategoryLite[]
 }
 
-async function patchProduct(id: string, patch: Partial<Row>): Promise<boolean> {
-  const res = await fetch(`/api/v1/admin/products/${id}`, {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(patch),
-  })
-  return res.ok
+type ExpandedSection = 'details' | 'photos' | null
+
+function rowToForm(r: Row): ProductFormValues {
+  return {
+    name: r.name,
+    slug: r.slug,
+    categoryId: r.categoryId,
+    priceMmk: String(r.priceMmk),
+    tagline: r.tagline,
+    description: r.description,
+    swatch: r.swatch,
+    stockQty: String(r.stockQty),
+    lowStockThreshold: String(r.lowStockThreshold),
+    isActive: r.isActive,
+    featured: r.featured,
+    specs: r.specs.map((s) => ({ ...s })),
+  }
 }
 
-export function AdminProductTable({ initial }: AdminProductTableProps) {
-  const [rows, setRows] = useState(initial)
+function emptyForm(catId: string): ProductFormValues {
+  return {
+    name: '',
+    slug: '',
+    categoryId: catId,
+    priceMmk: '0',
+    tagline: '',
+    description: '',
+    swatch: '#7A4F36',
+    stockQty: '0',
+    lowStockThreshold: '3',
+    isActive: true,
+    featured: false,
+    specs: [],
+  }
+}
 
-  function update(id: string, patch: Partial<Row>): void {
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+export function AdminProductTable({ initial, categories }: Props) {
+  const [rows, setRows] = useState<Row[]>(initial)
+  const [creating, setCreating] = useState(false)
+  const [newDraft, setNewDraft] = useState<ProductFormValues>(() =>
+    emptyForm(categories[0]?.id ?? 'keyboards'),
+  )
+  const [savingNew, setSavingNew] = useState(false)
+
+  const [expanded, setExpanded] = useState<Record<string, ExpandedSection>>({})
+  const [drafts, setDrafts] = useState<Record<string, ProductFormValues>>({})
+  const [savingRow, setSavingRow] = useState<Record<string, boolean>>({})
+
+  function openSection(id: string, section: ExpandedSection) {
+    setExpanded((m) => ({ ...m, [id]: m[id] === section ? null : section }))
+    setDrafts((d) => {
+      if (d[id]) return d
+      const row = rows.find((r) => r.id === id)
+      return row ? { ...d, [id]: rowToForm(row) } : d
+    })
   }
 
-  async function commit(id: string, patch: Partial<Row>): Promise<void> {
-    const ok = await patchProduct(id, patch)
-    if (!ok) toast('Save failed.')
+  function updateDraft(id: string, next: ProductFormValues) {
+    setDrafts((d) => ({ ...d, [id]: next }))
+  }
+
+  function discardDraft(id: string) {
+    const row = rows.find((r) => r.id === id)
+    if (!row) return
+    setDrafts((d) => ({ ...d, [id]: rowToForm(row) }))
+  }
+
+  async function createProduct() {
+    const errors = validateForm(newDraft, true, new Set(rows.map((r) => r.slug)))
+    if (errors.length > 0) {
+      toast(errors[0]!)
+      return
+    }
+    setSavingNew(true)
+    const body = formToBody(newDraft)
+    const res = await fetch('/api/v1/admin/products', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    setSavingNew(false)
+    const json = await res.json().catch(() => null)
+    if (!res.ok) {
+      toast(json?.error?.message ?? 'Create failed.')
+      return
+    }
+    const slug = json.data.slug as string
+    const fresh: Row = {
+      id: slug,
+      slug,
+      name: newDraft.name.trim(),
+      categoryId: newDraft.categoryId,
+      priceMmk: Number(newDraft.priceMmk) || 0,
+      tagline: newDraft.tagline.trim(),
+      description: newDraft.description.trim(),
+      swatch: newDraft.swatch,
+      stockQty: Number(newDraft.stockQty) || 0,
+      lowStockThreshold: Number(newDraft.lowStockThreshold) || 3,
+      featured: newDraft.featured,
+      isActive: newDraft.isActive,
+      hasPhotos: false,
+      specs: newDraft.specs,
+    }
+    setRows((rs) => [fresh, ...rs])
+    setCreating(false)
+    setNewDraft(emptyForm(categories[0]?.id ?? 'keyboards'))
+    toast('Product created. Open Edit photos to upload images.')
+  }
+
+  async function saveRow(id: string) {
+    const draft = drafts[id]
+    const original = rows.find((r) => r.id === id)
+    if (!draft || !original) return
+
+    const errors = validateForm(draft, false, new Set())
+    if (errors.length > 0) {
+      toast(errors[0]!)
+      return
+    }
+
+    setSavingRow((m) => ({ ...m, [id]: true }))
+    const res = await fetch(`/api/v1/admin/products/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(formToBody(draft)),
+    })
+    setSavingRow((m) => ({ ...m, [id]: false }))
+    const json = await res.json().catch(() => null)
+    if (!res.ok) {
+      toast(json?.error?.message ?? 'Save failed.')
+      return
+    }
+
+    const updated: Row = {
+      ...original,
+      name: draft.name.trim(),
+      categoryId: draft.categoryId,
+      priceMmk: Number(draft.priceMmk) || 0,
+      tagline: draft.tagline.trim(),
+      description: draft.description.trim(),
+      swatch: draft.swatch,
+      stockQty: Number(draft.stockQty) || 0,
+      lowStockThreshold: Number(draft.lowStockThreshold) || 3,
+      featured: draft.featured,
+      isActive: draft.isActive,
+      specs: draft.specs,
+    }
+    setRows((rs) => rs.map((r) => (r.id === id ? updated : r)))
+    setDrafts((d) => ({ ...d, [id]: rowToForm(updated) }))
+    toast('Saved.')
+  }
+
+  function markHasPhotos(id: string, hasPhotos: boolean) {
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, hasPhotos } : r)))
   }
 
   return (
-    <div className="mt-6 overflow-x-auto">
-      <table className="w-full border-collapse text-[13px]">
-        <thead>
-          <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.06em] text-muted">
-            <th className="py-3 pr-3">Product</th>
-            <th className="py-3 px-3 w-[120px]">Price (MMK)</th>
-            <th className="py-3 px-3 w-[80px]">Stock</th>
-            <th className="py-3 px-3 w-[80px]">Low</th>
-            <th className="py-3 px-3 w-[70px]">Active</th>
-            <th className="py-3 px-3 w-[80px]">Featured</th>
-            <th className="py-3 px-3 w-[80px]">Photos</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} className="border-b border-line/60 hover:bg-surface">
-              <td className="py-3 pr-3">
-                <div className="font-display text-[14px] text-ink">{r.name}</div>
-                <div className="text-[11px] text-muted">
-                  {r.categoryId} ·{' '}
-                  <Link
-                    href={`/product/${r.slug}`}
-                    className="underline underline-offset-2 hover:text-accent"
-                  >
-                    view
-                  </Link>
+    <div className="mt-6 space-y-4">
+      <div className="flex items-center justify-end">
+        <button
+          onClick={() => setCreating((c) => !c)}
+          className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-ink px-4 py-2 text-[13px] font-medium text-cream transition-colors hover:bg-accent"
+        >
+          <Plus size={14} strokeWidth={2} />
+          {creating ? 'Close form' : 'New product'}
+        </button>
+      </div>
+
+      {creating && (
+        <article className="rounded-[var(--radius-lg)] border border-line bg-surface p-5 md:p-6">
+          <h3 className="font-display text-[18px]">New product</h3>
+          <ProductDetailsForm
+            values={newDraft}
+            onChange={setNewDraft}
+            categories={categories}
+            mode="create"
+          />
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              onClick={() => {
+                setCreating(false)
+                setNewDraft(emptyForm(categories[0]?.id ?? 'keyboards'))
+              }}
+              disabled={savingNew}
+              className="inline-flex items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-5 py-2 text-[13px] font-medium text-ink hover:border-ink/40 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={createProduct}
+              disabled={savingNew}
+              className="inline-flex items-center justify-center rounded-[var(--radius-pill)] bg-ink px-6 py-2 text-[13px] font-medium text-cream transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              {savingNew ? 'Creating…' : 'Create product'}
+            </button>
+          </div>
+        </article>
+      )}
+
+      <ul className="divide-y divide-line border-y border-line">
+        {rows.map((r) => {
+          const isExpanded = expanded[r.id]
+          const draft = drafts[r.id]
+          const dirty = draft ? formIsDirty(rowToForm(r), draft) : false
+          const saving = Boolean(savingRow[r.id])
+          return (
+            <li key={r.id} className="py-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 font-display text-[15px]">
+                    <Link
+                      href={`/product/${r.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-accent"
+                    >
+                      {r.name}
+                    </Link>
+                    {!r.isActive && (
+                      <span className="rounded-[var(--radius-pill)] bg-line px-2 py-0.5 text-[10px] uppercase tracking-[0.06em] text-muted">
+                        inactive
+                      </span>
+                    )}
+                    {r.featured && (
+                      <span className="rounded-[var(--radius-pill)] bg-accent/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.06em] text-accent">
+                        featured
+                      </span>
+                    )}
+                    {!r.hasPhotos && (
+                      <span className="rounded-[var(--radius-pill)] bg-error/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.06em] text-error">
+                        no photos
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-[12px] text-muted">
+                    {r.slug} · {r.categoryId} · {formatMmk(r.priceMmk)} · stock {r.stockQty}
+                  </div>
                 </div>
-              </td>
-              <td className="py-3 px-3">
-                <input
-                  type="number"
-                  value={r.priceMmk}
-                  onChange={(e) => update(r.id, { priceMmk: Number(e.target.value) })}
-                  onBlur={() => commit(r.id, { priceMmk: r.priceMmk })}
-                  className="w-[110px] rounded border border-line bg-cream px-2 py-1 tabular-nums"
-                />
-                <div className="mt-1 text-[10px] text-muted">{formatMmk(r.priceMmk)}</div>
-              </td>
-              <td className="py-3 px-3">
-                <input
-                  type="number"
-                  value={r.stockQty}
-                  onChange={(e) => update(r.id, { stockQty: Number(e.target.value) })}
-                  onBlur={() => commit(r.id, { stockQty: r.stockQty })}
-                  className="w-[70px] rounded border border-line bg-cream px-2 py-1 tabular-nums"
-                />
-              </td>
-              <td className="py-3 px-3">
-                <input
-                  type="number"
-                  value={r.lowStockThreshold}
-                  onChange={(e) =>
-                    update(r.id, { lowStockThreshold: Number(e.target.value) })
-                  }
-                  onBlur={() => commit(r.id, { lowStockThreshold: r.lowStockThreshold })}
-                  className="w-[70px] rounded border border-line bg-cream px-2 py-1 tabular-nums"
-                />
-              </td>
-              <td className="py-3 px-3">
-                <input
-                  type="checkbox"
-                  checked={r.isActive}
-                  onChange={(e) => {
-                    update(r.id, { isActive: e.target.checked })
-                    commit(r.id, { isActive: e.target.checked })
-                  }}
-                />
-              </td>
-              <td className="py-3 px-3">
-                <input
-                  type="checkbox"
-                  checked={r.featured}
-                  onChange={(e) => {
-                    update(r.id, { featured: e.target.checked })
-                    commit(r.id, { featured: e.target.checked })
-                  }}
-                />
-              </td>
-              <td className="py-3 px-3">
-                <input
-                  type="checkbox"
-                  checked={r.hasPhotos}
-                  onChange={(e) => {
-                    update(r.id, { hasPhotos: e.target.checked })
-                    commit(r.id, { hasPhotos: e.target.checked })
-                  }}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <div className="flex gap-2 text-[12px]">
+                  <button
+                    onClick={() => openSection(r.id, 'details')}
+                    className={`rounded-[var(--radius-pill)] border px-3 py-1 transition-colors ${
+                      isExpanded === 'details'
+                        ? 'border-ink bg-ink text-cream'
+                        : 'border-line text-ink hover:border-ink/40'
+                    }`}
+                  >
+                    Edit details
+                  </button>
+                  <button
+                    onClick={() => openSection(r.id, 'photos')}
+                    className={`rounded-[var(--radius-pill)] border px-3 py-1 transition-colors ${
+                      isExpanded === 'photos'
+                        ? 'border-ink bg-ink text-cream'
+                        : 'border-line text-ink hover:border-ink/40'
+                    }`}
+                  >
+                    Edit photos
+                  </button>
+                </div>
+              </div>
+
+              {isExpanded === 'details' && draft && (
+                <div className="mt-4 rounded-[var(--radius)] border border-line bg-surface p-5">
+                  <ProductDetailsForm
+                    values={draft}
+                    onChange={(v) => updateDraft(r.id, v)}
+                    categories={categories}
+                    mode="edit"
+                  />
+                  <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    {dirty && <span className="text-[12px] text-muted sm:mr-auto">Unsaved changes.</span>}
+                    <button
+                      type="button"
+                      disabled={!dirty || saving}
+                      onClick={() => discardDraft(r.id)}
+                      className="inline-flex items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-5 py-2 text-[13px] font-medium text-ink hover:border-ink/40 disabled:opacity-50"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!dirty || saving}
+                      onClick={() => saveRow(r.id)}
+                      className="inline-flex items-center justify-center rounded-[var(--radius-pill)] bg-ink px-6 py-2 text-[13px] font-medium text-cream transition-colors hover:bg-accent disabled:opacity-50"
+                    >
+                      {saving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isExpanded === 'photos' && (
+                <div className="mt-4 rounded-[var(--radius)] border border-line bg-surface p-5">
+                  <ProductPhotoGrid
+                    productId={r.id}
+                    slug={r.slug}
+                    swatch={r.swatch}
+                    onChange={(hasAny) => markHasPhotos(r.id, hasAny)}
+                  />
+                </div>
+              )}
+            </li>
+          )
+        })}
+        {rows.length === 0 && (
+          <li className="py-10 text-center text-[14px] text-muted">
+            No products yet. Click <strong>+ New product</strong> to add the first one.
+          </li>
+        )}
+      </ul>
     </div>
   )
+}
+
+function validateForm(v: ProductFormValues, isCreate: boolean, existingSlugs: Set<string>): string[] {
+  const errs: string[] = []
+  if (!v.name.trim()) errs.push('Name is required.')
+  if (!SLUG_REGEX.test(v.slug)) errs.push('Slug must be lowercase letters, digits, and dashes only.')
+  if (isCreate && existingSlugs.has(v.slug)) errs.push('Slug already in use.')
+  if (!v.categoryId) errs.push('Pick a category.')
+  if (Number(v.priceMmk) < 0 || Number.isNaN(Number(v.priceMmk))) errs.push('Price must be a non-negative number.')
+  if (!v.tagline.trim()) errs.push('Tagline is required.')
+  if (!v.description.trim()) errs.push('Description is required.')
+  if (!/^#[0-9A-Fa-f]{6}$/.test(v.swatch)) errs.push('Swatch must be a 6-digit hex.')
+  if (Number(v.stockQty) < 0 || Number.isNaN(Number(v.stockQty))) errs.push('Stock must be a non-negative number.')
+  if (Number(v.lowStockThreshold) < 0 || Number.isNaN(Number(v.lowStockThreshold))) errs.push('Low-stock threshold must be a non-negative number.')
+  for (const s of v.specs) {
+    if (!s.label.trim() || !s.value.trim()) {
+      errs.push('Every spec row needs both a label and a value (or remove the row).')
+      break
+    }
+  }
+  return errs
+}
+
+function formToBody(v: ProductFormValues) {
+  return {
+    slug: v.slug,
+    name: v.name.trim(),
+    categoryId: v.categoryId,
+    priceMmk: Number(v.priceMmk) || 0,
+    tagline: v.tagline.trim(),
+    description: v.description.trim(),
+    swatch: v.swatch,
+    stockQty: Number(v.stockQty) || 0,
+    lowStockThreshold: Number(v.lowStockThreshold) || 3,
+    isActive: v.isActive,
+    featured: v.featured,
+    specs: v.specs.map((s) => ({ label: s.label.trim(), value: s.value.trim() })),
+  }
+}
+
+function formIsDirty(a: ProductFormValues, b: ProductFormValues): boolean {
+  if (
+    a.name !== b.name ||
+    a.slug !== b.slug ||
+    a.categoryId !== b.categoryId ||
+    a.priceMmk !== b.priceMmk ||
+    a.tagline !== b.tagline ||
+    a.description !== b.description ||
+    a.swatch !== b.swatch ||
+    a.stockQty !== b.stockQty ||
+    a.lowStockThreshold !== b.lowStockThreshold ||
+    a.isActive !== b.isActive ||
+    a.featured !== b.featured
+  ) {
+    return true
+  }
+  if (a.specs.length !== b.specs.length) return true
+  for (let i = 0; i < a.specs.length; i++) {
+    if (a.specs[i]!.label !== b.specs[i]!.label || a.specs[i]!.value !== b.specs[i]!.value) {
+      return true
+    }
+  }
+  return false
 }

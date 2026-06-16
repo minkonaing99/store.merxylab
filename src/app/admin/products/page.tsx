@@ -1,19 +1,28 @@
 import { asc } from 'drizzle-orm'
 import { db } from '@/db'
-import { products } from '@/db/schema/products'
+import { categories as categoriesTbl, products, productSpecs } from '@/db/schema/products'
 import { AdminProductTable } from './product-table'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminProductsPage() {
-  const rows = await db
-    .select()
-    .from(products)
-    .orderBy(asc(products.categoryId), asc(products.name))
+  const [rows, cats, specs] = await Promise.all([
+    db.select().from(products).orderBy(asc(products.categoryId), asc(products.name)),
+    db.select().from(categoriesTbl).orderBy(asc(categoriesTbl.sortOrder)),
+    db.select().from(productSpecs).orderBy(asc(productSpecs.productId), asc(productSpecs.sortOrder)),
+  ])
+
+  const specsByProduct: Record<string, Array<{ label: string; value: string }>> = {}
+  for (const s of specs) {
+    if (!specsByProduct[s.productId]) specsByProduct[s.productId] = []
+    specsByProduct[s.productId]!.push({ label: s.label, value: s.value })
+  }
 
   return (
     <div>
       <h2 className="font-display text-[26px]">Products</h2>
       <p className="mt-2 text-[14px] text-muted">
-        Inline edit price, stock, featured, active. Saves on blur.
+        Add new products, edit details + specs, manage photos per slot. Save / Discard per section — no auto-save.
       </p>
       <AdminProductTable
         initial={rows.map((r) => ({
@@ -22,13 +31,19 @@ export default async function AdminProductsPage() {
           slug: r.slug,
           categoryId: r.categoryId,
           priceMmk: Number(r.priceMmk),
+          tagline: r.tagline,
+          description: r.description,
+          swatch: r.swatch,
           stockQty: r.stockQty,
           lowStockThreshold: r.lowStockThreshold,
           featured: r.featured,
           isActive: r.isActive,
           hasPhotos: r.hasPhotos,
+          specs: specsByProduct[r.id] ?? [],
         }))}
+        categories={cats.map((c) => ({ id: c.id, name: c.name }))}
       />
     </div>
   )
 }
+

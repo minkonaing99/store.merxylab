@@ -12,6 +12,8 @@ interface TileProps {
   slot?: PhotoSlot
   priority?: boolean
   sizes?: string
+  /** Use the 600px thumb instead of the 1600px hero. Defaults to true (grid use). */
+  useThumb?: boolean
 }
 
 const RATIO = {
@@ -35,7 +37,9 @@ export function Tile({
   slot = '01',
   priority = false,
   sizes = '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 90vw',
+  useThumb = true,
 }: TileProps) {
+  const photoFile = useThumb ? `${slot}-thumb.webp` : `${slot}.webp`
   const dark = isDark(product.swatch)
   const ink = dark ? '#F5EFE6' : '#1C1B19'
   const muted = dark ? 'rgba(245, 239, 230, 0.6)' : 'rgba(28, 27, 25, 0.5)'
@@ -53,7 +57,7 @@ export function Tile({
     >
       {product.hasPhotos && (
         <Image
-          src={`${PHOTO_BASE}/${product.slug}/${slot}.webp`}
+          src={`${PHOTO_BASE}/${product.slug}/${photoFile}`}
           alt={`${product.name} — ${category?.name ?? product.category}`}
           fill
           sizes={sizes}
