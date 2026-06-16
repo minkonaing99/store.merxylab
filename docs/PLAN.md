@@ -264,17 +264,17 @@ Tasks:
 - [ ] Phase 9.13 — Auto-cancel cron: `scripts/cancel-expired-orders.ts` runs nightly. Conditional UPDATE for safety. Emails customer.
 - [ ] Phase 9.14 — `docs/PAYMENT.md` end-to-end runbook (checkout → slip → verify → ship → deliver). Update `docs/ADMIN.md` to point at new workflow.
 
-### Phase 10 — Inline product CRUD + photo pipeline (in progress)
-- [ ] Phase 10.1 — `src/lib/slugify.ts` (restore minimal util: `lowercase | trim | non-alnum → "-"`).
-- [ ] Phase 10.2 — `POST /api/v1/admin/products` — zod-validated body (slug regex `^[a-z0-9-]+$`, slug uniqueness via SELECT), inserts `products` + `product_specs` rows in a transaction. Revalidates `products` tag.
-- [ ] Phase 10.3 — Extend `PATCH /api/v1/admin/products/[id]` to accept full product shape + specs array (REPLACE semantics for specs: delete all existing, insert provided).
-- [ ] Phase 10.4 — `POST /api/v1/admin/products/[id]/photos/[slot]` — slot ∈ {`01`,`02`,`03`,`04`}. Multipart, JPG/PNG/WEBP ≤ 10 MB, magic-byte sniff. `sharp` produces two WEBPs per upload: 1600×1600 hero `0X.webp` + 600×600 thumb `0X-thumb.webp`. EXIF stripped. Replaces existing pair atomically. Flips `has_photos = true` on first slot-01 upload. Rate-limit 30/hr/admin.
-- [ ] Phase 10.5 — `DELETE /api/v1/admin/products/[id]/photos/[slot]` — removes both files. If deleting slot 01 leaves no other slots, sets `has_photos = false`.
-- [ ] Phase 10.6 — Rewrite `src/app/admin/products/product-table.tsx`. "+ New product" button at top opens `ProductDetailsForm` inline. Each existing row gets two expand buttons: **Edit details** (same form, pre-filled) + **Edit photos** (`ProductPhotoGrid`). Save / Discard pair per expanded section.
-- [ ] Phase 10.7 — `ProductDetailsForm` — name → auto-slug; category select; price MMK; tagline; description; swatch `<input type="color">`; stock_qty; low_stock_threshold; featured + is_active toggles; specs editor (dynamic `{label, value}` rows). Client-side validation: required fields, slug regex, price > 0, stock ≥ 0.
-- [ ] Phase 10.8 — `ProductPhotoGrid` — 4-slot grid (01..04). Each cell: 600px thumb preview or swatch-tinted placeholder. Per-slot Replace + Remove. Client-side reject for non-JPG/PNG/WEBP + > 10 MB before sending.
-- [ ] Phase 10.9 — Update `src/components/product/card.tsx` + `tile.tsx` to prefer `0X-thumb.webp`, fallback to `0X.webp` for backward compat with existing placeholder dirs.
-- [ ] Phase 10.10 — Docs: update `docs/PAYMENT.md` (already done for QR optional + KBZ Bank + 5th method), add new "Adding a product" section in `docs/ADMIN.md`. Regenerate `docs/db-bootstrap.sql` to include the `kbz_bank` row.
+### Phase 10 — Inline product CRUD + photo pipeline (shipped to testing 2026-06-17)
+- [x] Phase 10.1 — `src/lib/slugify.ts` (lowercase + diacritic strip + non-alnum to `-` + slice to 80; exports `SLUG_REGEX`).
+- [x] Phase 10.2 — `POST /api/v1/admin/products` — zod-validated body (slug regex, slug uniqueness via SELECT), inserts `products` + `product_specs` rows in a transaction. Revalidates `products` tag. id = slug.
+- [x] Phase 10.3 — Extended `PATCH /api/v1/admin/products/[id]` to accept full product shape + specs array (REPLACE semantics for specs: delete all existing, insert provided).
+- [x] Phase 10.4 — `POST /api/v1/admin/products/[id]/photos/[slot]` — slot ∈ {`01`,`02`,`03`,`04`}. Multipart, JPG/PNG/WEBP ≤ 10 MB. `sharp` produces 1600×1600 hero `0X.webp` + 600×600 thumb `0X-thumb.webp` per upload, EXIF stripped. Replaces existing pair atomically. `has_photos` re-synced from filesystem (looks for `01.webp`) after every mutation. Rate-limit 30/hr/admin.
+- [x] Phase 10.5 — `DELETE /api/v1/admin/products/[id]/photos/[slot]` — removes both files, re-syncs `has_photos`.
+- [x] Phase 10.6 — Rewrote `src/app/admin/products/product-table.tsx`. `+ New product` button at top opens `ProductDetailsForm` inline. Each row gets two expand buttons: Edit details + Edit photos. Save / Discard pair per expanded section, no auto-save.
+- [x] Phase 10.7 — `ProductDetailsForm` — name drives auto-slug while user hasn't customised it; category select; price MMK; tagline; description; swatch `<input type="color">` + hex input; stock_qty; low_stock_threshold; featured + is_active toggles; specs editor (dynamic `{label, value}` rows with `+` to add, trash to remove). Slug is read-only in edit mode to keep order references stable.
+- [x] Phase 10.8 — `ProductPhotoGrid` — 4-slot grid (01..04). Each cell: 600px thumb preview over swatch-tinted background (cache-busted via `?v=`). Per-slot Replace (file picker) + Remove (trash). Client-side reject for non-JPG/PNG/WEBP + > 10 MB before sending.
+- [x] Phase 10.9 — `<Tile>` got a `useThumb` prop (defaults true for grid contexts). Hero + PDP swatch-only fallback opt in to `useThumb={false}`. PDP gallery thumb strip switched to `0X-thumb.webp`.
+- [x] Phase 10.10 — Docs synced: PRD owner stories, TECH ADR, SCHEMA endpoint table, DESIGN component sketches, ADMIN runbook, PLAN this section, SETUP changelog. `docs/PAYMENT.md` already covered QR-optional + KBZ Bank. `docs/db-bootstrap.sql` updated to include `kbz_bank`.
 
 ### Backlog
 - [ ] Hostinger deploy (follow `docs/DEPLOY.md` once domain + DB credentials ready)
@@ -391,6 +391,6 @@ Tasks:
 
 **Note:** Keep updated. Claude reads this before starting work.
 
-**Current status pointer:** Phases 1-9 done and deployed to Hostinger (`production` branch). Phase 9.x patches shipped: form validation across signin/signup/address/checkout, admin Save/Discard for payment methods, QR optional, sort_order 1-5, KBZ Bank as 5th method. Phase 10 (inline product CRUD + photo pipeline) docs locked, implementation pending. Active focus → start Phase 10.1 (slugify util) → API → admin UI.
+**Current status pointer:** Phases 1-10 done. Phase 10 (inline product CRUD + dual-resize photo pipeline) shipped to `testing` + `main` at commit `6bb7623` on 2026-06-17. Production is held pending owner verification. Phases 1-9 + 9.x patches already live on production. Active focus → owner smoke-tests product create + edit + photo upload on testing → "push to production" → cherry-pick `6bb7623` onto production → push.
 
 **Known limitation carried into Phase 6:** Client components (cart-drawer, search via Fuse, ProductCard category lookup) still read from `src/data/*.json`. Until Phase 6 wires them to API/store-snapshot, owner edits in Drizzle Studio reflect on server pages (PDP/shop/home) only — cart drawer + search still show JSON values until JSON is regenerated. Acceptable for placeholder phase; resolved in Phase 6.1 (cart snapshots) and Phase 7 (search API + client fetch).

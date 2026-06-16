@@ -184,6 +184,15 @@ pnpm test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.13.0] — 2026-06-17 (shipped to testing)
+- Phase 10 implemented and pushed to `testing` + `main` at `6bb7623`. Production held until owner smoke-tests.
+- New endpoints: `POST /api/v1/admin/products`, extended `PATCH /api/v1/admin/products/[id]` with specs REPLACE, `POST` and `DELETE /api/v1/admin/products/[id]/photos/[slot]`. `sharp` dual-resize per upload: 1600×1600 hero + 600×600 thumb, EXIF stripped. Rate-limit 30/hr/admin on photo uploads.
+- New lib: `src/lib/slugify.ts` (lowercase + diacritic strip + non-alnum to `-` + slice to 80; exports `SLUG_REGEX`).
+- New UI: `+ New product` button at top of `/admin/products` opens `ProductDetailsForm` inline. Each existing row gets two expand buttons — `Edit details` + `Edit photos`. Save / Discard pair per expanded section, no auto-save.
+- `ProductDetailsForm`: name → auto-slug (only while user hasn't customised it; slug is read-only in edit mode); category select; price MMK; tagline; description; swatch via `<input type="color">` + hex input; stock + threshold; active/featured toggles; dynamic specs editor (`+ row` / trash).
+- `ProductPhotoGrid`: 4 fixed slots (01..04). Each cell shows the 600px thumb over the swatch-tinted background (cache-busted via `?v=`). Per-slot Replace + Remove. Client validates file type + size before sending.
+- Render: `<Tile>` got a `useThumb` prop (default true for grid contexts). Hero + PDP gallery swatch-only fallback opt in to `useThumb={false}`. PDP gallery thumb strip switched to `0X-thumb.webp`.
+
 ### [0.12.0] — 2026-06-16 (docs only — implementation pending)
 - Phase 10 design locked: inline product CRUD + photo pipeline on `/admin/products`.
 - Adds `+ New product` button opening `ProductDetailsForm` with name → auto-slug, category select, price, tagline, description, swatch (native color picker), stock + threshold, featured/active toggles, and a dynamic specs editor (key/value rows).
