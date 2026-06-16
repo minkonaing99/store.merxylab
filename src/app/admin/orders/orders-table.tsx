@@ -41,14 +41,33 @@ export function AdminOrdersTable({ initial }: AdminOrdersTableProps) {
   const [rows, setRows] = useState(initial)
 
   async function setStatus(id: string, status: Status) {
+    const prev = rows.find((r) => r.id === id)?.status
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)))
     const res = await fetch(`/api/v1/admin/orders/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status }),
     })
-    if (!res.ok) toast('Save failed.')
-    else toast(`Status → ${status.replace('_', ' ')}`)
+    if (res.ok) {
+      toast(`Status → ${status.replace('_', ' ')}`)
+      return
+    }
+    if (prev !== undefined) {
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: prev } : r)))
+    }
+    const body = (await res.json().catch(() => null)) as
+      | { error?: { code?: string; message?: string } }
+      | null
+    const code = body?.error?.code
+    const msg = body?.error?.message
+    if (code === 'OUT_OF_STOCK') {
+      const sku = msg?.split(':')[1] ?? ''
+      toast(`Out of stock: ${sku || 'one or more items'}. Restock before marking paid.`)
+    } else if (msg) {
+      toast(msg)
+    } else {
+      toast(`Save failed (${res.status}).`)
+    }
   }
 
   return (
