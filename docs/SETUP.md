@@ -210,6 +210,10 @@ npm run test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.13.7] — 2026-06-17 (shipped to testing)
+- Bootstrap fix: product seed now ships `has_photos = 0` for every row. Previous bootstraps wrote 1 unconditionally, which made `next/image` 500 on the missing `/products/<slug>/01-thumb.webp` files in any fresh deploy. Owner upload via `/admin/products` flips the flag back to 1 per-product via `syncHasPhotos()`. Maintenance SQL block added to `db-bootstrap.sql` for prod DBs already seeded with the wrong value.
+- Wallet slip upload UI: the bare native `<input type="file">` rendered nearly invisible on the cream surface. Replaced with hidden-input-plus-styled-label pattern + filename readout, matching the admin photo grid. Same JPG/PNG/WEBP/8MB constraints, just a button you can actually see.
+
 ### [0.13.6] — 2026-06-17 (shipped to testing)
 - Stock commit moves to payment confirmation, not order placement. Closes the "ghost reservation" failure mode where checkout decremented stock but slip upload 500'd (e.g. during the sharp/libvips outage) leaving items stuck.
   - `POST /api/v1/orders` now does a read-only `stockQty >= qty` snapshot check per line and returns 409 `OUT_OF_STOCK` if any line fails — **no UPDATE on `products`**. Order row is inserted in `pending_payment` with no inventory side effects.

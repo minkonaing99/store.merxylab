@@ -111,12 +111,20 @@ export function WalletPanel({
         <p className="mt-1 text-[13px] text-muted">
           Screenshot from your wallet app. JPG, PNG, or WEBP, under 8 MB.
         </p>
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="mt-3 block w-full text-[13px] text-ink-soft"
-        />
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-4 py-2 text-[13px] font-medium text-ink transition-colors hover:border-ink/40">
+            {file ? 'Replace file' : 'Choose file'}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="hidden"
+            />
+          </label>
+          <span className="truncate text-[12px] text-muted">
+            {file ? file.name : 'No file chosen'}
+          </span>
+        </div>
         <input
           type="text"
           placeholder="Transaction reference (optional)"

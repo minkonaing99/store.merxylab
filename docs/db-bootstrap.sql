@@ -304,21 +304,21 @@ INSERT INTO `categories` (`id`, `name`, `description`, `sort_order`) VALUES
 -- 5. Products
 -- =================================================================
 INSERT INTO `products` (`id`, `slug`, `name`, `category_id`, `price_mmk`, `tagline`, `description`, `swatch`, `stock_qty`, `low_stock_threshold`, `has_photos`, `is_active`, `featured`) VALUES
-('hyperx-alloy-origins-core', 'hyperx-alloy-origins-core', 'HyperX Alloy Origins Core', 'keyboards', 361000, 'Tenkeyless wired with tactile aqua switches.', 'A compact aluminium-body TKL with HyperX Aqua tactile switches and per-key RGB. USB-C detachable cable, three adjustable tilt angles.', '#2A2622', 12, 3, 1, 1, 1),
-('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 1, 1, 1),
-('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#2C2825', 5, 2, 1, 1, 1),
-('vxe-r1se-plus', 'vxe-r1se-plus', 'VXE R1SE+', 'mice', 125000, '55-gram tri-mode at entry-level money.', 'PAW3395SE sensor, 55-gram shell, and tri-mode wireless. The cheapest way into a serious lightweight mouse.', '#E8DCC8', 11, 3, 1, 1, 1),
-('logitech-g304', 'logitech-g304', 'Logitech G304', 'mice', 195000, 'LIGHTSPEED wireless, 250-hour battery.', 'The HERO sensor at its most accessible. LIGHTSPEED wireless, AA-powered for 250 hours, six programmable buttons.', '#262320', 13, 3, 1, 1, 1),
-('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#1A1816', 4, 2, 1, 1, 1),
-('razer-kraken-x-essential', 'razer-kraken-x-essential', 'Razer Kraken X Essential', 'headsets', 169000, 'Featherweight wired headset. Honest budget pick.', '230 grams on the head, 40 mm drivers, 7.1 surround over USB. A clean entry-level headset that gets out of the way.', '#1A1816', 10, 3, 1, 1, 1),
-('hyperx-cloud-iii-wired', 'hyperx-cloud-iii-wired', 'HyperX Cloud III Wired', 'headsets', 459000, '53mm drivers and DTS spatial.', 'The Cloud lineage, refined. 53 mm angled drivers, DTS Headphone:X, detachable mic, USB-C and 3.5 mm out of the box.', '#1F1C1A', 6, 2, 1, 1, 1),
-('hyperx-cloud-iii-wireless', 'hyperx-cloud-iii-wireless', 'HyperX Cloud III Wireless', 'headsets', 690000, '120-hour battery. DTS spatial.', 'Cloud III over 2.4 GHz with 120-hour battery, DTS spatial audio, 53 mm angled drivers, detachable mic.', '#2A2622', 4, 2, 1, 1, 1),
-('hyperx-solocast', 'hyperx-solocast', 'HyperX SoloCast', 'microphones', 289000, 'Cardioid USB mic with tap-mute.', 'A plug-and-play USB condenser. Cardioid pickup, tap-to-mute on top, 24-bit/96 kHz capture, adjustable stand.', '#1C1A18', 9, 2, 1, 1, 1),
-('hyperx-quadcast-s', 'hyperx-quadcast-s', 'HyperX QuadCast S', 'microphones', 750000, 'Four polar patterns. RGB shock-mount.', 'The full-featured streamer mic. Four polar patterns, anti-vibration mount, headphone monitoring jack, 24-bit/96 kHz capture.', '#28231F', 3, 1, 1, 1, 0),
-('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'speakers', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 1, 1, 1),
-('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 1, 1, 1),
-('mouse-wrist-rest', 'mouse-wrist-rest', 'Mouse Wrist Rest', 'accessories', 25000, 'Ergonomic support for long days.', 'A contoured wrist rest sized for mouse pads. Memory foam core, fabric top, anti-slip base.', '#3D342A', 20, 5, 1, 1, 1),
-('8in1-cleaning-kit', '8in1-cleaning-kit', '8-in-1 Cleaning Kit', 'accessories', 19500, 'For keyboards, earbuds, phones, tablets.', 'Eight tools in one kit: brush, swab, putty, microfiber, spray bottle, and key-pullers. Covers the full desk surface.', '#5A4A3E', 18, 4, 1, 1, 1);
+('hyperx-alloy-origins-core', 'hyperx-alloy-origins-core', 'HyperX Alloy Origins Core', 'keyboards', 361000, 'Tenkeyless wired with tactile aqua switches.', 'A compact aluminium-body TKL with HyperX Aqua tactile switches and per-key RGB. USB-C detachable cable, three adjustable tilt angles.', '#2A2622', 12, 3, 0, 1, 1),
+('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 0, 1, 1),
+('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#2C2825', 5, 2, 0, 1, 1),
+('vxe-r1se-plus', 'vxe-r1se-plus', 'VXE R1SE+', 'mice', 125000, '55-gram tri-mode at entry-level money.', 'PAW3395SE sensor, 55-gram shell, and tri-mode wireless. The cheapest way into a serious lightweight mouse.', '#E8DCC8', 11, 3, 0, 1, 1),
+('logitech-g304', 'logitech-g304', 'Logitech G304', 'mice', 195000, 'LIGHTSPEED wireless, 250-hour battery.', 'The HERO sensor at its most accessible. LIGHTSPEED wireless, AA-powered for 250 hours, six programmable buttons.', '#262320', 13, 3, 0, 1, 1),
+('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#1A1816', 4, 2, 0, 1, 1),
+('razer-kraken-x-essential', 'razer-kraken-x-essential', 'Razer Kraken X Essential', 'headsets', 169000, 'Featherweight wired headset. Honest budget pick.', '230 grams on the head, 40 mm drivers, 7.1 surround over USB. A clean entry-level headset that gets out of the way.', '#1A1816', 10, 3, 0, 1, 1),
+('hyperx-cloud-iii-wired', 'hyperx-cloud-iii-wired', 'HyperX Cloud III Wired', 'headsets', 459000, '53mm drivers and DTS spatial.', 'The Cloud lineage, refined. 53 mm angled drivers, DTS Headphone:X, detachable mic, USB-C and 3.5 mm out of the box.', '#1F1C1A', 6, 2, 0, 1, 1),
+('hyperx-cloud-iii-wireless', 'hyperx-cloud-iii-wireless', 'HyperX Cloud III Wireless', 'headsets', 690000, '120-hour battery. DTS spatial.', 'Cloud III over 2.4 GHz with 120-hour battery, DTS spatial audio, 53 mm angled drivers, detachable mic.', '#2A2622', 4, 2, 0, 1, 1),
+('hyperx-solocast', 'hyperx-solocast', 'HyperX SoloCast', 'microphones', 289000, 'Cardioid USB mic with tap-mute.', 'A plug-and-play USB condenser. Cardioid pickup, tap-to-mute on top, 24-bit/96 kHz capture, adjustable stand.', '#1C1A18', 9, 2, 0, 1, 1),
+('hyperx-quadcast-s', 'hyperx-quadcast-s', 'HyperX QuadCast S', 'microphones', 750000, 'Four polar patterns. RGB shock-mount.', 'The full-featured streamer mic. Four polar patterns, anti-vibration mount, headphone monitoring jack, 24-bit/96 kHz capture.', '#28231F', 3, 1, 0, 1, 0),
+('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'speakers', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 1),
+('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 1),
+('mouse-wrist-rest', 'mouse-wrist-rest', 'Mouse Wrist Rest', 'accessories', 25000, 'Ergonomic support for long days.', 'A contoured wrist rest sized for mouse pads. Memory foam core, fabric top, anti-slip base.', '#3D342A', 20, 5, 0, 1, 1),
+('8in1-cleaning-kit', '8in1-cleaning-kit', '8-in-1 Cleaning Kit', 'accessories', 19500, 'For keyboards, earbuds, phones, tablets.', 'Eight tools in one kit: brush, swab, putty, microfiber, spray bottle, and key-pullers. Covers the full desk surface.', '#5A4A3E', 18, 4, 0, 1, 1);
 
 -- =================================================================
 -- 6. Product specs
@@ -416,6 +416,23 @@ INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUE
 --                                                stock math.
 --
 -- See docs/TECH.md "Stock oversell" + "Phase 9 ADR consequences".
+
+-- =================================================================
+-- Maintenance: reset has_photos so PDP / Tile fall back to swatch.
+--
+-- The product seed in this file ships with has_photos = 0 (correct for
+-- a fresh DB with no uploaded files). Earlier copies of this file
+-- shipped has_photos = 1 for every product — those rows make the
+-- next/image optimizer try to fetch /products/<slug>/01-thumb.webp
+-- from disk, and emit 500 ("The requested resource isn't a valid
+-- image ... received null") when the file doesn't exist.
+--
+-- Run on any prod DB that was seeded from a pre-0.13.7 bootstrap, then
+-- re-upload photos via /admin/products. Each upload's syncHasPhotos()
+-- flips the flag back to 1 once the file exists on disk.
+-- =================================================================
+-- UPDATE products SET has_photos = 0;
+-- =================================================================
 
 -- =================================================================
 -- Maintenance: release phantom-held stock + cancel stuck orders.
