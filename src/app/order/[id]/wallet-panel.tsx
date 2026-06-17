@@ -90,11 +90,11 @@ export function WalletPanel({
           </div>
           <div className="mb-2 flex justify-between">
             <span>Account name</span>
-            <span className="font-mono text-ink">{method.accountName ?? '—'}</span>
+            <span className="font-mono text-ink">{method.accountName ?? '-'}</span>
           </div>
           <div className="mb-2 flex justify-between">
             <span>Account phone</span>
-            <span className="font-mono text-ink">{method.accountPhone ?? '—'}</span>
+            <span className="font-mono text-ink">{method.accountPhone ?? '-'}</span>
           </div>
           <div className="mb-2 flex justify-between">
             <span>Order ref.</span>

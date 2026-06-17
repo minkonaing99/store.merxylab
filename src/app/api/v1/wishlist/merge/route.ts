@@ -28,7 +28,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     try {
       await db.insert(wishlists).values({ userId: session.user.id, productId: pid })
     } catch {
-      // PK conflict — already in wishlist
+      // PK conflict - already in wishlist
     }
   }
   return NextResponse.json({ data: { ok: true }, error: null })

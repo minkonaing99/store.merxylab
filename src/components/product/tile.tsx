@@ -50,7 +50,7 @@ export function Tile({
 
   // `hasPhotos` is a hint from the DB. If the actual file is missing
   // (orphan from a prior deploy, mid-upload race, etc.) the optimizer
-  // 400s — fall back to the swatch + label render path.
+  // 400s - fall back to the swatch + label render path.
   const [imgFailed, setImgFailed] = useState(false)
   const showImage = product.hasPhotos && !imgFailed
 
@@ -67,7 +67,7 @@ export function Tile({
       {showImage && (
         <Image
           src={`${PHOTO_BASE}/${product.slug}/${photoFile}`}
-          alt={`${product.name} — ${category?.name ?? product.category}`}
+          alt={`${product.name} - ${category?.name ?? product.category}`}
           fill
           sizes={sizes}
           priority={priority}

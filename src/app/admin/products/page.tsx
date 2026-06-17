@@ -22,7 +22,7 @@ export default async function AdminProductsPage() {
     <div>
       <h2 className="font-display text-[26px]">Products</h2>
       <p className="mt-2 text-[14px] text-muted">
-        Add new products, edit details + specs, manage photos per slot. Save / Discard per section — no auto-save.
+        Add new products, edit details + specs, manage photos per slot. Save / Discard per section - no auto-save.
       </p>
       <AdminProductTable
         initial={rows.map((r) => ({

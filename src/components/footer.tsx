@@ -84,7 +84,7 @@ export function Footer() {
 
       <div className="border-t border-cream/10">
         <div className="container-prose flex flex-col items-start justify-between gap-3 py-6 text-[12px] text-cream/55 md:flex-row md:items-center">
-          <p>© {new Date().getFullYear()} merxylab — all quiet on the desk.</p>
+          <p>© {new Date().getFullYear()} merxylab - all quiet on the desk.</p>
           <p>Made in small batches.</p>
         </div>
       </div>

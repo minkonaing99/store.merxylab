@@ -43,7 +43,7 @@ export function StockBadge({
       className={cn(base, 'bg-[var(--color-success)]/10 text-[var(--color-success)]')}
       aria-label="In stock"
     >
-      In stock — ships in 3 days
+      In stock - ships in 3 days
     </span>
   )
 }

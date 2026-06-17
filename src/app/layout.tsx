@@ -28,7 +28,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://merxylab.example'
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   title: {
-    default: 'merxylab — peripherals for the desk you actually use',
+    default: 'merxylab - peripherals for the desk you actually use',
     template: '%s · merxylab',
   },
   description:
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   icons: { icon: '/favicon.ico' },
   openGraph: {
     type: 'website',
-    title: 'merxylab — peripherals for the desk you actually use',
+    title: 'merxylab - peripherals for the desk you actually use',
     description:
       'Editorial-grade keyboards, mice, headsets, mics, speakers, and accessories. Built quietly, made to last.',
     siteName: 'merxylab',

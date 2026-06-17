@@ -10,6 +10,7 @@ const NAV = [
   { href: '/admin/newsletter', label: 'Newsletter' },
   { href: '/admin/payment-methods', label: 'Payment methods' },
   { href: '/admin/divisions', label: 'Divisions' },
+  { href: '/admin/branding', label: 'Branding' },
 ] as const
 
 export const dynamic = 'force-dynamic'

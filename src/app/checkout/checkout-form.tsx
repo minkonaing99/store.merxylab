@@ -249,7 +249,7 @@ export function CheckoutForm({
                     const a = addresses.find((x) => x.id === selectedAddressId)
                     return a
                       ? `${a.recipient} · ${a.street}, ${a.township}, ${a.city}`
-                      : '—'
+                      : '-'
                   })()
             }
             onEdit={() => setStep('delivery')}
@@ -277,7 +277,7 @@ export function CheckoutForm({
           />
         ) : step === 'review' ? (
           <SummaryLine
-            text={methods.find((m) => m.id === paymentMethodId)?.name ?? '—'}
+            text={methods.find((m) => m.id === paymentMethodId)?.name ?? '-'}
             onEdit={() => setStep('payment')}
           />
         ) : null}
@@ -297,7 +297,7 @@ export function CheckoutForm({
               disabled={loading}
               className="mt-6 inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink py-3.5 text-[14px] font-medium text-cream transition-colors hover:bg-accent disabled:opacity-60"
             >
-              {loading ? 'Placing order…' : `Place order — ${formatMmk(total)}`}
+              {loading ? 'Placing order…' : `Place order - ${formatMmk(total)}`}
             </button>
           </section>
         )}
@@ -324,7 +324,7 @@ export function CheckoutForm({
             Delivery{division ? ` · ${division.name}` : ''}
           </span>
           <span className="price text-ink">
-            {division ? formatMmk(deliveryFee) : '—'}
+            {division ? formatMmk(deliveryFee) : '-'}
           </span>
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-line pt-4">
@@ -620,7 +620,7 @@ function PaymentSection(props: PaymentSectionProps) {
           <div>
             <div className="font-display text-[16px]">{m.name}</div>
             <div className="text-[12px] text-muted">
-              {m.kind === 'wallet' ? 'Mobile wallet — pay by QR' : 'Cash on Delivery'}
+              {m.kind === 'wallet' ? 'Mobile wallet - pay by QR' : 'Cash on Delivery'}
             </div>
           </div>
         </label>

@@ -37,7 +37,7 @@ export async function POST(
   }
 
   // Pending orders never held physical stock (committed only at `paid`/
-  // `confirmed`), so cancel is a pure status flip — no inventory math.
+  // `confirmed`), so cancel is a pure status flip - no inventory math.
   const result = await db.transaction(async (tx) => {
     const [order] = await tx
       .select()

@@ -180,7 +180,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
   }
 
-  // Snapshot stock check only — no decrement yet. Stock is held against the
+  // Snapshot stock check only - no decrement yet. Stock is held against the
   // physical inventory at payment confirmation (admin flips to `paid` for
   // wallet, `confirmed` for COD). Avoids "ghost reservations" when checkout
   // succeeds but slip upload fails or customer abandons.
@@ -227,12 +227,12 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   await clearCart()
 
-  // No customer email on placement — invoice is sent at payment confirmation
+  // No customer email on placement - invoice is sent at payment confirmation
   // (admin → paid / confirmed) instead, to avoid spamming the buyer.
   const ownerEmail = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? 'admin@localhost'
   await sendMail({
     to: ownerEmail,
-    subject: `New order ${orderId.slice(0, 8)} — ${formatMmk(total)}`,
+    subject: `New order ${orderId.slice(0, 8)} - ${formatMmk(total)}`,
     react: NewOrderAlert({
       orderId,
       total: formatMmk(total),

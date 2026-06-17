@@ -25,7 +25,7 @@ export function ProductCard({ product }: ProductCardProps) {
     e.preventDefault()
     if (isOut) return
     add(product.id, 1)
-    toast(`Added — ${product.name}`)
+    toast(`Added - ${product.name}`)
   }
 
   return (

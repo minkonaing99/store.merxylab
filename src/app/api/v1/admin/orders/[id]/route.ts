@@ -173,7 +173,7 @@ export async function PATCH(
   }
 
   // Stock just moved (decrement on commit OR restore on cancel-from-commit)
-  // — bust the catalog cache so shop pages + cart-add checks see the new
+  // - bust the catalog cache so shop pages + cart-add checks see the new
   // stockQty immediately instead of waiting 60s for revalidate.
   if (isCommitting || isReleasing) {
     revalidateTag('products')
@@ -185,7 +185,7 @@ export async function PATCH(
 
   // Customer-facing emails: invoice at payment confirmation (paid OR
   // confirmed), delivered note at delivered, cancellation at cancelled.
-  // No mail on shipped — invoice email already told them shipping is next.
+  // No mail on shipped - invoice email already told them shipping is next.
   if (customerEmail && next !== prev) {
     if (isCommitting) {
       const itemRows = await db
@@ -203,7 +203,7 @@ export async function PATCH(
         .limit(1)
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} — invoice`,
+        subject: `Order ${id.slice(0, 8)} - invoice`,
         react: OrderInvoice({
           orderId: id,
           total,
@@ -220,13 +220,13 @@ export async function PATCH(
     } else if (next === 'delivered') {
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} — delivered`,
+        subject: `Order ${id.slice(0, 8)} - delivered`,
         react: OrderDelivered({ orderId: id }),
       }).catch(() => {})
     } else if (next === 'cancelled') {
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} — cancelled`,
+        subject: `Order ${id.slice(0, 8)} - cancelled`,
         react: OrderCancelled({ orderId: id, reason: patch.notes ?? 'Cancelled by merxylab.' }),
       }).catch(() => {})
     }

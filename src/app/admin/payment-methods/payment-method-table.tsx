@@ -204,7 +204,7 @@ export function PaymentMethodTable({ initial }: { initial: Row[] }) {
                     </p>
                     {d.pendingFile && (
                       <p className="mt-1 text-[11px] text-accent">
-                        New file selected — click Save to upload.
+                        New file selected - click Save to upload.
                       </p>
                     )}
                     {uploadError[r.id] && (

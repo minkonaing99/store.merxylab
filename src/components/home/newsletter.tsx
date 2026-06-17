@@ -25,7 +25,7 @@ export function Newsletter() {
       toast(json?.error?.message ?? 'Subscription failed.')
       return
     }
-    toast(`Thanks — you're on the list. 30% off heading your way.`)
+    toast(`Thanks - you're on the list. 30% off heading your way.`)
     setEmail('')
   }
 

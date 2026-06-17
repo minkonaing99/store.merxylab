@@ -63,15 +63,15 @@ export default async function AdminOrderDetailPage({
       <section className="mt-8 grid gap-6 md:grid-cols-2">
         <article className="rounded-[var(--radius)] border border-line bg-surface p-5">
           <h3 className="font-display text-[15px]">Customer</h3>
-          <div className="mt-3 text-[14px] text-ink">{user?.name ?? '—'}</div>
-          <div className="text-[13px] text-muted">{user?.email ?? '—'}</div>
+          <div className="mt-3 text-[14px] text-ink">{user?.name ?? '-'}</div>
+          <div className="text-[13px] text-muted">{user?.email ?? '-'}</div>
         </article>
 
         <article className="rounded-[var(--radius)] border border-line bg-surface p-5">
           <h3 className="font-display text-[15px]">Payment</h3>
           <div className="mt-3 text-[14px] text-ink">
             {method?.name ?? order.paymentMethodId}{' '}
-            <span className="text-[12px] text-muted">({method?.kind ?? '—'})</span>
+            <span className="text-[12px] text-muted">({method?.kind ?? '-'})</span>
           </div>
           {method?.accountName && (
             <div className="mt-2 text-[12px] text-muted">
@@ -102,7 +102,7 @@ export default async function AdminOrderDetailPage({
               </div>
               <div className="text-ink-soft">
                 {shipping.township}, {shipping.city}
-                {division ? ` — ${division.name}` : ''}
+                {division ? ` - ${division.name}` : ''}
               </div>
             </div>
           ) : (
@@ -163,7 +163,7 @@ export default async function AdminOrderDetailPage({
         ) : (
           <div className="mt-3 rounded-[var(--radius)] border border-line bg-surface p-5 text-[13px] text-muted">
             {method?.kind === 'cod'
-              ? 'Cash on Delivery — no slip required. Phone-confirm with the buyer before marking confirmed.'
+              ? 'Cash on Delivery - no slip required. Phone-confirm with the buyer before marking confirmed.'
               : 'Customer has not uploaded a slip yet.'}
           </div>
         )}

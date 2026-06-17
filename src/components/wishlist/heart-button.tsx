@@ -19,10 +19,10 @@ export function HeartButton({ productId, productName, size = 'md' }: HeartButton
   function toggle() {
     if (has) {
       remove(productId)
-      toast(`Removed — ${productName}`)
+      toast(`Removed - ${productName}`)
     } else {
       add(productId)
-      toast(`Saved — ${productName}`)
+      toast(`Saved - ${productName}`)
     }
   }
 

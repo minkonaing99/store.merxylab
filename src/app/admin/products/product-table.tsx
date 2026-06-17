@@ -195,7 +195,7 @@ export function AdminProductTable({ initial, categories }: Props) {
     if (!original) return
     const ok = confirm(
       `Delete "${original.name}"? This removes the catalog row and its R2 photos. ` +
-        `Products that have existing orders cannot be hard-deleted — those will be marked inactive instead.`,
+        `Products that have existing orders cannot be hard-deleted - those will be marked inactive instead.`,
     )
     if (!ok) return
 
@@ -235,7 +235,7 @@ export function AdminProductTable({ initial, categories }: Props) {
           const cur = d[id]
           return cur ? { ...d, [id]: { ...cur, isActive: false } } : d
         })
-        toast('Has order history — marked inactive instead.')
+        toast('Has order history - marked inactive instead.')
       } else {
         toast('Could not mark inactive. Try again.')
       }

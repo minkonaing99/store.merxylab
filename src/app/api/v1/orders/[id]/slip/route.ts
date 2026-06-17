@@ -120,7 +120,7 @@ export async function POST(
     })
     .where(eq(orders.id, id))
 
-  // No customer email on slip upload — owner verifies, then the confirm
+  // No customer email on slip upload - owner verifies, then the confirm
   // step at admin → paid triggers the customer invoice email.
   const ownerEmail = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? 'admin@localhost'
   await sendMail({

@@ -120,7 +120,7 @@ function ReviewForm({ slug, onDone }: ReviewFormProps) {
       toast(json?.error?.message ?? 'Failed to submit review.')
       return
     }
-    toast("Thanks — your review is awaiting moderation.")
+    toast("Thanks - your review is awaiting moderation.")
     setTitle('')
     setBody('')
     onDone()
@@ -192,7 +192,7 @@ function ReviewCard({ review }: { review: Review }) {
       <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-soft">
         {review.body}
       </p>
-      <p className="mt-2 text-[12px] text-muted">— {review.userName ?? 'Customer'}</p>
+      <p className="mt-2 text-[12px] text-muted"> - {review.userName ?? 'Customer'}</p>
     </article>
   )
 }

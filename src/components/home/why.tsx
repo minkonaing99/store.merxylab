@@ -3,12 +3,14 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { Plus, Minus } from 'lucide-react'
+import Image from 'next/image'
 import { Tile } from '../product/tile'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/lib/types'
 
 interface WhyProps {
   showcase?: Product
+  imageUrl?: string | null
 }
 
 const ITEMS = [
@@ -26,11 +28,11 @@ const ITEMS = [
   },
   {
     title: 'Warranty',
-    body: 'Two years, no fine print. Switches, sensors, batteries — covered.',
+    body: 'Two years, no fine print. Switches, sensors, batteries - covered.',
   },
 ] as const
 
-export function Why({ showcase }: WhyProps) {
+export function Why({ showcase, imageUrl }: WhyProps) {
   const [open, setOpen] = useState(0)
 
   return (
@@ -42,14 +44,18 @@ export function Why({ showcase }: WhyProps) {
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.5 }}
         >
-          {showcase ? (
+          {imageUrl ? (
+            <div className="relative aspect-square overflow-hidden rounded-[var(--radius)]">
+              <Image src={imageUrl} alt="Why merxylab" fill className="object-contain" />
+            </div>
+          ) : showcase ? (
             <Tile product={showcase} ratio="square" />
           ) : (
             <div className="aspect-square rounded-[var(--radius)] bg-sand" />
           )}
-          {showcase && (
+          {!imageUrl && showcase && (
             <p className="mt-4 max-w-[36ch] text-[13px] text-muted">
-              Studio shot of the {showcase.name} — gasket-mounted, hand-tuned, made in small batches.
+              Studio shot of the {showcase.name} - gasket-mounted, hand-tuned, made in small batches.
             </p>
           )}
         </motion.div>
@@ -60,7 +66,7 @@ export function Why({ showcase }: WhyProps) {
             Made for the desk, not the tournament.
           </h2>
           <p className="mt-4 max-w-[44ch] text-[15px] leading-relaxed text-ink-soft">
-            We build peripherals like furniture — slowly, in small runs, with materials that age
+            We build peripherals like furniture - slowly, in small runs, with materials that age
             well. Open them, repair them, keep them.
           </p>
 

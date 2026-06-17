@@ -54,7 +54,7 @@ export function Gallery({ product }: GalleryProps) {
       >
         <Image
           src={`${PHOTO_BASE}/${product.slug}/${active}.webp`}
-          alt={`${product.name} — view ${active}`}
+          alt={`${product.name} - view ${active}`}
           fill
           sizes="(min-width: 768px) 50vw, 90vw"
           priority

@@ -115,7 +115,7 @@ export async function DELETE(
     )
   }
 
-  // Refuse hard-delete when any order references this product — orders
+  // Refuse hard-delete when any order references this product - orders
   // need to keep their referential history intact. Admin should flip
   // is_active = false instead (soft delete; hides from /shop, preserves
   // order rows).
@@ -141,7 +141,7 @@ export async function DELETE(
 
   // Safe to hard-delete. FK cascades will clean product_specs, reviews,
   // cart_items, wishlists. R2 objects (hero + thumb for each slot) are
-  // not cascaded — drop them best-effort. revalidate the catalog cache.
+  // not cascaded - drop them best-effort. revalidate the catalog cache.
   await db.delete(products).where(eq(products.id, id))
 
   const slug = row.slug

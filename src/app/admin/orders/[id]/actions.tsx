@@ -119,7 +119,7 @@ export function AdminOrderActions({ orderId, status, methodKind, hasSlip }: Prop
   if (actions.length === 0) {
     return (
       <div className="rounded-[var(--radius)] border border-line bg-surface p-5 text-[13px] text-muted">
-        Order is in a terminal state — no further actions.
+        Order is in a terminal state - no further actions.
       </div>
     )
   }

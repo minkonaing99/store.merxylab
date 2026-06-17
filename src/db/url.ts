@@ -2,8 +2,8 @@
  * Build the MySQL connection URL.
  *
  * Priority:
- *   1. DATABASE_URL (full URL) — used in local dev, also acceptable in prod.
- *   2. DB_HOST + DB_PORT + DB_USER + DB_PASS + DB_NAME — Hostinger Easy Deploy
+ *   1. DATABASE_URL (full URL) - used in local dev, also acceptable in prod.
+ *   2. DB_HOST + DB_PORT + DB_USER + DB_PASS + DB_NAME - Hostinger Easy Deploy
  *      exposes credentials as separate fields; we assemble them at runtime.
  */
 export function getDatabaseUrl(): string {

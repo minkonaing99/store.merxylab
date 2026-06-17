@@ -29,7 +29,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     )
   }
 
-  // Live DB read — bypass the catalog cache so stock is current.
+  // Live DB read - bypass the catalog cache so stock is current.
   const [row] = await db
     .select({ stockQty: products.stockQty, isActive: products.isActive })
     .from(products)

@@ -32,7 +32,7 @@ export function CTABanner({ product }: CTABannerProps) {
               </em>
             </h2>
             <p className="mt-4 max-w-[44ch] text-[15px] leading-relaxed text-cream/75">
-              Each board is tuned at the lab — stabilisers lubed, foam stuffed, sound profile signed
+              Each board is tuned at the lab - stabilisers lubed, foam stuffed, sound profile signed
               off. Then it gets boxed.
             </p>
             <Link

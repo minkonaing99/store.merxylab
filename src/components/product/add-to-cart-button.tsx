@@ -17,7 +17,7 @@ export function AddToCartButton({ productId, productName, disabled }: AddToCartB
   function handle() {
     if (disabled) return
     add(productId, 1)
-    toast(`Added — ${productName}`)
+    toast(`Added - ${productName}`)
   }
 
   return (

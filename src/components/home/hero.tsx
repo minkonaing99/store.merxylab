@@ -28,7 +28,7 @@ export function Hero({ featured }: HeroProps) {
         className="grid items-center gap-10 md:grid-cols-[1.05fr_1fr] md:gap-14"
       >
         <div>
-          <div className="eyebrow">Edition 01 — quiet desk</div>
+          <div className="eyebrow">Edition 01 - quiet desk</div>
           <h1 className="mt-4 font-display text-[44px] leading-[1.05] tracking-[-0.015em] text-ink md:text-[68px] md:leading-[1.02]">
             Tools for the{' '}
             <span
@@ -42,7 +42,7 @@ export function Hero({ featured }: HeroProps) {
             </em>
           </h1>
           <p className="mt-5 max-w-[42ch] text-[16px] leading-relaxed text-ink-soft md:text-[17px]">
-            Keyboards, mice, headsets, mics, speakers, and accessories — built quietly, made to
+            Keyboards, mice, headsets, mics, speakers, and accessories - built quietly, made to
             last. No hype. Just hardware that earns its place on your desk.
           </p>
 
