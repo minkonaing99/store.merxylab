@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { products, productSpecs } from '@/db/schema/products'
+import { orderItems } from '@/db/schema/orders'
 import { requireAdmin } from '@/lib/admin-guard'
+import { deletePublic } from '@/lib/r2'
 import { revalidateTag } from 'next/cache'
 
 const SLUG_RE = /^[a-z0-9-]+$/
@@ -77,6 +79,79 @@ export async function PATCH(
       }
     }
   })
+
+  revalidateTag('products')
+  return NextResponse.json({ data: { ok: true }, error: null })
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const guard = await requireAdmin()
+  if (!guard.ok) {
+    return NextResponse.json(
+      { data: null, error: { code: 'FORBIDDEN', message: guard.message, status: guard.status } },
+      { status: guard.status },
+    )
+  }
+  const { id } = await params
+  if (!SLUG_RE.test(id)) {
+    return NextResponse.json(
+      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
+      { status: 400 },
+    )
+  }
+
+  const [row] = await db
+    .select({ slug: products.slug })
+    .from(products)
+    .where(eq(products.id, id))
+    .limit(1)
+  if (!row) {
+    return NextResponse.json(
+      { data: null, error: { code: 'NOT_FOUND', message: 'Product not found.', status: 404 } },
+      { status: 404 },
+    )
+  }
+
+  // Refuse hard-delete when any order references this product — orders
+  // need to keep their referential history intact. Admin should flip
+  // is_active = false instead (soft delete; hides from /shop, preserves
+  // order rows).
+  const [refOrder] = await db
+    .select({ id: orderItems.id })
+    .from(orderItems)
+    .where(eq(orderItems.productId, id))
+    .limit(1)
+  if (refOrder) {
+    return NextResponse.json(
+      {
+        data: null,
+        error: {
+          code: 'CONFLICT',
+          message:
+            'Product is referenced by existing orders. Toggle "Active" off to hide it instead.',
+          status: 409,
+        },
+      },
+      { status: 409 },
+    )
+  }
+
+  // Safe to hard-delete. FK cascades will clean product_specs, reviews,
+  // cart_items, wishlists. R2 objects (hero + thumb for each slot) are
+  // not cascaded — drop them best-effort. revalidate the catalog cache.
+  await db.delete(products).where(eq(products.id, id))
+
+  const slug = row.slug
+  const slots = ['01', '02', '03', '04']
+  await Promise.allSettled(
+    slots.flatMap((s) => [
+      deletePublic(`products/${slug}/${s}.webp`),
+      deletePublic(`products/${slug}/${s}-thumb.webp`),
+    ]),
+  )
 
   revalidateTag('products')
   return NextResponse.json({ data: { ok: true }, error: null })

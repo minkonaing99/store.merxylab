@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { formatMmk } from '@/lib/money'
 import { SLUG_REGEX } from '@/lib/slugify'
 import { ProductDetailsForm, type ProductFormValues, type CategoryLite } from './product-details-form'
@@ -187,6 +187,64 @@ export function AdminProductTable({ initial, categories }: Props) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, hasPhotos } : r)))
   }
 
+  // Hard-delete attempt. If the product has order history the server returns
+  // 409; we fall back to soft-delete by flipping isActive = false. Either way
+  // the product disappears from /shop.
+  async function deleteRow(id: string) {
+    const original = rows.find((r) => r.id === id)
+    if (!original) return
+    const ok = confirm(
+      `Delete "${original.name}"? This removes the catalog row and its R2 photos. ` +
+        `Products that have existing orders cannot be hard-deleted — those will be marked inactive instead.`,
+    )
+    if (!ok) return
+
+    setSavingRow((m) => ({ ...m, [id]: true }))
+    const res = await fetch(`/api/v1/admin/products/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setRows((rs) => rs.filter((r) => r.id !== id))
+      setDrafts((d) => {
+        const next = { ...d }
+        delete next[id]
+        return next
+      })
+      setExpanded((e) => {
+        const next = { ...e }
+        delete next[id]
+        return next
+      })
+      setSavingRow((m) => ({ ...m, [id]: false }))
+      toast('Deleted.')
+      return
+    }
+
+    const body = (await res.json().catch(() => null)) as
+      | { error?: { code?: string; message?: string } }
+      | null
+    if (body?.error?.code === 'CONFLICT') {
+      // Soft-delete fallback via PATCH isActive = false.
+      const patchRes = await fetch(`/api/v1/admin/products/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ isActive: false }),
+      })
+      setSavingRow((m) => ({ ...m, [id]: false }))
+      if (patchRes.ok) {
+        setRows((rs) => rs.map((r) => (r.id === id ? { ...r, isActive: false } : r)))
+        setDrafts((d) => {
+          const cur = d[id]
+          return cur ? { ...d, [id]: { ...cur, isActive: false } } : d
+        })
+        toast('Has order history — marked inactive instead.')
+      } else {
+        toast('Could not mark inactive. Try again.')
+      }
+      return
+    }
+    setSavingRow((m) => ({ ...m, [id]: false }))
+    toast(body?.error?.message ?? `Delete failed (${res.status}).`)
+  }
+
   return (
     <div className="mt-6 space-y-4">
       <div className="flex items-center justify-end">
@@ -289,6 +347,14 @@ export function AdminProductTable({ initial, categories }: Props) {
                     }`}
                   >
                     Edit photos
+                  </button>
+                  <button
+                    onClick={() => deleteRow(r.id)}
+                    disabled={saving}
+                    aria-label={`Delete ${r.name}`}
+                    className="rounded-[var(--radius-pill)] border border-line p-1.5 text-muted transition-colors hover:border-error/40 hover:text-error disabled:opacity-50"
+                  >
+                    <Trash2 size={14} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
