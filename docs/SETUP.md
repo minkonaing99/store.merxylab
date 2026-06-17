@@ -210,6 +210,13 @@ npm run test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.13.8] — 2026-06-17 (shipped to testing)
+- Cut customer email count from 6 → 2 per happy-path order.
+  - Dropped: `order-placed`, `slip-received`, `order-paid`, `order-shipped` templates. No longer sent.
+  - Added: `order-invoice.tsx` (sent at admin → `paid`/`confirmed` with itemised totals + payment method — replaces both the placement email and the bare "payment received" email) and `order-delivered.tsx` (sent at admin → `delivered`).
+- Owner mailbox unchanged: `new-order-alert`, `slip-submitted-alert`, `low-stock-alert` still fire as before (the operational signal lives there).
+- `docs/PAYMENT.md` "Customer alerts" rewritten.
+
 ### [0.13.7] — 2026-06-17 (shipped to testing)
 - Bootstrap fix: product seed now ships `has_photos = 0` for every row. Previous bootstraps wrote 1 unconditionally, which made `next/image` 500 on the missing `/products/<slug>/01-thumb.webp` files in any fresh deploy. Owner upload via `/admin/products` flips the flag back to 1 per-product via `syncHasPhotos()`. Maintenance SQL block added to `db-bootstrap.sql` for prod DBs already seeded with the wrong value.
 - Wallet slip upload UI: the bare native `<input type="file">` rendered nearly invisible on the cream surface. Replaced with hidden-input-plus-styled-label pattern + filename readout, matching the admin photo grid. Same JPG/PNG/WEBP/8MB constraints, just a button you can actually see.

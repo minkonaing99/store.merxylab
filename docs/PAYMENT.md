@@ -88,11 +88,13 @@ Customer can self-cancel only while `pending_payment`. After `payment_submitted`
 
 ## Customer alerts (React Email)
 
-- `order-placed.tsx` — sent on order creation.
-- `slip-received.tsx` — sent when slip uploads successfully.
-- `paid.tsx` — sent when owner verifies + flips to `paid`.
-- `shipped.tsx` — sent when owner flips to `shipped` (includes BeeExpress tracking ref if pasted).
-- `order-cancelled.tsx` — sent on customer cancel + auto-cancel + owner cancel.
+Customer mailbox is intentionally quiet — at most 2 emails per happy-path order so notifications don't fatigue.
+
+- `order-invoice.tsx` — sent at payment confirmation: admin → `paid` (wallet) or `confirmed` (COD). Itemised invoice with subtotal + delivery + total + payment method.
+- `order-delivered.tsx` — sent at admin → `delivered`. Short thanks + reply-with-issue hook.
+- `order-cancelled.tsx` — sent on customer cancel + auto-cancel cron + admin cancel.
+
+No customer email at order placement, slip upload, `shipped`, or any intermediate transition. Owner alerts (below) carry the operational signal.
 
 ## Owner alerts
 

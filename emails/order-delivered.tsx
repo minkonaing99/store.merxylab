@@ -1,27 +1,26 @@
 import { Body, Container, Head, Heading, Html, Preview, Section, Text } from '@react-email/components'
 import * as s from './_styles'
 
-interface OrderPaidProps {
+interface OrderDeliveredProps {
   orderId: string
-  total: string
 }
 
-export function OrderPaid({ orderId, total }: OrderPaidProps) {
+export function OrderDelivered({ orderId }: OrderDeliveredProps) {
   return (
     <Html>
       <Head />
-      <Preview>Payment received — preparing for shipment</Preview>
+      <Preview>Your order has arrived</Preview>
       <Body style={s.body}>
         <Container style={s.container}>
           <Section style={s.brand}>
             <Text style={s.mark}>merxylab</Text>
           </Section>
-          <Heading style={s.h1}>Payment received.</Heading>
+          <Heading style={s.h1}>Delivered.</Heading>
           <Text style={s.p}>
-            Order <code style={s.code}>{orderId}</code> · {total}
+            Order <code style={s.code}>{orderId}</code> has reached you. Thanks for picking merxylab.
           </Text>
           <Text style={s.p}>
-            We&rsquo;re packing your order. You&rsquo;ll get another note when it ships.
+            If anything is missing or wrong, reply to this email and we&rsquo;ll sort it out.
           </Text>
         </Container>
       </Body>
@@ -29,9 +28,8 @@ export function OrderPaid({ orderId, total }: OrderPaidProps) {
   )
 }
 
-OrderPaid.PreviewProps = {
+OrderDelivered.PreviewProps = {
   orderId: '1c34b3b6-1234-5678-9abc-def012345678',
-  total: 'Ks 555,000',
-} satisfies OrderPaidProps
+} satisfies OrderDeliveredProps
 
-export default OrderPaid
+export default OrderDelivered

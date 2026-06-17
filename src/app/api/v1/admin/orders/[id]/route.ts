@@ -9,8 +9,8 @@ import { users } from '@/db/schema/auth'
 import { requireAdmin } from '@/lib/admin-guard'
 import { sendMail } from '@/lib/mail'
 import { formatMmk } from '@/lib/money'
-import { OrderPaid } from '@emails/order-paid'
-import { OrderShipped } from '@emails/order-shipped'
+import { OrderInvoice } from '@emails/order-invoice'
+import { OrderDelivered } from '@emails/order-delivered'
 import { OrderCancelled } from '@emails/order-cancelled'
 import { LowStockAlert } from '@emails/low-stock-alert'
 
@@ -175,20 +175,47 @@ export async function PATCH(
   const customerEmail = user?.email
   const total = formatMmk(Number(order.totalMmk))
 
-  if (customerEmail && parsed.data.status !== order.status) {
-    if (parsed.data.status === 'paid') {
+  // Customer-facing emails: invoice at payment confirmation (paid OR
+  // confirmed), delivered note at delivered, cancellation at cancelled.
+  // No mail on shipped — invoice email already told them shipping is next.
+  if (customerEmail && next !== prev) {
+    if (isCommitting) {
+      const itemRows = await db
+        .select({
+          qty: orderItems.qty,
+          name: orderItems.nameSnapshot,
+          unitPriceMmkSnapshot: orderItems.unitPriceMmkSnapshot,
+        })
+        .from(orderItems)
+        .where(eq(orderItems.orderId, id))
+      const [methodRow] = await db
+        .select({ name: paymentMethods.name })
+        .from(paymentMethods)
+        .where(eq(paymentMethods.id, order.paymentMethodId))
+        .limit(1)
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} — payment received`,
-        react: OrderPaid({ orderId: id, total }),
+        subject: `Order ${id.slice(0, 8)} — invoice`,
+        react: OrderInvoice({
+          orderId: id,
+          total,
+          subtotal: formatMmk(Number(order.subtotalMmk)),
+          deliveryFee: formatMmk(Number(order.deliveryFeeMmk)),
+          method: methodRow?.name ?? order.paymentMethodId,
+          items: itemRows.map((it) => ({
+            qty: it.qty,
+            name: it.name,
+            lineTotal: formatMmk(Number(it.unitPriceMmkSnapshot) * it.qty),
+          })),
+        }),
       }).catch(() => {})
-    } else if (parsed.data.status === 'shipped') {
+    } else if (next === 'delivered') {
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} — shipped`,
-        react: OrderShipped({ orderId: id, trackingRef: patch.notes ?? null }),
+        subject: `Order ${id.slice(0, 8)} — delivered`,
+        react: OrderDelivered({ orderId: id }),
       }).catch(() => {})
-    } else if (parsed.data.status === 'cancelled') {
+    } else if (next === 'cancelled') {
       await sendMail({
         to: customerEmail,
         subject: `Order ${id.slice(0, 8)} — cancelled`,

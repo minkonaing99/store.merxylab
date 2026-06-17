@@ -13,7 +13,6 @@ import { sendMail } from '@/lib/mail'
 import { formatMmk } from '@/lib/money'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { sendTelegram } from '@/lib/telegram'
-import { OrderPlaced } from '@emails/order-placed'
 import { NewOrderAlert } from '@emails/new-order-alert'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -228,23 +227,8 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   await clearCart()
 
-  await sendMail({
-    to: session.user.email ?? '',
-    subject: `Order ${orderId.slice(0, 8)} placed`,
-    react: OrderPlaced({
-      orderId,
-      total: formatMmk(total),
-      subtotal: formatMmk(subtotal),
-      deliveryFee: formatMmk(deliveryFee),
-      method: method.name,
-      items: lines.map((l) => ({
-        qty: l.qty,
-        name: l.product.name,
-        lineTotal: formatMmk(l.product.priceMmk * l.qty),
-      })),
-    }),
-  }).catch(() => {})
-
+  // No customer email on placement — invoice is sent at payment confirmation
+  // (admin → paid / confirmed) instead, to avoid spamming the buyer.
   const ownerEmail = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? 'admin@localhost'
   await sendMail({
     to: ownerEmail,

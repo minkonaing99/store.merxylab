@@ -11,47 +11,47 @@ import {
 } from '@react-email/components'
 import * as s from './_styles'
 
-interface OrderItem {
+interface InvoiceItem {
   qty: number
   name: string
   lineTotal: string
 }
 
-interface OrderPlacedProps {
+interface OrderInvoiceProps {
   orderId: string
   total: string
   subtotal: string
   deliveryFee: string
   method: string
-  items: OrderItem[]
+  items: InvoiceItem[]
 }
 
-export function OrderPlaced({
+export function OrderInvoice({
   orderId,
   total,
   subtotal,
   deliveryFee,
   method,
   items,
-}: OrderPlacedProps) {
+}: OrderInvoiceProps) {
   return (
     <Html>
       <Head />
-      <Preview>Order placed — pay to confirm</Preview>
+      <Preview>Payment confirmed — here is your invoice</Preview>
       <Body style={s.body}>
         <Container style={s.container}>
           <Section style={s.brand}>
             <Text style={s.mark}>merxylab</Text>
           </Section>
-          <Heading style={s.h1}>Order placed.</Heading>
+          <Heading style={s.h1}>Payment confirmed.</Heading>
           <Text style={s.p}>
-            Order reference <code style={s.code}>{orderId}</code>
+            Order <code style={s.code}>{orderId}</code> · paid via {method}.
           </Text>
-          <Text style={s.p}>Payment method: {method}</Text>
+          <Text style={s.p}>We&rsquo;re packing your order. You&rsquo;ll hear from us once it arrives.</Text>
 
           <Hr style={s.hr} />
           <Heading as="h2" style={s.h2}>
-            Items
+            Invoice
           </Heading>
           {items.map((it, i) => (
             <Section key={i} style={s.row}>
@@ -70,27 +70,22 @@ export function OrderPlaced({
             <Text style={s.price}>{deliveryFee}</Text>
           </Section>
           <Section style={{ ...s.row, borderTop: '1px solid #e6dfd2', paddingTop: '12px' }}>
-            <Text style={s.totalLabel}>Total</Text>
+            <Text style={s.totalLabel}>Total paid</Text>
             <Text style={s.totalVal}>{total}</Text>
           </Section>
-
-          <Hr style={s.hr} />
-          <Text style={s.p}>
-            Open this order on the site to upload your payment slip. We&rsquo;ll confirm and ship.
-          </Text>
         </Container>
       </Body>
     </Html>
   )
 }
 
-OrderPlaced.PreviewProps = {
+OrderInvoice.PreviewProps = {
   orderId: '1c34b3b6-1234-5678-9abc-def012345678',
   total: 'Ks 555,000',
   subtotal: 'Ks 550,000',
   deliveryFee: 'Ks 5,000',
   method: 'KBZ Pay',
   items: [{ qty: 1, name: 'Keychron K2 Pro', lineTotal: 'Ks 545,000' }],
-} satisfies OrderPlacedProps
+} satisfies OrderInvoiceProps
 
-export default OrderPlaced
+export default OrderInvoice

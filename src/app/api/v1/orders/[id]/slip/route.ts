@@ -12,7 +12,6 @@ import { sendTelegram } from '@/lib/telegram'
 import { formatMmk } from '@/lib/money'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { slipBasenameFrom, slipDir, slipPath } from '@/lib/slip-storage'
-import { SlipReceived } from '@emails/slip-received'
 import { SlipSubmittedAlert } from '@emails/slip-submitted-alert'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -109,12 +108,8 @@ export async function POST(
     })
     .where(eq(orders.id, id))
 
-  await sendMail({
-    to: session.user.email ?? '',
-    subject: `Order ${id.slice(0, 8)} — slip received`,
-    react: SlipReceived({ orderId: id, total: formatMmk(Number(order.totalMmk)) }),
-  }).catch(() => {})
-
+  // No customer email on slip upload — owner verifies, then the confirm
+  // step at admin → paid triggers the customer invoice email.
   const ownerEmail = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? 'admin@localhost'
   await sendMail({
     to: ownerEmail,
