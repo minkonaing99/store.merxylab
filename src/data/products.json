@@ -1,40 +1,5 @@
 [
   {
-    "id": "hyperx-alloy-origins-core",
-    "slug": "hyperx-alloy-origins-core",
-    "name": "HyperX Alloy Origins Core",
-    "category": "keyboards",
-    "price": 361000,
-    "tagline": "Tenkeyless wired with tactile aqua switches.",
-    "description": "A compact aluminium-body TKL with HyperX Aqua tactile switches and per-key RGB. USB-C detachable cable, three adjustable tilt angles.",
-    "specs": [
-      {
-        "label": "Layout",
-        "value": "TKL (87 keys)"
-      },
-      {
-        "label": "Switches",
-        "value": "HyperX Aqua Tactile"
-      },
-      {
-        "label": "Lighting",
-        "value": "Per-key RGB"
-      },
-      {
-        "label": "Connection",
-        "value": "USB-C, detachable"
-      }
-    ],
-    "swatch": "#2A2622",
-    "inStock": true,
-    "featured": true,
-    "stockQty": 12,
-    "lowStockThreshold": 3,
-    "createdAt": "2026-06-16T00:00:00Z",
-    "updatedAt": "2026-06-16T00:00:00Z",
-    "hasPhotos": true
-  },
-  {
     "id": "keychron-k2-pro",
     "slug": "keychron-k2-pro",
     "name": "Keychron K2 Pro",
@@ -63,6 +28,7 @@
     "swatch": "#3D342A",
     "inStock": true,
     "featured": true,
+    "sortOrder": 10,
     "stockQty": 9,
     "lowStockThreshold": 3,
     "createdAt": "2026-06-16T00:00:00Z",
@@ -98,43 +64,9 @@
     "swatch": "#2C2825",
     "inStock": true,
     "featured": true,
+    "sortOrder": 20,
     "stockQty": 5,
     "lowStockThreshold": 2,
-    "createdAt": "2026-06-16T00:00:00Z",
-    "updatedAt": "2026-06-16T00:00:00Z",
-    "hasPhotos": true
-  },
-  {
-    "id": "vxe-r1se-plus",
-    "slug": "vxe-r1se-plus",
-    "name": "VXE R1SE+",
-    "category": "mice",
-    "price": 125000,
-    "tagline": "55-gram tri-mode at entry-level money.",
-    "description": "PAW3395SE sensor, 55-gram shell, and tri-mode wireless. The cheapest way into a serious lightweight mouse.",
-    "specs": [
-      {
-        "label": "Sensor",
-        "value": "PixArt PAW3395SE"
-      },
-      {
-        "label": "Weight",
-        "value": "55 g"
-      },
-      {
-        "label": "Connection",
-        "value": "BT + 2.4G + USB-C"
-      },
-      {
-        "label": "Battery",
-        "value": "70 hours"
-      }
-    ],
-    "swatch": "#E8DCC8",
-    "inStock": true,
-    "featured": true,
-    "stockQty": 11,
-    "lowStockThreshold": 3,
     "createdAt": "2026-06-16T00:00:00Z",
     "updatedAt": "2026-06-16T00:00:00Z",
     "hasPhotos": true
@@ -168,6 +100,7 @@
     "swatch": "#262320",
     "inStock": true,
     "featured": true,
+    "sortOrder": 30,
     "stockQty": 13,
     "lowStockThreshold": 3,
     "createdAt": "2026-06-16T00:00:00Z",
@@ -203,77 +136,8 @@
     "swatch": "#1A1816",
     "inStock": true,
     "featured": true,
+    "sortOrder": 40,
     "stockQty": 4,
-    "lowStockThreshold": 2,
-    "createdAt": "2026-06-16T00:00:00Z",
-    "updatedAt": "2026-06-16T00:00:00Z",
-    "hasPhotos": true
-  },
-  {
-    "id": "razer-kraken-x-essential",
-    "slug": "razer-kraken-x-essential",
-    "name": "Razer Kraken X Essential",
-    "category": "headsets",
-    "price": 169000,
-    "tagline": "Featherweight wired headset. Honest budget pick.",
-    "description": "230 grams on the head, 40 mm drivers, 7.1 surround over USB. A clean entry-level headset that gets out of the way.",
-    "specs": [
-      {
-        "label": "Drivers",
-        "value": "40 mm"
-      },
-      {
-        "label": "Surround",
-        "value": "7.1 (software)"
-      },
-      {
-        "label": "Weight",
-        "value": "230 g"
-      },
-      {
-        "label": "Connection",
-        "value": "3.5 mm"
-      }
-    ],
-    "swatch": "#1A1816",
-    "inStock": true,
-    "featured": true,
-    "stockQty": 10,
-    "lowStockThreshold": 3,
-    "createdAt": "2026-06-16T00:00:00Z",
-    "updatedAt": "2026-06-16T00:00:00Z",
-    "hasPhotos": true
-  },
-  {
-    "id": "hyperx-cloud-iii-wired",
-    "slug": "hyperx-cloud-iii-wired",
-    "name": "HyperX Cloud III Wired",
-    "category": "headsets",
-    "price": 459000,
-    "tagline": "53mm drivers and DTS spatial.",
-    "description": "The Cloud lineage, refined. 53 mm angled drivers, DTS Headphone:X, detachable mic, USB-C and 3.5 mm out of the box.",
-    "specs": [
-      {
-        "label": "Drivers",
-        "value": "53 mm angled"
-      },
-      {
-        "label": "Audio",
-        "value": "DTS Headphone:X spatial"
-      },
-      {
-        "label": "Mic",
-        "value": "Detachable"
-      },
-      {
-        "label": "Connection",
-        "value": "USB-C / USB-A / 3.5 mm"
-      }
-    ],
-    "swatch": "#1F1C1A",
-    "inStock": true,
-    "featured": true,
-    "stockQty": 6,
     "lowStockThreshold": 2,
     "createdAt": "2026-06-16T00:00:00Z",
     "updatedAt": "2026-06-16T00:00:00Z",
@@ -308,42 +172,8 @@
     "swatch": "#2A2622",
     "inStock": true,
     "featured": true,
+    "sortOrder": 50,
     "stockQty": 4,
-    "lowStockThreshold": 2,
-    "createdAt": "2026-06-16T00:00:00Z",
-    "updatedAt": "2026-06-16T00:00:00Z",
-    "hasPhotos": true
-  },
-  {
-    "id": "hyperx-solocast",
-    "slug": "hyperx-solocast",
-    "name": "HyperX SoloCast",
-    "category": "microphones",
-    "price": 289000,
-    "tagline": "Cardioid USB mic with tap-mute.",
-    "description": "A plug-and-play USB condenser. Cardioid pickup, tap-to-mute on top, 24-bit/96 kHz capture, adjustable stand.",
-    "specs": [
-      {
-        "label": "Pattern",
-        "value": "Cardioid"
-      },
-      {
-        "label": "Sample",
-        "value": "24-bit / 96 kHz"
-      },
-      {
-        "label": "Control",
-        "value": "Tap-to-mute, LED indicator"
-      },
-      {
-        "label": "Connection",
-        "value": "USB-C"
-      }
-    ],
-    "swatch": "#1C1A18",
-    "inStock": true,
-    "featured": true,
-    "stockQty": 9,
     "lowStockThreshold": 2,
     "createdAt": "2026-06-16T00:00:00Z",
     "updatedAt": "2026-06-16T00:00:00Z",
@@ -377,6 +207,7 @@
     ],
     "swatch": "#28231F",
     "inStock": true,
+    "sortOrder": 60,
     "stockQty": 3,
     "lowStockThreshold": 1,
     "createdAt": "2026-06-16T00:00:00Z",
@@ -412,6 +243,7 @@
     "swatch": "#7A4F36",
     "inStock": true,
     "featured": true,
+    "sortOrder": 70,
     "stockQty": 6,
     "lowStockThreshold": 2,
     "createdAt": "2026-06-16T00:00:00Z",
@@ -447,6 +279,7 @@
     "swatch": "#4A3E33",
     "inStock": true,
     "featured": true,
+    "sortOrder": 80,
     "stockQty": 16,
     "lowStockThreshold": 4,
     "createdAt": "2026-06-16T00:00:00Z",
@@ -478,39 +311,9 @@
     "swatch": "#3D342A",
     "inStock": true,
     "featured": true,
+    "sortOrder": 90,
     "stockQty": 20,
     "lowStockThreshold": 5,
-    "createdAt": "2026-06-16T00:00:00Z",
-    "updatedAt": "2026-06-16T00:00:00Z",
-    "hasPhotos": true
-  },
-  {
-    "id": "8in1-cleaning-kit",
-    "slug": "8in1-cleaning-kit",
-    "name": "8-in-1 Cleaning Kit",
-    "category": "accessories",
-    "price": 19500,
-    "tagline": "For keyboards, earbuds, phones, tablets.",
-    "description": "Eight tools in one kit: brush, swab, putty, microfiber, spray bottle, and key-pullers. Covers the full desk surface.",
-    "specs": [
-      {
-        "label": "Tools",
-        "value": "8 pieces"
-      },
-      {
-        "label": "Targets",
-        "value": "Keyboard / earbuds / phone / tablet"
-      },
-      {
-        "label": "Form",
-        "value": "Compact case"
-      }
-    ],
-    "swatch": "#5A4A3E",
-    "inStock": true,
-    "featured": true,
-    "stockQty": 18,
-    "lowStockThreshold": 4,
     "createdAt": "2026-06-16T00:00:00Z",
     "updatedAt": "2026-06-16T00:00:00Z",
     "hasPhotos": true

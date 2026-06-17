@@ -27,6 +27,7 @@ const patchSchema = z
     lowStockThreshold: z.number().int().min(0).max(100),
     isActive: z.boolean(),
     featured: z.boolean(),
+    sortOrder: z.number().int().min(0).max(100_000),
     hasPhotos: z.boolean(),
     specs: z.array(specSchema).max(40),
   })

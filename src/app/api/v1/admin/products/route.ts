@@ -25,6 +25,7 @@ const bodySchema = z.object({
   lowStockThreshold: z.number().int().min(0).max(100),
   isActive: z.boolean(),
   featured: z.boolean(),
+  sortOrder: z.number().int().min(0).max(100_000).optional().default(0),
   specs: z.array(specSchema).max(40),
 })
 
@@ -80,6 +81,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       hasPhotos: false,
       isActive: b.isActive,
       featured: b.featured,
+      sortOrder: b.sortOrder,
     })
     if (b.specs.length > 0) {
       await tx.insert(productSpecs).values(

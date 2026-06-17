@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function AdminProductsPage() {
   const [rows, cats, specs] = await Promise.all([
-    db.select().from(products).orderBy(asc(products.categoryId), asc(products.name)),
+    db.select().from(products).orderBy(asc(products.sortOrder), asc(products.name)),
     db.select().from(categoriesTbl).orderBy(asc(categoriesTbl.sortOrder)),
     db.select().from(productSpecs).orderBy(asc(productSpecs.productId), asc(productSpecs.sortOrder)),
   ])
@@ -36,6 +36,7 @@ export default async function AdminProductsPage() {
           swatch: r.swatch,
           stockQty: r.stockQty,
           lowStockThreshold: r.lowStockThreshold,
+          sortOrder: r.sortOrder,
           featured: r.featured,
           isActive: r.isActive,
           hasPhotos: r.hasPhotos,

@@ -38,6 +38,7 @@ export const products = mysqlTable(
     hasPhotos: boolean('has_photos').notNull().default(false),
     isActive: boolean('is_active').notNull().default(true),
     featured: boolean('featured').notNull().default(false),
+    sortOrder: int('sort_order').notNull().default(0),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
   },
@@ -45,6 +46,7 @@ export const products = mysqlTable(
     categoryIdx: index('idx_products_category').on(t.categoryId),
     featuredIdx: index('idx_products_featured').on(t.featured),
     activeIdx: index('idx_products_is_active').on(t.isActive),
+    sortIdx: index('idx_products_sort').on(t.sortOrder),
   }),
 )
 

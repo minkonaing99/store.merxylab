@@ -1,34 +1,25 @@
 -- merxylab-store bootstrap SQL
 --
--- Single-file fresh-install script. Run against an empty MySQL 8 database to
--- create every table and seed reference data + the initial product catalog.
+-- Fresh-install script. Run against an empty MySQL 8 database to create
+-- every table, then seed reference data + the product catalog.
 --
 -- How to apply:
 --   Local:     mysql -u root -p merxylab < docs/db-bootstrap.sql
 --   Hostinger: hPanel -> MySQL Databases -> phpMyAdmin -> select the DB ->
 --              Import -> upload this file -> Go.
 --
--- Hand-maintained from src/db/schema/*.ts + src/data/*.json.
--- If you change the schema or seed JSON, edit the relevant section here too.
+-- Hand-maintained from src/db/schema/*.ts + src/data/*.json — if you change
+-- the schema or seed JSON, edit the matching section here too.
 --
--- Run order (already in file): schema -> divisions -> payment_methods ->
---                              categories -> products -> product_specs.
--- site_settings ships empty; rows inserted at runtime via /admin/branding.
+-- Run order: schema -> divisions -> payment_methods -> categories ->
+--            products -> product_specs.
 --
--- Reflects the post-0.14.x app:
---   * 'paid' and 'shipped' are dropped from orders.status enum — live
---     flow uses only pending_payment / payment_submitted / confirmed /
---     delivered / cancelled. 'confirmed' is the single payment-commit
---     boundary (wallet + COD share it).
---   * Storage for product photos, QR, and slips is Cloudflare R2
---     (see TECH ADR "Photos on Cloudflare R2"). No filesystem writes.
---   * has_photos ships as 0 — flip to 1 by uploading via /admin or
---     running the migrate-photos workflow once R2 keys exist.
---
--- After the install steps, see the appendix at the bottom for:
---   * Order lifecycle + stock-commit model (informational).
---   * One-off "release phantom-held stock" SQL for legacy DBs that
---     ran on the pre-0.13.6 "decrement at order placement" code.
+-- Notes:
+--   * site_settings ships empty; rows are inserted at runtime via /admin.
+--   * Product photos, payment QR, and slips live on Cloudflare R2 — no
+--     filesystem writes. has_photos ships 0; uploading via /admin flips it.
+--   * After install, grant yourself admin:
+--       UPDATE users SET role='admin' WHERE email='you@example.com';
 
 -- =================================================================
 -- 1. Schema
@@ -155,6 +146,7 @@ CREATE TABLE `products` (
 	`has_photos` boolean NOT NULL DEFAULT false,
 	`is_active` boolean NOT NULL DEFAULT true,
 	`featured` boolean NOT NULL DEFAULT false,
+	`sort_order` int NOT NULL DEFAULT 0,
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `products_id` PRIMARY KEY(`id`),
@@ -271,6 +263,7 @@ CREATE INDEX `idx_specs_product` ON `product_specs` (`product_id`,`sort_order`);
 CREATE INDEX `idx_products_category` ON `products` (`category_id`);
 CREATE INDEX `idx_products_featured` ON `products` (`featured`);
 CREATE INDEX `idx_products_is_active` ON `products` (`is_active`);
+CREATE INDEX `idx_products_sort` ON `products` (`sort_order`);
 CREATE INDEX `idx_orders_user` ON `orders` (`user_id`);
 CREATE INDEX `idx_orders_status` ON `orders` (`status`);
 CREATE INDEX `idx_orders_placed` ON `orders` (`placed_at`);
@@ -321,31 +314,21 @@ INSERT INTO `categories` (`id`, `name`, `description`, `sort_order`) VALUES
 -- =================================================================
 -- 5. Products
 -- =================================================================
-INSERT INTO `products` (`id`, `slug`, `name`, `category_id`, `price_mmk`, `tagline`, `description`, `swatch`, `stock_qty`, `low_stock_threshold`, `has_photos`, `is_active`, `featured`) VALUES
-('hyperx-alloy-origins-core', 'hyperx-alloy-origins-core', 'HyperX Alloy Origins Core', 'keyboards', 361000, 'Tenkeyless wired with tactile aqua switches.', 'A compact aluminium-body TKL with HyperX Aqua tactile switches and per-key RGB. USB-C detachable cable, three adjustable tilt angles.', '#2A2622', 12, 3, 0, 1, 1),
-('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 0, 1, 1),
-('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#2C2825', 5, 2, 0, 1, 1),
-('vxe-r1se-plus', 'vxe-r1se-plus', 'VXE R1SE+', 'mice', 125000, '55-gram tri-mode at entry-level money.', 'PAW3395SE sensor, 55-gram shell, and tri-mode wireless. The cheapest way into a serious lightweight mouse.', '#E8DCC8', 11, 3, 0, 1, 1),
-('logitech-g304', 'logitech-g304', 'Logitech G304', 'mice', 195000, 'LIGHTSPEED wireless, 250-hour battery.', 'The HERO sensor at its most accessible. LIGHTSPEED wireless, AA-powered for 250 hours, six programmable buttons.', '#262320', 13, 3, 0, 1, 1),
-('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#1A1816', 4, 2, 0, 1, 1),
-('razer-kraken-x-essential', 'razer-kraken-x-essential', 'Razer Kraken X Essential', 'headsets', 169000, 'Featherweight wired headset. Honest budget pick.', '230 grams on the head, 40 mm drivers, 7.1 surround over USB. A clean entry-level headset that gets out of the way.', '#1A1816', 10, 3, 0, 1, 1),
-('hyperx-cloud-iii-wired', 'hyperx-cloud-iii-wired', 'HyperX Cloud III Wired', 'headsets', 459000, '53mm drivers and DTS spatial.', 'The Cloud lineage, refined. 53 mm angled drivers, DTS Headphone:X, detachable mic, USB-C and 3.5 mm out of the box.', '#1F1C1A', 6, 2, 0, 1, 1),
-('hyperx-cloud-iii-wireless', 'hyperx-cloud-iii-wireless', 'HyperX Cloud III Wireless', 'headsets', 690000, '120-hour battery. DTS spatial.', 'Cloud III over 2.4 GHz with 120-hour battery, DTS spatial audio, 53 mm angled drivers, detachable mic.', '#2A2622', 4, 2, 0, 1, 1),
-('hyperx-solocast', 'hyperx-solocast', 'HyperX SoloCast', 'microphones', 289000, 'Cardioid USB mic with tap-mute.', 'A plug-and-play USB condenser. Cardioid pickup, tap-to-mute on top, 24-bit/96 kHz capture, adjustable stand.', '#1C1A18', 9, 2, 0, 1, 1),
-('hyperx-quadcast-s', 'hyperx-quadcast-s', 'HyperX QuadCast S', 'microphones', 750000, 'Four polar patterns. RGB shock-mount.', 'The full-featured streamer mic. Four polar patterns, anti-vibration mount, headphone monitoring jack, 24-bit/96 kHz capture.', '#28231F', 3, 1, 0, 1, 0),
-('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'speakers', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 1),
-('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 1),
-('mouse-wrist-rest', 'mouse-wrist-rest', 'Mouse Wrist Rest', 'accessories', 25000, 'Ergonomic support for long days.', 'A contoured wrist rest sized for mouse pads. Memory foam core, fabric top, anti-slip base.', '#3D342A', 20, 5, 0, 1, 1),
-('8in1-cleaning-kit', '8in1-cleaning-kit', '8-in-1 Cleaning Kit', 'accessories', 19500, 'For keyboards, earbuds, phones, tablets.', 'Eight tools in one kit: brush, swab, putty, microfiber, spray bottle, and key-pullers. Covers the full desk surface.', '#5A4A3E', 18, 4, 0, 1, 1);
+INSERT INTO `products` (`id`, `slug`, `name`, `category_id`, `price_mmk`, `tagline`, `description`, `swatch`, `stock_qty`, `low_stock_threshold`, `has_photos`, `is_active`, `featured`, `sort_order`) VALUES
+('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 0, 1, 1, 10),
+('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#2C2825', 5, 2, 0, 1, 1, 20),
+('logitech-g304', 'logitech-g304', 'Logitech G304', 'mice', 195000, 'LIGHTSPEED wireless, 250-hour battery.', 'The HERO sensor at its most accessible. LIGHTSPEED wireless, AA-powered for 250 hours, six programmable buttons.', '#262320', 13, 3, 0, 1, 1, 30),
+('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#1A1816', 4, 2, 0, 1, 1, 40),
+('hyperx-cloud-iii-wireless', 'hyperx-cloud-iii-wireless', 'HyperX Cloud III Wireless', 'headsets', 690000, '120-hour battery. DTS spatial.', 'Cloud III over 2.4 GHz with 120-hour battery, DTS spatial audio, 53 mm angled drivers, detachable mic.', '#2A2622', 4, 2, 0, 1, 1, 50),
+('hyperx-quadcast-s', 'hyperx-quadcast-s', 'HyperX QuadCast S', 'microphones', 750000, 'Four polar patterns. RGB shock-mount.', 'The full-featured streamer mic. Four polar patterns, anti-vibration mount, headphone monitoring jack, 24-bit/96 kHz capture.', '#28231F', 3, 1, 0, 1, 0, 60),
+('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'speakers', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 1, 70),
+('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 1, 80),
+('mouse-wrist-rest', 'mouse-wrist-rest', 'Mouse Wrist Rest', 'accessories', 25000, 'Ergonomic support for long days.', 'A contoured wrist rest sized for mouse pads. Memory foam core, fabric top, anti-slip base.', '#3D342A', 20, 5, 0, 1, 1, 90);
 
 -- =================================================================
 -- 6. Product specs
 -- =================================================================
 INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUES
-('hyperx-alloy-origins-core', 'Layout', 'TKL (87 keys)', 0),
-('hyperx-alloy-origins-core', 'Switches', 'HyperX Aqua Tactile', 1),
-('hyperx-alloy-origins-core', 'Lighting', 'Per-key RGB', 2),
-('hyperx-alloy-origins-core', 'Connection', 'USB-C, detachable', 3),
 ('keychron-k2-pro', 'Layout', '75% (84 keys)', 0),
 ('keychron-k2-pro', 'Switches', 'Hot-swap, Brown or Red', 1),
 ('keychron-k2-pro', 'Connection', 'BT 5.1 + 2.4G + USB-C', 2),
@@ -354,10 +337,6 @@ INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUE
 ('nuphy-halo65', 'Mount', 'Gasket', 1),
 ('nuphy-halo65', 'Switches', 'Hot-swap, Night Breeze / Rose Glacier', 2),
 ('nuphy-halo65', 'Connection', 'BT + 2.4G + USB-C', 3),
-('vxe-r1se-plus', 'Sensor', 'PixArt PAW3395SE', 0),
-('vxe-r1se-plus', 'Weight', '55 g', 1),
-('vxe-r1se-plus', 'Connection', 'BT + 2.4G + USB-C', 2),
-('vxe-r1se-plus', 'Battery', '70 hours', 3),
 ('logitech-g304', 'Sensor', 'HERO 12K', 0),
 ('logitech-g304', 'Connection', 'LIGHTSPEED 2.4G', 1),
 ('logitech-g304', 'Battery', '250 hours (AA)', 2),
@@ -366,22 +345,10 @@ INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUE
 ('logitech-g-pro-x-superlight-2', 'Weight', '< 60 g', 1),
 ('logitech-g-pro-x-superlight-2', 'Connection', 'LIGHTSPEED 2.4G + USB-C', 2),
 ('logitech-g-pro-x-superlight-2', 'Battery', '95 hours', 3),
-('razer-kraken-x-essential', 'Drivers', '40 mm', 0),
-('razer-kraken-x-essential', 'Surround', '7.1 (software)', 1),
-('razer-kraken-x-essential', 'Weight', '230 g', 2),
-('razer-kraken-x-essential', 'Connection', '3.5 mm', 3),
-('hyperx-cloud-iii-wired', 'Drivers', '53 mm angled', 0),
-('hyperx-cloud-iii-wired', 'Audio', 'DTS Headphone:X spatial', 1),
-('hyperx-cloud-iii-wired', 'Mic', 'Detachable', 2),
-('hyperx-cloud-iii-wired', 'Connection', 'USB-C / USB-A / 3.5 mm', 3),
 ('hyperx-cloud-iii-wireless', 'Drivers', '53 mm angled', 0),
 ('hyperx-cloud-iii-wireless', 'Audio', 'DTS Headphone:X spatial', 1),
 ('hyperx-cloud-iii-wireless', 'Battery', '120 hours', 2),
 ('hyperx-cloud-iii-wireless', 'Connection', '2.4G + USB-C', 3),
-('hyperx-solocast', 'Pattern', 'Cardioid', 0),
-('hyperx-solocast', 'Sample', '24-bit / 96 kHz', 1),
-('hyperx-solocast', 'Control', 'Tap-to-mute, LED indicator', 2),
-('hyperx-solocast', 'Connection', 'USB-C', 3),
 ('hyperx-quadcast-s', 'Patterns', 'Cardioid / Stereo / Omni / Bidirectional', 0),
 ('hyperx-quadcast-s', 'Sample', '24-bit / 96 kHz', 1),
 ('hyperx-quadcast-s', 'Features', 'Tap-mute, headphone monitor, RGB', 2),
@@ -396,105 +363,8 @@ INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUE
 ('premium-deskmat', 'Care', 'Machine washable', 3),
 ('mouse-wrist-rest', 'Core', 'Memory foam', 0),
 ('mouse-wrist-rest', 'Top', 'Fabric', 1),
-('mouse-wrist-rest', 'Base', 'Anti-slip', 2),
-('8in1-cleaning-kit', 'Tools', '8 pieces', 0),
-('8in1-cleaning-kit', 'Targets', 'Keyboard / earbuds / phone / tablet', 1),
-('8in1-cleaning-kit', 'Form', 'Compact case', 2);
+('mouse-wrist-rest', 'Base', 'Anti-slip', 2);
 
 -- =================================================================
 -- Bootstrap complete.
--- Next steps (manual, via SSH or phpMyAdmin):
---   UPDATE users SET role='admin' WHERE email='you@example.com';
--- =================================================================
-
--- =================================================================
--- Order lifecycle + stock-commit model (informational — no DDL/DML
--- below this point runs automatically; everything is reference + ops).
--- =================================================================
---
--- Order statuses (this bootstrap drops the legacy 'paid' + 'shipped'
--- values; the live flow has only five reachable states):
---
---   Wallet: pending_payment -> payment_submitted -> confirmed -> delivered
---   COD:    pending_payment -> confirmed -> delivered
---   Any state can also transition to cancelled.
---
--- 'confirmed' is the single payment-confirmation boundary for BOTH
--- payment kinds. It is the only step that touches inventory:
---
---   POST  /api/v1/orders                       — snapshot stockQty >= qty
---                                                read check per line;
---                                                rejects with 409
---                                                OUT_OF_STOCK on fail.
---                                                NO write to products.
---                                                Pending orders never
---                                                hold inventory.
---   PATCH /api/v1/admin/orders/[id] -> confirmed
---                                              — transactional decrement
---                                                per line with
---                                                stockQty >= qty guard.
---                                                Admin sees 409 if a
---                                                race oversold any item.
---                                                Fires OrderInvoice email
---                                                + LowStockAlert if any
---                                                line breaches threshold.
---   PATCH /api/v1/admin/orders/[id] -> cancelled (from confirmed only)
---                                              — restores stockQty.
---   POST  /api/v1/orders/[id]/cancel            — pure status flip; no
---                                                stock math (pending
---                                                orders never held any).
---   scripts/cancel-expired-orders.ts            — pure status flip; no
---                                                stock math.
---
--- See docs/TECH.md "Stock oversell" + "Phase 9 ADR consequences".
-
--- =================================================================
--- Maintenance: reset has_photos so PDP / Tile fall back to swatch.
---
--- The product seed in this file ships with has_photos = 0 (correct for
--- a fresh DB with no uploaded files). Earlier copies of this file
--- shipped has_photos = 1 for every product — those rows make the
--- next/image optimizer try to fetch /products/<slug>/01-thumb.webp
--- from disk, and emit 500 ("The requested resource isn't a valid
--- image ... received null") when the file doesn't exist.
---
--- Run on any prod DB that was seeded from a pre-0.13.7 bootstrap, then
--- re-upload photos via /admin/products. Each upload's syncHasPhotos()
--- flips the flag back to 1 once the file exists on disk.
--- =================================================================
--- UPDATE products SET has_photos = 0;
--- =================================================================
-
--- =================================================================
--- Maintenance: release phantom-held stock + cancel stuck orders.
---
--- Run this ONCE on any DB that was running the old (pre-0.13.6) order
--- code, where placing an order decremented stockQty even before payment
--- was confirmed. If checkout completed but slip upload failed (sharp /
--- libvips outage in 0.13.4), customers abandoned, or the auto-cancel
--- cron wasn't yet scheduled, inventory got silently held by orders that
--- will never reach `paid`. This SQL returns that held stock to physical
--- inventory and cancels the holding orders.
---
--- Do NOT run on a brand-new DB or one that's already on 0.13.6 — there
--- is nothing to recover.
--- =================================================================
--- START TRANSACTION;
---
--- -- Return stock the old order code decremented on still-unpaid orders.
--- UPDATE products p
--- JOIN order_items oi ON oi.product_id = p.id
--- JOIN orders o      ON o.id = oi.order_id
--- SET p.stock_qty = p.stock_qty + oi.qty
--- WHERE o.status IN ('pending_payment', 'payment_submitted');
---
--- -- Cancel those orders so they don't sit forever.
--- UPDATE orders
--- SET status = 'cancelled'
--- WHERE status IN ('pending_payment', 'payment_submitted');
---
--- COMMIT;
---
--- -- Sanity check (expect seeded values to be restored).
--- SELECT id, stock_qty FROM products ORDER BY id;
 -- =================================================================

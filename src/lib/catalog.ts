@@ -19,6 +19,7 @@ interface ProductRow {
   hasPhotos: boolean
   isActive: boolean
   featured: boolean
+  sortOrder: number
   createdAt: Date
   updatedAt: Date
 }
@@ -46,6 +47,7 @@ function rowToProduct(row: ProductRow, specs: readonly Spec[]): Product {
     lowStockThreshold: row.lowStockThreshold,
     hasPhotos: Boolean(row.hasPhotos),
     featured: row.featured,
+    sortOrder: row.sortOrder,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -56,7 +58,11 @@ async function loadAll(): Promise<{
   categories: Category[]
 }> {
   const [prodRows, specRows, catRows] = await Promise.all([
-    db.select().from(products).where(eq(products.isActive, true)),
+    db
+      .select()
+      .from(products)
+      .where(eq(products.isActive, true))
+      .orderBy(asc(products.sortOrder), asc(products.name)),
     db.select().from(productSpecs).orderBy(asc(productSpecs.productId), asc(productSpecs.sortOrder)),
     db.select().from(categories).orderBy(asc(categories.sortOrder)),
   ])
