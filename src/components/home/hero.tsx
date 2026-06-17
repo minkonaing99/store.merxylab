@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { LayoutGroup, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Tile } from '../product/tile'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/lib/types'
+
+const FLIGHT = { type: 'spring', stiffness: 380, damping: 34, mass: 0.7 } as const
 
 interface HeroProps {
   featured: readonly Product[]
@@ -14,10 +16,10 @@ interface HeroProps {
 
 export function Hero({ featured }: HeroProps) {
   const [active, setActive] = useState(0)
-  const hero = featured[0]
+  const items = featured.slice(0, 4)
+  const hero = items[0]
   if (!hero) return null
-  const thumbs = featured.slice(0, 4)
-  const current = thumbs[active] ?? hero
+  const current = items[active] ?? hero
 
   return (
     <section className="container-prose pt-10 pb-14 md:pt-16 md:pb-20">
@@ -63,45 +65,91 @@ export function Hero({ featured }: HeroProps) {
           </div>
         </div>
 
-        <div className="flex items-stretch gap-3 md:gap-4">
+        <Showcase items={items} active={active} onSelect={setActive} />
+      </motion.div>
+    </section>
+  )
+}
+
+interface ShowcaseProps {
+  items: readonly Product[]
+  active: number
+  onSelect: (i: number) => void
+}
+
+function Showcase({ items, active, onSelect }: ShowcaseProps) {
+  const reduce = useReducedMotion()
+  const current = items[active]
+  if (!current) return null
+  const lid = (id: string) => (reduce ? undefined : `hero-${id}`)
+
+  return (
+    <LayoutGroup id="hero">
+      <div>
+        <div className="relative aspect-square">
           <motion.div
             key={current.id}
-            initial={{ opacity: 0.6, scale: 0.985 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="flex-1"
+            layout={!reduce}
+            layoutId={lid(current.id)}
+            initial={reduce ? { opacity: 0.55 } : false}
+            animate={reduce ? { opacity: 1 } : undefined}
+            transition={reduce ? { duration: 0.3 } : FLIGHT}
+            className="absolute inset-0"
           >
-            <Tile product={current} ratio="portrait" priority useThumb={false} />
+            <Tile product={current} ratio="square" priority useThumb={false} />
           </motion.div>
-          <div className="flex w-[88px] flex-col gap-3">
-            {thumbs.map((p, i) => (
-              <button
-                key={p.id}
-                onClick={() => setActive(i)}
-                aria-label={`Show ${p.name}`}
-                className={cn(
-                  'overflow-hidden rounded-[10px] outline-2 outline-offset-2 transition-all',
-                  i === active ? 'outline-accent' : 'outline-transparent opacity-70 hover:opacity-100',
-                )}
-              >
-                <Tile product={p} ratio="square" showLabel={false} />
-              </button>
-            ))}
-          </div>
         </div>
-      </motion.div>
 
-      <div className="mt-10 flex items-center justify-center gap-1.5 md:hidden">
-        {thumbs.map((_, i) => (
-          <span
-            key={i}
-            className={cn(
-              'h-1.5 rounded-full transition-all',
-              i === active ? 'w-6 bg-ink' : 'w-1.5 bg-line',
+        {items.length > 1 && (
+          <div className="mt-3 grid grid-cols-4 gap-3 md:mt-4 md:gap-4">
+            {items.map((p, i) =>
+              i === active ? (
+                <CarvedSocket key={p.id} swatch={p.swatch} />
+              ) : (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onSelect(i)}
+                  aria-label={`Show ${p.name}`}
+                  className={cn(
+                    'relative aspect-square overflow-hidden rounded-[var(--radius)] outline-2 outline-offset-2',
+                    'outline-transparent opacity-80 transition-opacity hover:opacity-100',
+                  )}
+                >
+                  <motion.div
+                    layout={!reduce}
+                    layoutId={lid(p.id)}
+                    transition={FLIGHT}
+                    className="absolute inset-0"
+                  >
+                    <Tile product={p} ratio="square" showLabel={false} />
+                  </motion.div>
+                </button>
+              ),
             )}
-          />
-        ))}
+          </div>
+        )}
       </div>
-    </section>
+    </LayoutGroup>
+  )
+}
+
+function CarvedSocket({ swatch }: { swatch: string }) {
+  return (
+    <div
+      aria-current="true"
+      aria-label="Current item"
+      className="relative aspect-square rounded-[var(--radius)]"
+      style={{
+        background: swatch,
+        boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(0,0,0,0.12)',
+      }}
+    >
+      <div
+        className="absolute inset-0 rounded-[var(--radius)]"
+        style={{ background: 'rgba(0,0,0,0.28)' }}
+        aria-hidden
+      />
+    </div>
   )
 }

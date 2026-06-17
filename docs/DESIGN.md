@@ -106,7 +106,7 @@ Restrained, warm-tinted (no blue shadow).
 - `Footer` — 4-column dark, newsletter handled in separate section
 - `ProductCard` — swatch tile + name + price + add-to-cart icon + stock badge
 - `ProductTile` — square placeholder (swatch) or real photo when `hasPhotos`
-- `Hero` — left text + product chip + right tile + side thumbs + carousel dots
+- `Hero` — left text + inline product-swatch chip; right = square showcase (deck model). Active featured product fills the big square; its thumb in the 4-square row beneath renders as a recessed "carved well" instead of a duplicate. Clicking a thumb promotes it to the big square via a Framer Motion shared-element flight (`layoutId` per product); the previous one shrinks back into its socket. Stable slot positions, no reshuffle. Reduced-motion → crossfade. Same model on mobile (tap-only; the old carousel dots removed in favor of the visible thumb row).
 - `StatsRow` — 3-column stat blocks
 - `WhyAccordion` — left image + right accordion
 - `CTABanner` — dark bg, headline + tile cutout
