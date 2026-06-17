@@ -79,6 +79,10 @@ npm ci
 npm run build
 ```
 
+> **npm only.** There is no `pnpm-lock.yaml` - the project is npm-only (ADR-09). If one reappears, delete it: its presence makes Next's auto-installer shell out to pnpm, which is absent on Hostinger (`spawn pnpm ENOENT`).
+>
+> **Prod-only installs.** When the build runs server-side with a production-only install (no devDependencies), `next build` must not need eslint or the type checker. `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` are set in `next.config.mjs`, and `typescript` / `@types/react` / `@types/node` live in `dependencies` (Next's TS setup check requires them). Run `npm run lint` + `npm run typecheck` locally before pushing - the host build skips both.
+
 This produces `.next/standalone/` (the minimal runtime) plus `.next/static/` and `public/`.
 
 Bundle for upload:

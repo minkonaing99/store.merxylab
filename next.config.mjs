@@ -54,6 +54,15 @@ const cdnHost = cdnUrl ? new URL(cdnUrl).hostname : null
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Hostinger builds server-side with a production-only install (no devDeps),
+  // so eslint + the build-time type checker aren't available there. We run
+  // `npm run lint` + `npm run typecheck` locally before every push, so skip
+  // both during the build rather than letting Next try to self-install them
+  // (which shells out to pnpm, absent on Hostinger). `typescript`,
+  // `@types/react`, `@types/node` are kept in `dependencies` so Next's TS
+  // setup check still passes against the prod-only install.
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   // Runtime uploads now write to Cloudflare R2 (object storage), not the
   // local disk. The Easy Deploy / Hostinger filesystem is treated as
   // build-frozen — no `writeFile` to `public/` at request time. See
