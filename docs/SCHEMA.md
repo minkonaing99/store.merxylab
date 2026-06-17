@@ -118,7 +118,7 @@ Seeded with all 15 Myanmar divisions. Blocked rows still exist; dropdown filters
 | kind | ENUM('wallet','cod') | NOT NULL | controls UI surface |
 | account_name | VARCHAR(120) | NULL | owner's name on the wallet account |
 | account_phone | VARCHAR(20) | NULL | merchant phone for transfer |
-| qr_image_url | VARCHAR(255) | NULL | `/payment-qr/<id>.webp` |
+| qr_image_url | VARCHAR(255) | NULL | R2 object key (`payment-qr/<id>.webp`) in the public bucket. Legacy rows may still hold the disk path `/payment-qr/<id>.webp`; `r2PublicUrl()` accepts either shape and builds a full URL using `NEXT_PUBLIC_CDN_URL`. |
 | instructions_md | TEXT | NULL | extra notes shown on order page |
 | sort_order | INT | NOT NULL DEFAULT 0 | |
 | is_active | BOOLEAN | NOT NULL DEFAULT false | hidden when false; methods incomplete (missing account info or QR) silently hidden too |
@@ -165,7 +165,7 @@ PK: `(user_id, product_id)`. Guests use localStorage only; merge on login.
 | total_mmk | BIGINT | NOT NULL, ≥ 0 | `subtotal_mmk + delivery_fee_mmk` |
 | shipping_address_id | CHAR(36) | NULL, FK → addresses.id ON DELETE SET NULL | |
 | payment_method_id | VARCHAR(40) | NOT NULL, FK → payment_methods.id ON DELETE RESTRICT | |
-| payment_proof_url | VARCHAR(255) | NULL | Bare basename `<uuid>.webp` of the slip file on disk under `private-uploads/slips/<order_id>/`. Legacy rows may hold the full `/slips/<orderId>/<uuid>.webp` path — the slip-streaming route strips to basename via `slipBasenameFrom()`. Never a public URL. |
+| payment_proof_url | VARCHAR(255) | NULL | Bare basename `<uuid>.webp` of the slip object in R2 private bucket at key `slips/<order_id>/<basename>`. Legacy rows may hold a full `/slips/<orderId>/<uuid>.webp` path — the slip-streaming route strips to basename. Never a public URL. |
 | payment_tx_ref | VARCHAR(120) | NULL | optional customer-entered wallet tx ID |
 | payment_ref | VARCHAR(64) | NULL | mirror of order UUID by default; owner can overwrite with bank-side ref |
 | expires_at | TIMESTAMP | NOT NULL | `placed_at + 24h`; auto-cancel cron checks this |
@@ -370,7 +370,7 @@ const SESSION_DAYS = 30
 | POST | `/api/v1/orders` | Place order from current cart. Body: `{shippingAddressId \| newAddress, paymentMethodId, notes?}`. Server snapshots delivery_fee from `divisions`, sets `expires_at = now() + 24h`. Performs a per-line `stockQty >= qty` snapshot check (returns 409 `OUT_OF_STOCK` if any fails) but **does not** decrement stock — see TECH "Stock oversell". Order is created in `pending_payment` and physical inventory is committed later when admin flips status to `paid`/`confirmed`. | Yes |
 | GET | `/api/v1/orders` | List own orders | Yes |
 | GET | `/api/v1/orders/[id]` | Get one (IDOR-checked) | Yes |
-| POST | `/api/v1/orders/[id]/slip` | Upload payment proof (multipart, image ≤ 8MB). Server validates magic-byte + MIME (JPG/PNG/WEBP), `sharp` resize to ≤1600px + WebP re-encode (EXIF stripped), stores under `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (NOT under `public/`). Sets `payment_proof_url` = basename, `payment_tx_ref` (optional), flips status `pending_payment` → `payment_submitted`. Rejects if status not `pending_payment`/`payment_submitted` or method `kind = 'cod'`. Rate-limit 10/hour/user. | Yes |
+| POST | `/api/v1/orders/[id]/slip` | Upload payment proof (multipart, image ≤ 8MB). Server validates magic-byte + MIME (JPG/PNG/WEBP), `sharp` resize to ≤1600px + WebP re-encode (EXIF stripped), `PutObject` to R2 private bucket at key `slips/<orderId>/<uuid>.webp`. Sets `payment_proof_url` = basename, `payment_tx_ref` (optional), flips status `pending_payment` → `payment_submitted`. On replacement deletes the prior R2 object only after the new put succeeds. Rejects if status not `pending_payment`/`payment_submitted` or method `kind = 'cod'`. Rate-limit 10/hour/user. | Yes |
 | GET  | `/api/v1/orders/[id]/slip` | Stream the slip back as `image/webp` after auth check (`order.user_id === session.user.id` OR `users.role = 'admin'`). Response headers: `Cache-Control: private, no-store`. 404 if no slip on the order. Used by both customer order page and admin order view; the static `/slips/...` path is no longer served. | Yes |
 | POST | `/api/v1/orders/[id]/cancel` | Customer-initiated cancel. Allowed only when `status = 'pending_payment'`. Pure status flip — pending orders never held stock under the commit-at-payment model. | Yes |
 
@@ -410,7 +410,7 @@ const SESSION_DAYS = 30
 |---|---|---|---|
 | POST | `/api/v1/admin/products` | Create new product. Body: `{slug, name, categoryId, priceMmk, tagline, description, swatch, stockQty, lowStockThreshold, featured, isActive, specs[]}`. Slug regex `^[a-z0-9-]+$`, uniqueness checked server-side. `id = slug`. Inserts product + spec rows in a transaction. Revalidates `products` cache tag. | Admin |
 | PATCH | `/api/v1/admin/products/[id]` | Full or partial update of product columns and specs. Same body shape as POST minus id. Revalidates cache. | Admin |
-| POST | `/api/v1/admin/products/[id]/photos/[slot]` | Multipart upload of slot ∈ {01, 02, 03, 04}. JPG/PNG/WEBP ≤ 10 MB. `sharp` writes two files: `public/products/<slug>/0X.webp` (1600×1600 max, EXIF stripped) and `0X-thumb.webp` (600×600 max). Flips `products.has_photos = true` on the first slot-01 upload. Replaces any existing pair atomically. Rate-limit 30/hr/admin. | Admin |
+| POST | `/api/v1/admin/products/[id]/photos/[slot]` | Multipart upload of slot ∈ {01, 02, 03, 04}. JPG/PNG/WEBP ≤ 10 MB. `sharp` produces two buffers: `products/<slug>/0X.webp` (1600×1600 max, EXIF stripped) and `products/<slug>/0X-thumb.webp` (600×600 max). Both `PutObject`'d to R2 public bucket in parallel; on partial failure the route deletes both and 502s. Flips `products.has_photos = true` on slot-01 success. Replaces any existing pair via overwrite. Rate-limit 30/hr/admin. Returns full CDN URLs in the response. | Admin |
 | DELETE | `/api/v1/admin/products/[id]/photos/[slot]` | Removes the hero + thumb pair for one slot. If the slot deleted was 01 and no other slots remain, sets `has_photos = false`. | Admin |
 | PATCH | `/api/v1/admin/orders/[id]` | Update `status`. Allowed transitions enforced server-side per status machine. Wallet: `payment_submitted` → `paid` → `shipped` → `delivered`. COD: `pending_payment` → `confirmed` → `shipped` → `delivered`. Any → `cancelled`. | Admin |
 | PATCH | `/api/v1/admin/reviews/[id]` | Update `status` (`pending` / `approved` / `rejected`). | Admin |
@@ -486,4 +486,4 @@ No `audit_log` table yet — admin role is single-operator in MVP, and Drizzle S
 - Owner verifies in bank app → flips to `paid` from `/admin/orders/[id]`. State transitions are idempotent.
 - COD: no slip. Status `pending_payment` → owner phone confirms → `confirmed` → ship → `delivered`. Driver collects cash at door.
 - Auto-cancel cron (`scripts/cancel-expired-orders.ts`, runs periodically) sets `status='cancelled'` where `status='pending_payment' AND expires_at < NOW()`. No stock math — pending orders never held inventory under the commit-at-payment model.
-- Slip file storage: `<repo>/private-uploads/slips/<orderId>/<uuid>.webp` (gitignored, outside `public/`). `sharp` server-side resize to ≤1600px + EXIF strip + WebP re-encode, 8MB cap on upload. Served only via authed `GET /api/v1/orders/[id]/slip` streaming route — never directly addressable on the public web.
+- Slip file storage: R2 private bucket at key `slips/<orderId>/<uuid>.webp`. `sharp` server-side resize to ≤1600px + EXIF strip + WebP re-encode, 8MB cap on upload. Served only via authed `GET /api/v1/orders/[id]/slip` streaming route (does a `GetObject` against R2 after auth check) — never directly addressable on the public web.

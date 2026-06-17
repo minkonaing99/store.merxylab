@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server'
-import { readdir, mkdir, writeFile, unlink } from 'node:fs/promises'
-import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { revalidateTag } from 'next/cache'
 import sharp from 'sharp'
@@ -8,6 +6,7 @@ import { db } from '@/db'
 import { products } from '@/db/schema/products'
 import { requireAdmin } from '@/lib/admin-guard'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
+import { deletePublic, putPublic, r2PublicUrl } from '@/lib/r2'
 
 const SLUG_RE = /^[a-z0-9-]+$/
 const SLOT_RE = /^0[1-4]$/
@@ -27,16 +26,12 @@ async function loadSlug(id: string): Promise<string | null> {
   return row?.slug ?? null
 }
 
-async function syncHasPhotos(slug: string): Promise<void> {
-  const dir = join(process.cwd(), 'public', 'products', slug)
-  let hasHero01 = false
-  try {
-    const entries = await readdir(dir)
-    hasHero01 = entries.includes('01.webp')
-  } catch {
-    // dir missing -> no photos
-  }
-  await db.update(products).set({ hasPhotos: hasHero01 }).where(eq(products.slug, slug))
+function heroKey(slug: string, slot: string): string {
+  return `products/${slug}/${slot}.webp`
+}
+
+function thumbKey(slug: string, slot: string): string {
+  return `products/${slug}/${slot}-thumb.webp`
 }
 
 export async function POST(req: Request, { params }: RouteCtx): Promise<NextResponse> {
@@ -91,20 +86,28 @@ export async function POST(req: Request, { params }: RouteCtx): Promise<NextResp
     return jsonError('VALIDATION_ERROR', 'Could not read image.', 400)
   }
 
-  const dir = join(process.cwd(), 'public', 'products', slug)
-  await mkdir(dir, { recursive: true })
+  const hKey = heroKey(slug, slot)
+  const tKey = thumbKey(slug, slot)
+  try {
+    await Promise.all([
+      putPublic(hKey, hero, 'image/webp'),
+      putPublic(tKey, thumb, 'image/webp'),
+    ])
+  } catch {
+    await Promise.allSettled([deletePublic(hKey), deletePublic(tKey)])
+    return jsonError('UPSTREAM_ERROR', 'Could not store photo.', 502)
+  }
 
-  await writeFile(join(dir, `${slot}.webp`), hero)
-  await writeFile(join(dir, `${slot}-thumb.webp`), thumb)
-
-  await syncHasPhotos(slug)
+  if (slot === '01') {
+    await db.update(products).set({ hasPhotos: true }).where(eq(products.slug, slug))
+  }
   revalidateTag('products')
 
   return NextResponse.json({
     data: {
       slot,
-      heroUrl: `/products/${slug}/${slot}.webp`,
-      thumbUrl: `/products/${slug}/${slot}-thumb.webp`,
+      heroUrl: r2PublicUrl(hKey),
+      thumbUrl: r2PublicUrl(tKey),
     },
     error: null,
   })
@@ -121,11 +124,14 @@ export async function DELETE(_req: Request, { params }: RouteCtx): Promise<NextR
   const slug = await loadSlug(id)
   if (!slug) return jsonError('NOT_FOUND', 'Product not found.', 404)
 
-  const dir = join(process.cwd(), 'public', 'products', slug)
-  await unlink(join(dir, `${slot}.webp`)).catch(() => {})
-  await unlink(join(dir, `${slot}-thumb.webp`)).catch(() => {})
+  await Promise.allSettled([
+    deletePublic(heroKey(slug, slot)),
+    deletePublic(thumbKey(slug, slot)),
+  ])
 
-  await syncHasPhotos(slug)
+  if (slot === '01') {
+    await db.update(products).set({ hasPhotos: false }).where(eq(products.slug, slug))
+  }
   revalidateTag('products')
 
   return NextResponse.json({ data: { ok: true }, error: null })

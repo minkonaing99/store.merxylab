@@ -6,6 +6,7 @@ import { db } from '@/db'
 import { orders, orderItems } from '@/db/schema/orders'
 import { paymentMethods } from '@/db/schema/payment-methods'
 import { auth } from '@/lib/auth'
+import { r2PublicUrl } from '@/lib/cdn'
 import { formatMmk } from '@/lib/money'
 import { WalletPanel } from './wallet-panel'
 import { CancelButton } from './cancel-button'
@@ -58,7 +59,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             name: method.name,
             accountName: method.accountName,
             accountPhone: method.accountPhone,
-            qrImageUrl: method.qrImageUrl,
+            qrImageUrl: r2PublicUrl(method.qrImageUrl),
             instructionsMd: method.instructionsMd,
           }}
           telegramUrl={tgUrl}

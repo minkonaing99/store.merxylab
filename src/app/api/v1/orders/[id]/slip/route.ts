@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile, unlink, readFile } from 'node:fs/promises'
 import { and, eq } from 'drizzle-orm'
 import sharp from 'sharp'
 import { db } from '@/db'
@@ -11,8 +10,18 @@ import { sendMail } from '@/lib/mail'
 import { sendTelegram } from '@/lib/telegram'
 import { formatMmk } from '@/lib/money'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
-import { slipBasenameFrom, slipDir, slipPath } from '@/lib/slip-storage'
+import { deletePrivate, getPrivateBytes, putPrivate } from '@/lib/r2'
 import { SlipSubmittedAlert } from '@emails/slip-submitted-alert'
+
+function slipBasename(stored: string | null | undefined): string | null {
+  if (!stored) return null
+  const trimmed = stored.split('/').pop() ?? ''
+  return /^[0-9a-f-]{36}\.webp$/i.test(trimmed) ? trimmed : null
+}
+
+function slipKey(orderId: string, basename: string): string {
+  return `slips/${orderId}/${basename}`
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -89,15 +98,18 @@ export async function POST(
   }
 
   const fileName = `${randomUUID()}.webp`
-  const dir = slipDir(id)
-  await mkdir(dir, { recursive: true })
+  const newKey = slipKey(id, fileName)
 
-  const prior = slipBasenameFrom(order.paymentProofUrl)
-  if (prior) {
-    await unlink(slipPath(id, prior)).catch(() => {})
+  try {
+    await putPrivate(newKey, processed, 'image/webp')
+  } catch {
+    return jsonError('UPSTREAM_ERROR', 'Could not store slip.', 502)
   }
 
-  await writeFile(slipPath(id, fileName), processed)
+  const priorBasename = slipBasename(order.paymentProofUrl)
+  if (priorBasename && priorBasename !== fileName) {
+    await deletePrivate(slipKey(id, priorBasename))
+  }
 
   await db
     .update(orders)
@@ -145,10 +157,10 @@ export async function GET(
   const isAdmin = session.user.role === 'admin'
   if (!isOwner && !isAdmin) return jsonError('FORBIDDEN', 'Not your order.', 403)
 
-  const basename = slipBasenameFrom(order.paymentProofUrl)
+  const basename = slipBasename(order.paymentProofUrl)
   if (!basename) return jsonError('NOT_FOUND', 'No slip on this order.', 404)
 
-  const bytes = await readFile(slipPath(id, basename)).catch(() => null)
+  const bytes = await getPrivateBytes(slipKey(id, basename))
   if (!bytes) return jsonError('NOT_FOUND', 'Slip file missing.', 404)
 
   return new NextResponse(new Uint8Array(bytes), {

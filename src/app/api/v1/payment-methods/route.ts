@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { asc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { paymentMethods } from '@/db/schema/payment-methods'
+import { r2PublicUrl } from '@/lib/cdn'
 
 export const dynamic = "force-dynamic"
 
@@ -27,7 +28,7 @@ export async function GET(): Promise<NextResponse> {
       kind: m.kind,
       accountName: m.accountName,
       accountPhone: m.accountPhone,
-      qrImageUrl: m.qrImageUrl,
+      qrImageUrl: r2PublicUrl(m.qrImageUrl),
       instructionsMd: m.instructionsMd,
     })),
     error: null,

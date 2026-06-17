@@ -94,6 +94,30 @@ UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 
 Run from phpMyAdmin → SQL tab. Verify with `SELECT id, email, role FROM users WHERE role='admin';`. From then on `/admin/*` UI + `/api/v1/admin/*` routes accept the session.
 
+### Setting up Cloudflare R2
+Required from 0.14.0+ for product photo / payment QR / slip uploads. See TECH ADR "Photos on Cloudflare R2".
+
+1. **Create two buckets** in the Cloudflare R2 dashboard:
+   - `merxylab-public` — for product photos + payment-method QR codes. Reads must be public.
+   - `merxylab-private` — for customer payment slips. No public binding.
+2. **Bind a custom domain** to `merxylab-public`: R2 dashboard → bucket → Settings → Custom domains → `cdn.merxylab.com` (or whatever subdomain you own under CF DNS). This becomes `NEXT_PUBLIC_CDN_URL`.
+3. **Create an API token** (R2 → Manage R2 API Tokens). Scope to both buckets, permissions: Object Read + Write + Delete. Capture `Access Key ID`, `Secret Access Key`, and your `Account ID` (URL bar in the R2 dashboard).
+4. **Populate `.env.local`** (or hPanel → Easy Deploy → env vars on Hostinger):
+   ```
+   R2_ACCOUNT_ID=...
+   R2_ACCESS_KEY_ID=...
+   R2_SECRET_ACCESS_KEY=...
+   R2_PUBLIC_BUCKET=merxylab-public
+   R2_PRIVATE_BUCKET=merxylab-private
+   NEXT_PUBLIC_CDN_URL=https://cdn.merxylab.com
+   ```
+5. **Rotate the API token every 90 days** along with `AUTH_SECRET` and SMTP creds.
+
+Smoke test after deploy:
+- `/admin/products` → upload one product photo → page render should load both 1600px hero and 600px thumb via `cdn.merxylab.com/products/<slug>/...`.
+- `/admin/payment-methods` → upload one QR → order page renders via CDN.
+- Place a test order, upload a slip → confirm `/api/v1/orders/<id>/slip` streams the image (200 image/webp) for the owner + admin, 403 / 404 for anyone else.
+
 ### Photo workflow (Phase 4)
 Photos live in `public/products/{slug}/{NN}.webp`, slot 01 required for `hasPhotos = true`.
 
@@ -209,6 +233,16 @@ npm run test:e2e:ui       # playwright test --ui
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
+
+### [0.14.0] — 2026-06-17 (shipped to testing)
+- All admin-uploaded media (product photos, payment-method QRs, customer slips) now stored in Cloudflare R2 instead of the Hostinger filesystem. Easy Deploy's build-frozen `public/` made runtime disk writes silently invisible; R2 sidesteps the hosting model entirely. See TECH ADR "Photos on Cloudflare R2 (supersedes 'Photos on filesystem')".
+- Two buckets: `merxylab-public` (products + QR, served via `cdn.merxylab.com` custom domain) and `merxylab-private` (slips, streamed back through the existing `GET /api/v1/orders/[id]/slip` route).
+- New env vars: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BUCKET`, `R2_PRIVATE_BUCKET`, `NEXT_PUBLIC_CDN_URL`. See `.env.example` and the new "Setting up Cloudflare R2" section below.
+- New module: `src/lib/r2.ts` (`putPublic`/`putPrivate`/`deletePublic`/`deletePrivate`/`getPrivateBytes`) and `src/lib/cdn.ts` (`r2PublicUrl` — accepts R2 keys OR legacy disk paths, builds a fully-qualified URL using `NEXT_PUBLIC_CDN_URL`).
+- Routes rewired: `POST /api/v1/admin/products/[id]/photos/[slot]` (parallel hero + thumb PutObject), `POST /api/v1/admin/payment-methods/qr` (also adds a `DELETE` companion), `POST /api/v1/orders/[id]/slip` (PutObject to private bucket), `GET /api/v1/orders/[id]/slip` (`GetObject` from R2 after auth check). `products.has_photos` no longer relies on `readdir`; the slot-01 mutation in each route sets it directly.
+- DB stores R2 keys (not URLs) in `payment_methods.qr_image_url` and `orders.payment_proof_url`. Render sites pass values through `r2PublicUrl()` server-side before handing them to client components. Legacy `/path/file.webp` values still resolve unchanged.
+- `next.config.mjs` adds `images.remotePatterns` for the CDN host so `<Image>` accepts the external src.
+- Deleted: `src/lib/slip-storage.ts` (was disk-based path resolver).
 
 ### [0.13.8] — 2026-06-17 (shipped to testing)
 - Cut customer email count from 6 → 2 per happy-path order.

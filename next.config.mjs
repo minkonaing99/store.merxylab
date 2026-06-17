@@ -46,16 +46,23 @@ const SECURITY_HEADERS = [
   },
 ]
 
+// Public CDN domain (Cloudflare R2 binding). Optional in dev; required in prod.
+const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL
+const cdnHost = cdnUrl ? new URL(cdnUrl).hostname : null
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // No `output: 'standalone'` — Hostinger Easy Deploy + Passenger boot Node
-  // from the project root, where `public/` already lives. The standalone
-  // bundle would put `server.js` under `.next/standalone/` and resolve
-  // `public/` relative to that dir, making runtime uploads (writeFile to
-  // `join(process.cwd(), 'public', ...)`) land where Next can't see them →
-  // /payment-qr/<id>.webp and /_next/image?url=/products/... 400/404.
+  // Runtime uploads now write to Cloudflare R2 (object storage), not the
+  // local disk. The Easy Deploy / Hostinger filesystem is treated as
+  // build-frozen — no `writeFile` to `public/` at request time. See
+  // docs/TECH.md "Photos on R2 (Cloudflare)" ADR.
+  images: {
+    remotePatterns: cdnHost
+      ? [{ protocol: 'https', hostname: cdnHost, pathname: '/**' }]
+      : [],
+  },
   async headers() {
     // Photo slots are content-identified by (slug, slot); the admin UI cache-busts
     // with `?v=Date.now()` on replace, so long-lived immutable caching is safe.

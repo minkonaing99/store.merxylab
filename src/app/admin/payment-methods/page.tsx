@@ -1,6 +1,7 @@
 import { asc } from 'drizzle-orm'
 import { db } from '@/db'
 import { paymentMethods } from '@/db/schema/payment-methods'
+import { r2PublicUrl } from '@/lib/cdn'
 import { PaymentMethodTable } from './payment-method-table'
 
 export default async function AdminPaymentMethodsPage() {
@@ -19,7 +20,7 @@ export default async function AdminPaymentMethodsPage() {
           kind: r.kind,
           accountName: r.accountName,
           accountPhone: r.accountPhone,
-          qrImageUrl: r.qrImageUrl,
+          qrImageUrl: r2PublicUrl(r.qrImageUrl),
           instructionsMd: r.instructionsMd,
           sortOrder: r.sortOrder,
           isActive: r.isActive,

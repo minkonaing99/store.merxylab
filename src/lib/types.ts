@@ -33,7 +33,10 @@ export interface Product {
 
 export const PHOTO_SLOTS = ['01', '02', '03', '04'] as const
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number]
-export const PHOTO_BASE = '/products'
+// Public R2 base, e.g. `https://cdn.merxylab.com`. Falls back to '/products'
+// for local dev without R2 configured.
+const CDN_BASE = (process.env.NEXT_PUBLIC_CDN_URL ?? '').replace(/\/$/, '')
+export const PHOTO_BASE = CDN_BASE ? `${CDN_BASE}/products` : '/products'
 
 export interface Category {
   readonly id: CategoryId
