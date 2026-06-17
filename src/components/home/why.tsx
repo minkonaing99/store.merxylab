@@ -15,20 +15,20 @@ interface WhyProps {
 
 const ITEMS = [
   {
-    title: 'Build quality',
-    body: 'Aluminium, walnut, brass, PBT. Every part chosen for how it feels after a thousand hours.',
+    title: 'Curated, not crammed',
+    body: 'We stock a small selection instead of a wall of options. Aluminium, walnut, PBT - the gear built to last gets a place. The disposable plastic stuff does not.',
   },
   {
-    title: 'Switch feel',
-    body: 'Pre-lubed stabilisers and hand-tuned switches. Every board ships with the sound profile we promised.',
+    title: 'We try it first',
+    body: 'We use the peripherals before we list them. If a board rattles, a mouse feels cheap, or a mic hisses, it never reaches the shelf.',
   },
   {
-    title: 'Cable & wireless',
-    body: 'Detachable USB-C on every wired board. BLE 5.2 on every wireless one. No proprietary dongles.',
+    title: 'Genuine stock',
+    body: 'Real product in a sealed box, with the manufacturer warranty intact. No grey-market surprises.',
   },
   {
-    title: 'Warranty',
-    body: 'Two years, no fine print. Switches, sensors, batteries - covered.',
+    title: 'Warranty and returns',
+    body: 'Every product carries its manufacturer warranty. And if something is wrong within a month, we refund or replace it here in Myanmar - no shipping overseas.',
   },
 ] as const
 
@@ -55,7 +55,7 @@ export function Why({ showcase, imageUrl }: WhyProps) {
           )}
           {!imageUrl && showcase && (
             <p className="mt-4 max-w-[36ch] text-[13px] text-muted">
-              Studio shot of the {showcase.name} - gasket-mounted, hand-tuned, made in small batches.
+              The {showcase.name} - one of the pieces we keep on the shelf.
             </p>
           )}
         </motion.div>
@@ -63,11 +63,11 @@ export function Why({ showcase, imageUrl }: WhyProps) {
         <div>
           <div className="eyebrow">Why merxylab</div>
           <h2 className="mt-3 font-display text-[36px] leading-[1.05] text-ink md:text-[44px]">
-            Made for the desk, not the tournament.
+            Chosen for the desk, not the tournament.
           </h2>
           <p className="mt-4 max-w-[44ch] text-[15px] leading-relaxed text-ink-soft">
-            We build peripherals like furniture - slowly, in small runs, with materials that age
-            well. Open them, repair them, keep them.
+            We pick peripherals the way a good furniture shop picks chairs - slowly, only the
+            well-made ones that age nicely. Calm gear for a desk you actually use.
           </p>
 
           <ul className="mt-8 divide-y divide-line border-y border-line">
