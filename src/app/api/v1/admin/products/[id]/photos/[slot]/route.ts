@@ -75,12 +75,12 @@ export async function POST(req: Request, { params }: RouteCtx): Promise<NextResp
     hero = await base
       .clone()
       .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 86 })
+      .webp({ quality: 86, alphaQuality: 100 })
       .toBuffer()
     thumb = await base
       .clone()
       .resize({ width: 600, height: 600, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 82 })
+      .webp({ quality: 82, alphaQuality: 100 })
       .toBuffer()
   } catch {
     return jsonError('VALIDATION_ERROR', 'Could not read image.', 400)
