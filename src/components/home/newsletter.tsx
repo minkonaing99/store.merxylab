@@ -30,7 +30,7 @@ export function Newsletter() {
   }
 
   return (
-    <section className="container-prose pb-20 md:pb-28">
+    <section className="container-prose py-20 md:py-28">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
