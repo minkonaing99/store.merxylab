@@ -53,30 +53,29 @@ If BeeExpress opens coverage in a blocked division: unblock at `/admin/divisions
 
 **Wallet path**
 ```
-pending_payment ──(customer uploads slip)──▶ payment_submitted
-        ▼                                          ▼
-   cancelled                                     paid ──▶ shipped ──▶ delivered
+pending_payment ──(customer uploads slip)──▶ payment_submitted ──(admin verifies)──▶ confirmed ──▶ delivered
+        ▼                                            ▼                                  ▼              ▼
+   cancelled                                    cancelled                          cancelled    (terminal)
 ```
 
 **COD path**
 ```
-pending_payment ──(owner phone-confirms)──▶ confirmed ──▶ shipped ──▶ delivered
-        ▼
-   cancelled
+pending_payment ──(owner phone-confirms)──▶ confirmed ──▶ delivered
+        ▼                                       ▼              ▼
+   cancelled                              cancelled    (terminal)
 ```
 
-Customer can self-cancel only while `pending_payment`. After `payment_submitted` or `confirmed`, only the owner can cancel.
+`confirmed` is the only payment-commit boundary for both paths. Transition into it decrements stock and emails the customer an invoice; transition out of it (to `cancelled`) restores stock. Customer can self-cancel only while `pending_payment`; after that, only the owner cancels.
 
 ## Owner daily ops
 
-1. **Morning check** — open `/admin/orders?status=payment_submitted` (queue of orders awaiting verification).
-2. **Per order** — open detail page → see slip thumbnail + optional tx ref + total MMK + customer name. Open your bank app side-by-side. Match the amount + sender name + timestamp.
-3. **If matched** — flip status to `paid`. Customer emailed automatically.
-4. **If mismatched** — flip to `pending_payment` with a note (or `cancelled` if fraud). Customer can re-upload.
-5. **Ship** — when packed, flip to `shipped`. Paste BeeExpress tracking ref in notes (visible to customer).
-6. **Delivered** — flip to `delivered` once BeeExpress confirms.
+1. **Morning check** — open `/admin/orders` (rows in `payment_submitted` are the ones awaiting verification).
+2. **Per order** — click the row → `/admin/orders/[id]`. Detail page shows the slip image inline, items, customer info, and the action buttons. Open your bank app side-by-side. Match amount + sender name + timestamp.
+3. **If matched** — click **Confirm payment**. Stock decrements, invoice email goes out, customer can now wait for delivery.
+4. **If mismatched** — click **Reject slip (back to pending)** with notes (or **Cancel order** if fraud). Customer can re-upload.
+5. **Delivered** — once BeeExpress confirms, click **Mark delivered**. Customer gets a short delivery email.
 
-**COD ops** — `/admin/orders?status=pending_payment` filtered by `payment_method_id=cod`. Phone the recipient. If reachable + confirmed → `confirmed`. If unreachable after 24h → cancel (call again next day before cancelling outright; customer experience matters).
+**COD ops** — same page; for COD orders in `pending_payment`, the button is **Confirm order (phone-verified)**. Phone the recipient. If reachable + confirmed → click it. If unreachable after 24h → cancel (call again next day before cancelling outright; customer experience matters).
 
 ## Slip security
 
@@ -90,7 +89,7 @@ Customer can self-cancel only while `pending_payment`. After `payment_submitted`
 
 Customer mailbox is intentionally quiet — at most 2 emails per happy-path order so notifications don't fatigue.
 
-- `order-invoice.tsx` — sent at payment confirmation: admin → `paid` (wallet) or `confirmed` (COD). Itemised invoice with subtotal + delivery + total + payment method.
+- `order-invoice.tsx` — sent at payment confirmation: admin → `confirmed` (wallet OR COD). Itemised invoice with subtotal + delivery + total + payment method.
 - `order-delivered.tsx` — sent at admin → `delivered`. Short thanks + reply-with-issue hook.
 - `order-cancelled.tsx` — sent on customer cancel + auto-cancel cron + admin cancel.
 

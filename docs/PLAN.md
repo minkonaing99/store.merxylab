@@ -282,7 +282,12 @@ Tasks:
 - [x] Slip storage moved to `<repo>/private-uploads/slips/...` + auth-streaming `GET /api/v1/orders/[id]/slip` + long-cache headers on `/products/*` + `/payment-qr/*`. Commit `9995aad`.
 - [x] Doc sweep — slip-path correctness + pnpm → npm + fresh-DB SQL bootstrap surfaced. Commit `5a23196`.
 - [x] Hotfix — sharp 0.35.1 → 0.34.5 for Hostinger CloudLinux glibc compat (libvips 8.18 needed glibc ≥ 2.28; 0.34.5's libvips 8.17.3 works). Shipped to production as `71390f1`.
-- [x] Stock-commit moved from order placement to payment confirmation. Pending orders no longer hold inventory; `paid`/`confirmed` transition runs the decrement with `stockQty >= qty` guard. Cancel-out-of-paid restores. Customer cancel + auto-cancel cron drop their old restore blocks (nothing to restore).
+- [x] Stock-commit moved from order placement to payment confirmation. Pending orders no longer hold inventory; the `confirmed` transition runs the decrement with `stockQty >= qty` guard. Cancel-out-of-confirmed restores. Customer cancel + auto-cancel cron drop their old restore blocks (nothing to restore).
+- [x] Order state machine collapsed (0.15.0). `paid` and `shipped` dropped from enum + schema + transition tables. Wallet path = `pending_payment` → `payment_submitted` → `confirmed` → `delivered`; COD = `pending_payment` → `confirmed` → `delivered`. `cancelled` reachable from any non-terminal.
+- [x] Admin order detail page (`/admin/orders/[id]`) with inline slip preview + context-aware action buttons (0.15.0). Replaces the in-row `<select>` for verification flow.
+- [x] Hard-delete product endpoint + soft-delete fallback + admin trash button (0.15.0).
+- [x] Catalog cache invalidation on admin stock moves + live DB stock check in cart-add (0.15.0). Closes spurious cart-add OUT_OF_STOCK.
+- [x] Drizzle/mysql2 `affectedRows` tuple bug fix (0.15.0). Was causing Confirm payment to always 409.
 
 ### Backlog
 - [ ] Hostinger deploy (follow `docs/DEPLOY.md` once domain + DB credentials ready)
