@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { and, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
@@ -166,6 +167,13 @@ export async function PATCH(
       )
     }
     throw err
+  }
+
+  // Stock just moved (decrement on commit OR restore on cancel-from-commit)
+  // — bust the catalog cache so shop pages + cart-add checks see the new
+  // stockQty immediately instead of waiting 60s for revalidate.
+  if (isCommitting || isReleasing) {
+    revalidateTag('products')
   }
 
   const [user] = await db.select().from(users).where(eq(users.id, order.userId)).limit(1)

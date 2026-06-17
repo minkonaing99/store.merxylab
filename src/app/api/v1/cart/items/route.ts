@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { eq } from 'drizzle-orm'
+import { db } from '@/db'
+import { products } from '@/db/schema/products'
 import { addCartItem, getCartLines } from '@/lib/cart-session'
-import { getProductById } from '@/lib/catalog'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 
 const bodySchema = z.object({
@@ -27,14 +29,19 @@ export async function POST(req: Request): Promise<NextResponse> {
     )
   }
 
-  const product = await getProductById(parsed.data.productId)
-  if (!product) {
+  // Live DB read — bypass the catalog cache so stock is current.
+  const [row] = await db
+    .select({ stockQty: products.stockQty, isActive: products.isActive })
+    .from(products)
+    .where(eq(products.id, parsed.data.productId))
+    .limit(1)
+  if (!row || !row.isActive) {
     return NextResponse.json(
       { data: null, error: { code: 'NOT_FOUND', message: 'Product not found.', status: 404 } },
       { status: 404 },
     )
   }
-  if ((product.stockQty ?? 0) <= 0) {
+  if (row.stockQty <= 0) {
     return NextResponse.json(
       { data: null, error: { code: 'OUT_OF_STOCK', message: 'Out of stock.', status: 409 } },
       { status: 409 },
