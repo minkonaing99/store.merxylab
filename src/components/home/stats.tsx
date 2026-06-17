@@ -3,9 +3,9 @@
 import { motion } from 'framer-motion'
 
 const STATS = [
-  { value: '50K+', label: 'keystrokes tested per board' },
-  { value: '200+', label: 'switch variants vetted' },
-  { value: '99%', label: 'shipped on time, every batch' },
+  { value: 'Genuine', label: 'real stock, manufacturer warranty on every product' },
+  { value: '1 month', label: 'something wrong? we refund or replace it' },
+  { value: 'Nationwide', label: 'delivery from Mandalay, across Myanmar' },
 ] as const
 
 export function Stats() {
@@ -20,7 +20,7 @@ export function Stats() {
       >
         {STATS.map((s) => (
           <div key={s.label} className="flex flex-col items-start sm:items-center sm:text-center">
-            <span className="font-display text-[44px] leading-none text-ink md:text-[56px]">
+            <span className="font-display text-[28px] leading-[1.1] tracking-[-0.01em] text-ink md:text-[34px]">
               {s.value}
             </span>
             <span className="mt-3 max-w-[24ch] text-[13px] leading-relaxed text-muted">

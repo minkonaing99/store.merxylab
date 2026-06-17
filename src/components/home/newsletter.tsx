@@ -25,12 +25,12 @@ export function Newsletter() {
       toast(json?.error?.message ?? 'Subscription failed.')
       return
     }
-    toast(`Thanks - you're on the list. 30% off heading your way.`)
+    toast(`Thanks - you're on the list. 10% off your first order heading your way.`)
     setEmail('')
   }
 
   return (
-    <section className="container-prose py-20 md:py-28">
+    <section className="container-prose flex flex-1 flex-col justify-center py-16 md:py-20">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -40,7 +40,7 @@ export function Newsletter() {
       >
         <div className="eyebrow">Newsletter</div>
         <h2 className="mt-3 font-display text-[30px] leading-[1.1] text-ink md:text-[40px]">
-          Subscribe and get <span className="text-accent">30% off</span> Edition 01.
+          Subscribe and get <span className="text-accent">10% off</span> your first order.
         </h2>
         <p className="mx-auto mt-3 max-w-[44ch] text-[14px] text-muted">
           One short letter a month. New batches, sound tests, the occasional desk tour. No filler.
