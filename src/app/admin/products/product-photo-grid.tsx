@@ -3,10 +3,15 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Trash2 } from 'lucide-react'
+import { PHOTO_BASE } from '@/lib/types'
 
 const SLOTS = ['01', '02', '03', '04'] as const
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_BYTES = 10 * 1024 * 1024
+
+function thumbUrlFor(slug: string, slot: string): string {
+  return `${PHOTO_BASE}/${slug}/${slot}-thumb.webp`
+}
 
 interface Props {
   productId: string
@@ -27,7 +32,7 @@ export function ProductPhotoGrid({ productId, slug, swatch, onChange }: Props) {
     Object.fromEntries(
       SLOTS.map((s) => [
         s,
-        { thumbUrl: `/products/${slug}/${s}-thumb.webp`, busy: false, error: null, bust: Date.now() },
+        { thumbUrl: thumbUrlFor(slug, s), busy: false, error: null, bust: Date.now() },
       ]),
     ),
   )
@@ -37,7 +42,7 @@ export function ProductPhotoGrid({ productId, slug, swatch, onChange }: Props) {
       Object.fromEntries(
         SLOTS.map((s) => [
           s,
-          { thumbUrl: `/products/${slug}/${s}-thumb.webp`, busy: false, error: null, bust: Date.now() },
+          { thumbUrl: thumbUrlFor(slug, s), busy: false, error: null, bust: Date.now() },
         ]),
       ),
     )
