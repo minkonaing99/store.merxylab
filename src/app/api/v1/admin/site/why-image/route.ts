@@ -66,7 +66,7 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json({ data: { url: key ? r2PublicUrl(key) : null }, error: null })
 }
 
-export async function DELETE(req: Request): Promise<NextResponse> {
+export async function DELETE(): Promise<NextResponse> {
   const guard = await requireAdmin()
   if (!guard.ok) return jsonError('FORBIDDEN', guard.message, guard.status)
 

@@ -3,6 +3,11 @@ node_modules/
 .pnp/
 .pnp.js
 
+# npm-only project (ADR-09). pnpm artifacts must never be committed —
+# their presence makes Next's auto-installer shell out to pnpm, absent on Hostinger.
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
 # Build output
 .next/
 out/
