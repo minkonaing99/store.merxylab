@@ -17,8 +17,6 @@ export const ORDER_STATUSES = [
   'pending_payment',
   'payment_submitted',
   'confirmed',
-  'paid',
-  'shipped',
   'delivered',
   'cancelled',
 ] as const

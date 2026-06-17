@@ -14,10 +14,20 @@
 -- Run order (already in file): schema -> divisions -> payment_methods ->
 --                              categories -> products -> product_specs.
 --
+-- Reflects the post-0.14.x app:
+--   * 'paid' and 'shipped' are dropped from orders.status enum — live
+--     flow uses only pending_payment / payment_submitted / confirmed /
+--     delivered / cancelled. 'confirmed' is the single payment-commit
+--     boundary (wallet + COD share it).
+--   * Storage for product photos, QR, and slips is Cloudflare R2
+--     (see TECH ADR "Photos on Cloudflare R2"). No filesystem writes.
+--   * has_photos ships as 0 — flip to 1 by uploading via /admin or
+--     running the migrate-photos workflow once R2 keys exist.
+--
 -- After the install steps, see the appendix at the bottom for:
---   * Stock-commit model (informational, since 0.13.6).
---   * One-off "release phantom-held stock" SQL for legacy prod DBs that
---     ran on the old "decrement at order placement" code.
+--   * Order lifecycle + stock-commit model (informational).
+--   * One-off "release phantom-held stock" SQL for legacy DBs that
+--     ran on the pre-0.13.6 "decrement at order placement" code.
 
 -- =================================================================
 -- 1. Schema
@@ -178,7 +188,7 @@ CREATE TABLE `order_items` (
 CREATE TABLE `orders` (
 	`id` varchar(36) NOT NULL,
 	`user_id` varchar(36) NOT NULL,
-	`status` enum('pending_payment','payment_submitted','confirmed','paid','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending_payment',
+	`status` enum('pending_payment','payment_submitted','confirmed','delivered','cancelled') NOT NULL DEFAULT 'pending_payment',
 	`subtotal_mmk` bigint NOT NULL,
 	`delivery_fee_mmk` bigint NOT NULL,
 	`total_mmk` bigint NOT NULL,
@@ -390,25 +400,38 @@ INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUE
 -- =================================================================
 
 -- =================================================================
--- Stock-commit model (informational — no DDL/DML below this point
--- runs automatically; everything is for reference and one-off ops).
+-- Order lifecycle + stock-commit model (informational — no DDL/DML
+-- below this point runs automatically; everything is reference + ops).
 -- =================================================================
 --
--- As of 0.13.6 the app commits inventory at payment confirmation, not
--- at order placement:
+-- Order statuses (this bootstrap drops the legacy 'paid' + 'shipped'
+-- values; the live flow has only five reachable states):
+--
+--   Wallet: pending_payment -> payment_submitted -> confirmed -> delivered
+--   COD:    pending_payment -> confirmed -> delivered
+--   Any state can also transition to cancelled.
+--
+-- 'confirmed' is the single payment-confirmation boundary for BOTH
+-- payment kinds. It is the only step that touches inventory:
 --
 --   POST  /api/v1/orders                       — snapshot stockQty >= qty
---                                                check only; rejects with
---                                                409 OUT_OF_STOCK on fail.
+--                                                read check per line;
+--                                                rejects with 409
+--                                                OUT_OF_STOCK on fail.
 --                                                NO write to products.
---   PATCH /api/v1/admin/orders/[id] -> paid    — decrement stockQty per
---                                                line in a transaction
---                                                with stockQty >= qty
---                                                guard; admin sees 409
---                                                if oversold in race.
---   PATCH /api/v1/admin/orders/[id] -> confirmed (COD path) — same.
---   PATCH /api/v1/admin/orders/[id] -> cancelled (from paid/confirmed)
---                                                — restores stockQty.
+--                                                Pending orders never
+--                                                hold inventory.
+--   PATCH /api/v1/admin/orders/[id] -> confirmed
+--                                              — transactional decrement
+--                                                per line with
+--                                                stockQty >= qty guard.
+--                                                Admin sees 409 if a
+--                                                race oversold any item.
+--                                                Fires OrderInvoice email
+--                                                + LowStockAlert if any
+--                                                line breaches threshold.
+--   PATCH /api/v1/admin/orders/[id] -> cancelled (from confirmed only)
+--                                              — restores stockQty.
 --   POST  /api/v1/orders/[id]/cancel            — pure status flip; no
 --                                                stock math (pending
 --                                                orders never held any).

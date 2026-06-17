@@ -9,8 +9,6 @@ type Status =
   | 'pending_payment'
   | 'payment_submitted'
   | 'confirmed'
-  | 'paid'
-  | 'shipped'
   | 'delivered'
   | 'cancelled'
 
@@ -38,8 +36,6 @@ const WALLET_TRANSITIONS: Record<Status, Status[]> = {
   confirmed: ['delivered', 'cancelled'],
   delivered: [],
   cancelled: [],
-  paid: ['delivered', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
 }
 
 const COD_TRANSITIONS: Record<Status, Status[]> = {
@@ -48,8 +44,6 @@ const COD_TRANSITIONS: Record<Status, Status[]> = {
   delivered: [],
   cancelled: [],
   payment_submitted: [],
-  paid: ['delivered', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
 }
 
 function allowedNextStatuses(current: Status, kind: MethodKind): Status[] {

@@ -24,26 +24,21 @@ const patchSchema = z.object({
     'pending_payment',
     'payment_submitted',
     'confirmed',
-    'paid',
-    'shipped',
     'delivered',
     'cancelled',
   ]),
   notes: z.string().max(2000).optional(),
 })
 
-// Single-step confirm model. `confirmed` is the payment-confirmed +
-// stock-committed + invoice-sent boundary for BOTH wallet and COD;
-// `delivered` closes the order. `paid` and `shipped` are kept in the
-// enum for legacy DB rows but unreachable from any live transition.
+// Single-step confirm model. `confirmed` is the payment-confirmation +
+// stock-commit + invoice-email boundary for BOTH wallet and COD;
+// `delivered` closes the order. Cancel from any state.
 const WALLET_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['payment_submitted', 'cancelled'],
   payment_submitted: ['pending_payment', 'confirmed', 'cancelled'],
   confirmed: ['delivered', 'cancelled'],
   delivered: [],
   cancelled: [],
-  paid: ['delivered', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
 }
 
 const COD_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -52,8 +47,6 @@ const COD_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   delivered: [],
   cancelled: [],
   payment_submitted: [],
-  paid: ['delivered', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
 }
 
 export async function PATCH(
