@@ -50,7 +50,12 @@ const SECURITY_HEADERS = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: 'standalone',
+  // No `output: 'standalone'` — Hostinger Easy Deploy + Passenger boot Node
+  // from the project root, where `public/` already lives. The standalone
+  // bundle would put `server.js` under `.next/standalone/` and resolve
+  // `public/` relative to that dir, making runtime uploads (writeFile to
+  // `join(process.cwd(), 'public', ...)`) land where Next can't see them →
+  // /payment-qr/<id>.webp and /_next/image?url=/products/... 400/404.
   async headers() {
     // Photo slots are content-identified by (slug, slot); the admin UI cache-busts
     // with `?v=Date.now()` on replace, so long-lived immutable caching is safe.
