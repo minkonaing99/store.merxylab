@@ -101,7 +101,7 @@ export function AdminOrdersTable({ initial }: AdminOrdersTableProps) {
             <tr key={r.id} className="border-b border-line/60 hover:bg-surface">
               <td className="py-3 pr-3">
                 <Link
-                  href={`/account/orders/${r.id}`}
+                  href={`/admin/orders/${r.id}`}
                   className="font-display text-[14px] hover:text-accent"
                 >
                   {r.id.slice(0, 8)}
