@@ -34,22 +34,22 @@ interface AdminOrdersTableProps {
 // src/app/api/v1/admin/orders/[id]/route.ts. Keep in sync.
 const WALLET_TRANSITIONS: Record<Status, Status[]> = {
   pending_payment: ['payment_submitted', 'cancelled'],
-  payment_submitted: ['pending_payment', 'paid', 'cancelled'],
-  paid: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
+  payment_submitted: ['pending_payment', 'confirmed', 'cancelled'],
+  confirmed: ['delivered', 'cancelled'],
   delivered: [],
-  confirmed: [],
   cancelled: [],
+  paid: ['delivered', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
 }
 
 const COD_TRANSITIONS: Record<Status, Status[]> = {
   pending_payment: ['confirmed', 'cancelled'],
-  confirmed: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
+  confirmed: ['delivered', 'cancelled'],
   delivered: [],
-  payment_submitted: [],
-  paid: [],
   cancelled: [],
+  payment_submitted: [],
+  paid: ['delivered', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
 }
 
 function allowedNextStatuses(current: Status, kind: MethodKind): Status[] {

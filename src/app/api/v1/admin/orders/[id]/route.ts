@@ -14,7 +14,7 @@ import { OrderDelivered } from '@emails/order-delivered'
 import { OrderCancelled } from '@emails/order-cancelled'
 import { LowStockAlert } from '@emails/low-stock-alert'
 
-const STOCK_COMMIT_STATUSES = new Set<OrderStatus>(['paid', 'confirmed'])
+const STOCK_COMMIT_STATUSES = new Set<OrderStatus>(['confirmed'])
 const LOW_STOCK_DEFAULT = 3
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -32,24 +32,28 @@ const patchSchema = z.object({
   notes: z.string().max(2000).optional(),
 })
 
+// Single-step confirm model. `confirmed` is the payment-confirmed +
+// stock-committed + invoice-sent boundary for BOTH wallet and COD;
+// `delivered` closes the order. `paid` and `shipped` are kept in the
+// enum for legacy DB rows but unreachable from any live transition.
 const WALLET_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['payment_submitted', 'cancelled'],
-  payment_submitted: ['pending_payment', 'paid', 'cancelled'],
-  paid: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
+  payment_submitted: ['pending_payment', 'confirmed', 'cancelled'],
+  confirmed: ['delivered', 'cancelled'],
   delivered: [],
-  confirmed: [],
   cancelled: [],
+  paid: ['delivered', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
 }
 
 const COD_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['confirmed', 'cancelled'],
-  confirmed: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
+  confirmed: ['delivered', 'cancelled'],
   delivered: [],
-  payment_submitted: [],
-  paid: [],
   cancelled: [],
+  payment_submitted: [],
+  paid: ['delivered', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
 }
 
 export async function PATCH(

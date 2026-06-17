@@ -95,25 +95,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       )}
 
       {order.status === 'confirmed' && (
-        <section className="mt-10 rounded-[var(--radius-lg)] border border-line bg-surface p-6 md:p-8">
-          <h2 className="font-display text-[22px]">Confirmed by phone.</h2>
-          <p className="mt-2 text-[14px] text-ink-soft">Shipping soon.</p>
-        </section>
-      )}
-
-      {order.status === 'paid' && (
         <section className="mt-10 rounded-[var(--radius-lg)] border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 p-6 md:p-8">
-          <h2 className="font-display text-[22px] text-[var(--color-success)]">Payment received.</h2>
+          <h2 className="font-display text-[22px] text-[var(--color-success)]">Confirmed.</h2>
           <p className="mt-2 text-[14px] text-ink-soft">
-            Your order is being prepared for shipment.
+            Payment received. Your order is being prepared for delivery.
           </p>
-        </section>
-      )}
-
-      {order.status === 'shipped' && (
-        <section className="mt-10 rounded-[var(--radius-lg)] border border-line bg-surface p-6 md:p-8">
-          <h2 className="font-display text-[22px]">Shipped.</h2>
-          <p className="mt-2 text-[14px] text-ink-soft">On its way via BeeExpress.</p>
         </section>
       )}
 
