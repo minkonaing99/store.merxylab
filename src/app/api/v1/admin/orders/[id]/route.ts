@@ -130,7 +130,10 @@ export async function PATCH(
             .update(products)
             .set({ stockQty: sql`${products.stockQty} - ${it.qty}` })
             .where(and(eq(products.id, it.productId), sql`${products.stockQty} >= ${it.qty}`))
-          const affected = (res as unknown as { affectedRows?: number }).affectedRows ?? 0
+          // drizzle/mysql2 returns [ResultSetHeader, FieldPacket[]];
+          // the header (with affectedRows) is res[0], NOT res.
+          const header = Array.isArray(res) ? res[0] : res
+          const affected = (header as { affectedRows?: number } | undefined)?.affectedRows ?? 0
           if (affected === 0) {
             throw new Error(`OUT_OF_STOCK:${it.productId}`)
           }
