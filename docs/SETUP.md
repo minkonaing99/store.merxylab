@@ -234,6 +234,9 @@ npm run test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.16.3] — 2026-06-17 (shipped to production)
+- **Refactor-clean + security audit pass.** Removed `getProductById` from `src/lib/catalog.ts` (zero callers; `getProductBySlug` is the only lookup used). knip/ts-prune/depcheck otherwise surfaced only framework-convention false positives (Next page/layout/route defaults, drizzle config, schema re-exports, react-email default exports for the preview server, and eslint which powers `npm run lint`). Full OWASP-oriented security audit run: 0 critical / 0 high / 0 medium. Secrets gitignored, Drizzle `sql\`\`` interpolations parameterized, bcrypt for passwords (sha256 only for high-entropy tokens), all 9 admin API routes role-gated + rate-limited, full security header set present, `npm audit` (prod) 0 vulnerabilities. typecheck + lint green.
+
 ### [0.16.2] — 2026-06-17 (shipped to production)
 - **Homepage copy reframed from maker to curator voice.** The store resells peripherals; it does not manufacture them, but the copy read like a maker ("when we build keyboards", "tested per board", "the sound profile we promised"). Rewrote: Stats row (was fake maker metrics 50K+/200+/99%; now store facts - `Genuine` manufacturer warranty / `1 month` refund-or-replace / `Nationwide` delivery from Mandalay), the `Why` section (headline "Made for..." -> "Chosen for the desk, not the tournament", curator intro, and the four accordion items rewritten as curation reasons + the real warranty policy: manufacturer warranty on every product plus a 1-month local refund/replacement, no overseas shipping), the `CTABanner` ("When we build keyboards..." -> "We keep the quiet ones, so you skip the noise" + curator body), and the `Why` showcase caption.
 - **Newsletter offer changed** from "30% off Edition 01" to "10% off your first order" (headline + success toast).

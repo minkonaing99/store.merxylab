@@ -102,11 +102,6 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
   return all.find((p) => p.slug === slug)
 }
 
-export async function getProductById(id: string): Promise<Product | undefined> {
-  const all = await getAllProducts()
-  return all.find((p) => p.id === id)
-}
-
 export async function getCategoryById(id: CategoryId): Promise<Category | undefined> {
   const all = await getAllCategories()
   return all.find((c) => c.id === id)
