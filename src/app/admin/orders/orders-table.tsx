@@ -14,6 +14,8 @@ type Status =
   | 'delivered'
   | 'cancelled'
 
+type MethodKind = 'wallet' | 'cod'
+
 interface Row {
   id: string
   status: Status
@@ -21,21 +23,39 @@ interface Row {
   placedAt: string
   userEmail: string
   userName: string | null
+  methodKind: MethodKind
 }
 
 interface AdminOrdersTableProps {
   initial: Row[]
 }
 
-const STATUSES: Status[] = [
-  'pending_payment',
-  'payment_submitted',
-  'confirmed',
-  'paid',
-  'shipped',
-  'delivered',
-  'cancelled',
-]
+// Mirrors WALLET_TRANSITIONS + COD_TRANSITIONS in
+// src/app/api/v1/admin/orders/[id]/route.ts. Keep in sync.
+const WALLET_TRANSITIONS: Record<Status, Status[]> = {
+  pending_payment: ['payment_submitted', 'cancelled'],
+  payment_submitted: ['pending_payment', 'paid', 'cancelled'],
+  paid: ['shipped', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
+  delivered: [],
+  confirmed: [],
+  cancelled: [],
+}
+
+const COD_TRANSITIONS: Record<Status, Status[]> = {
+  pending_payment: ['confirmed', 'cancelled'],
+  confirmed: ['shipped', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
+  delivered: [],
+  payment_submitted: [],
+  paid: [],
+  cancelled: [],
+}
+
+function allowedNextStatuses(current: Status, kind: MethodKind): Status[] {
+  const table = kind === 'cod' ? COD_TRANSITIONS : WALLET_TRANSITIONS
+  return [current, ...table[current]]
+}
 
 export function AdminOrdersTable({ initial }: AdminOrdersTableProps) {
   const [rows, setRows] = useState(initial)
@@ -106,7 +126,7 @@ export function AdminOrdersTable({ initial }: AdminOrdersTableProps) {
                   onChange={(e) => setStatus(r.id, e.target.value as Status)}
                   className="rounded border border-line bg-cream px-2 py-1 text-[12px]"
                 >
-                  {STATUSES.map((s) => (
+                  {allowedNextStatuses(r.status, r.methodKind).map((s) => (
                     <option key={s} value={s}>
                       {s.replace('_', ' ')}
                     </option>

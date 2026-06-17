@@ -1,8 +1,8 @@
-import { desc } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { orders } from '@/db/schema/orders'
+import { paymentMethods } from '@/db/schema/payment-methods'
 import { users } from '@/db/schema/auth'
-import { eq } from 'drizzle-orm'
 import { AdminOrdersTable } from './orders-table'
 
 export default async function AdminOrdersPage() {
@@ -14,9 +14,11 @@ export default async function AdminOrdersPage() {
       placedAt: orders.placedAt,
       userEmail: users.email,
       userName: users.name,
+      methodKind: paymentMethods.kind,
     })
     .from(orders)
     .innerJoin(users, eq(users.id, orders.userId))
+    .innerJoin(paymentMethods, eq(paymentMethods.id, orders.paymentMethodId))
     .orderBy(desc(orders.placedAt))
 
   return (
@@ -33,6 +35,7 @@ export default async function AdminOrdersPage() {
           placedAt: r.placedAt.toISOString(),
           userEmail: r.userEmail,
           userName: r.userName,
+          methodKind: r.methodKind,
         }))}
       />
     </div>
