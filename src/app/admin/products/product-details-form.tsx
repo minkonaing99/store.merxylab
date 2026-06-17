@@ -19,6 +19,7 @@ export interface ProductFormValues {
   swatch: string
   stockQty: string
   lowStockThreshold: string
+  sortOrder: string
   isActive: boolean
   featured: boolean
   specs: Array<{ label: string; value: string }>
@@ -151,7 +152,7 @@ export function ProductDetailsForm({ values, onChange, categories, mode }: Props
         </div>
       </label>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Field
           label="Stock qty"
           required
@@ -165,6 +166,12 @@ export function ProductDetailsForm({ values, onChange, categories, mode }: Props
           type="number"
           value={values.lowStockThreshold}
           onChange={(v) => set('lowStockThreshold', v)}
+        />
+        <Field
+          label="Display order"
+          type="number"
+          value={values.sortOrder}
+          onChange={(v) => set('sortOrder', v)}
         />
       </div>
 

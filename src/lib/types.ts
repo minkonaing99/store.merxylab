@@ -25,6 +25,8 @@ export interface Product {
   readonly inStock: boolean
   readonly hasPhotos: boolean
   readonly featured?: boolean
+  /** Display order; lower shows first. */
+  readonly sortOrder?: number
   readonly stockQty?: number
   readonly lowStockThreshold?: number
   readonly createdAt: string

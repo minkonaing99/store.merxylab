@@ -20,6 +20,7 @@ export interface Row {
   swatch: string
   stockQty: number
   lowStockThreshold: number
+  sortOrder: number
   featured: boolean
   isActive: boolean
   hasPhotos: boolean
@@ -44,6 +45,7 @@ function rowToForm(r: Row): ProductFormValues {
     swatch: r.swatch,
     stockQty: String(r.stockQty),
     lowStockThreshold: String(r.lowStockThreshold),
+    sortOrder: String(r.sortOrder),
     isActive: r.isActive,
     featured: r.featured,
     specs: r.specs.map((s) => ({ ...s })),
@@ -61,6 +63,7 @@ function emptyForm(catId: string): ProductFormValues {
     swatch: '#7A4F36',
     stockQty: '0',
     lowStockThreshold: '3',
+    sortOrder: '0',
     isActive: true,
     featured: false,
     specs: [],
@@ -129,6 +132,7 @@ export function AdminProductTable({ initial, categories }: Props) {
       swatch: newDraft.swatch,
       stockQty: Number(newDraft.stockQty) || 0,
       lowStockThreshold: Number(newDraft.lowStockThreshold) || 3,
+      sortOrder: Number(newDraft.sortOrder) || 0,
       featured: newDraft.featured,
       isActive: newDraft.isActive,
       hasPhotos: false,
@@ -174,6 +178,7 @@ export function AdminProductTable({ initial, categories }: Props) {
       swatch: draft.swatch,
       stockQty: Number(draft.stockQty) || 0,
       lowStockThreshold: Number(draft.lowStockThreshold) || 3,
+      sortOrder: Number(draft.sortOrder) || 0,
       featured: draft.featured,
       isActive: draft.isActive,
       specs: draft.specs,
@@ -444,6 +449,7 @@ function formToBody(v: ProductFormValues) {
     swatch: v.swatch,
     stockQty: Number(v.stockQty) || 0,
     lowStockThreshold: Number(v.lowStockThreshold) || 3,
+    sortOrder: Number(v.sortOrder) || 0,
     isActive: v.isActive,
     featured: v.featured,
     specs: v.specs.map((s) => ({ label: s.label.trim(), value: s.value.trim() })),
@@ -461,6 +467,7 @@ function formIsDirty(a: ProductFormValues, b: ProductFormValues): boolean {
     a.swatch !== b.swatch ||
     a.stockQty !== b.stockQty ||
     a.lowStockThreshold !== b.lowStockThreshold ||
+    a.sortOrder !== b.sortOrder ||
     a.isActive !== b.isActive ||
     a.featured !== b.featured
   ) {
