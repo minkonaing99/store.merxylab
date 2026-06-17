@@ -1,14 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { LayoutGroup, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
-import { Tile } from '../product/tile'
 import { cn } from '@/lib/utils'
-import type { Product } from '@/lib/types'
+import { getCategory } from '@/lib/products'
+import { PHOTO_BASE, type Product } from '@/lib/types'
 
-const FLIGHT = { type: 'spring', stiffness: 380, damping: 34, mass: 0.7 } as const
+const FLIGHT = { duration: 0.5, ease: [0.16, 1, 0.3, 1] } as const
 
 interface HeroProps {
   featured: readonly Product[]
@@ -86,18 +87,19 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
   return (
     <LayoutGroup id="hero">
       <div>
-        <div className="relative aspect-square">
+        <div
+          className="relative aspect-square overflow-hidden rounded-[var(--radius)]"
+          style={{ background: current.swatch }}
+        >
           <motion.div
-            key={current.id}
             layout={!reduce}
             layoutId={lid(current.id)}
-            initial={reduce ? { opacity: 0.55 } : false}
-            animate={reduce ? { opacity: 1 } : undefined}
-            transition={reduce ? { duration: 0.3 } : FLIGHT}
+            transition={FLIGHT}
             className="absolute inset-0"
           >
-            <Tile product={current} ratio="square" priority useThumb={false} />
+            <Fill product={current} />
           </motion.div>
+          <Label key={current.id} product={current} />
         </div>
 
         {items.length > 1 && (
@@ -116,6 +118,7 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
                     'shadow-[var(--shadow-sm)] ring-1 ring-ink/5 transition',
                     'duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]',
                   )}
+                  style={{ background: p.swatch }}
                 >
                   <motion.div
                     layout={!reduce}
@@ -123,7 +126,7 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
                     transition={FLIGHT}
                     className="absolute inset-0"
                   >
-                    <Tile product={p} ratio="square" showLabel={false} />
+                    <Fill product={p} thumb />
                   </motion.div>
                 </button>
               ),
@@ -132,6 +135,54 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
         )}
       </div>
     </LayoutGroup>
+  )
+}
+
+// Flying content: photo or bare swatch. No text/border so layout-scale never distorts.
+function Fill({ product, thumb = false }: { product: Product; thumb?: boolean }) {
+  if (!product.hasPhotos) {
+    return <div className="absolute inset-0" style={{ background: product.swatch }} aria-hidden />
+  }
+  const file = thumb ? '01-thumb.webp' : '01.webp'
+  return (
+    <Image
+      src={`${PHOTO_BASE}/${product.slug}/${file}`}
+      alt=""
+      fill
+      sizes={thumb ? '64px' : '(min-width: 768px) 50vw, 90vw'}
+      priority={!thumb}
+      className="object-cover"
+    />
+  )
+}
+
+// Static overlay on the big square; fades per product. Not part of the flight.
+function Label({ product }: { product: Product }) {
+  if (product.hasPhotos) return null
+  const dark = isDark(product.swatch)
+  const ink = dark ? '#F5EFE6' : '#1C1B19'
+  const muted = dark ? 'rgba(245,239,230,0.6)' : 'rgba(28,27,25,0.5)'
+  const category = getCategory(product.category)
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="pointer-events-none absolute inset-0"
+    >
+      <div
+        className="absolute top-4 left-4 text-[10px] font-medium tracking-[0.12em] uppercase"
+        style={{ color: muted }}
+      >
+        {category?.name ?? product.category}
+      </div>
+      <div
+        className="absolute right-4 bottom-4 left-4 text-[15px] leading-tight font-semibold"
+        style={{ color: ink }}
+      >
+        {product.name}
+      </div>
+    </motion.div>
   )
 }
 
@@ -153,4 +204,11 @@ function CarvedSocket({ swatch }: { swatch: string }) {
       />
     </div>
   )
+}
+
+function isDark(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return r * 0.299 + g * 0.587 + b * 0.114 < 140
 }
