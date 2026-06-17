@@ -11,6 +11,11 @@ import { PHOTO_BASE, type Product } from '@/lib/types'
 
 const FLIGHT = { duration: 0.5, ease: [0.16, 1, 0.3, 1] } as const
 
+// 1x1 transparent GIF - keeps the single hero <Image> mounted (stable identity,
+// no stacking) when the active product has no photo.
+const TRANSPARENT_PX =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
 interface HeroProps {
   featured: readonly Product[]
 }
@@ -91,14 +96,34 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
           className="relative aspect-square overflow-hidden rounded-[var(--radius)]"
           style={{ background: current.swatch }}
         >
+          {/* Flight: only a solid swatch morphs between thumb and big - no image,
+              so Framer's layout projection never strands a loading <Image>. */}
           <motion.div
             layout={!reduce}
             layoutId={lid(current.id)}
             transition={FLIGHT}
             className="absolute inset-0"
-          >
-            <Fill product={current} />
-          </motion.div>
+            style={{ background: current.swatch }}
+          />
+          {/* One persistent <Image> whose src tracks the active product. No key,
+              so React reuses the single <img> and just swaps src - there is only
+              ever one element, which makes photo stacking impossible. The swatch
+              flight behind covers the swap. When the active product has no photo,
+              src falls back to a 1x1 transparent pixel so the element stays mounted
+              (stable identity) but shows nothing. */}
+          <Image
+            src={
+              current.hasPhotos
+                ? `${PHOTO_BASE}/${current.slug}/01.webp`
+                : TRANSPARENT_PX
+            }
+            alt={current.hasPhotos ? current.name : ''}
+            fill
+            sizes="(min-width: 768px) 50vw, 90vw"
+            priority
+            unoptimized={!current.hasPhotos}
+            className="object-cover"
+          />
           <Label key={current.id} product={current} />
         </div>
 
@@ -125,9 +150,17 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
                     layoutId={lid(p.id)}
                     transition={FLIGHT}
                     className="absolute inset-0"
-                  >
-                    <Fill product={p} thumb />
-                  </motion.div>
+                    style={{ background: p.swatch }}
+                  />
+                  {p.hasPhotos && (
+                    <Image
+                      src={`${PHOTO_BASE}/${p.slug}/01-thumb.webp`}
+                      alt=""
+                      fill
+                      sizes="64px"
+                      className="object-cover"
+                    />
+                  )}
                 </button>
               ),
             )}
@@ -135,24 +168,6 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
         )}
       </div>
     </LayoutGroup>
-  )
-}
-
-// Flying content: photo or bare swatch. No text/border so layout-scale never distorts.
-function Fill({ product, thumb = false }: { product: Product; thumb?: boolean }) {
-  if (!product.hasPhotos) {
-    return <div className="absolute inset-0" style={{ background: product.swatch }} aria-hidden />
-  }
-  const file = thumb ? '01-thumb.webp' : '01.webp'
-  return (
-    <Image
-      src={`${PHOTO_BASE}/${product.slug}/${file}`}
-      alt=""
-      fill
-      sizes={thumb ? '64px' : '(min-width: 768px) 50vw, 90vw'}
-      priority={!thumb}
-      className="object-cover"
-    />
   )
 }
 
