@@ -234,6 +234,9 @@ npm run test:e2e:ui       # playwright test --ui
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.16.2] — 2026-06-17 (shipped to testing)
+- **Homepage spacing + CTA fix.** The `Newsletter` section had only bottom padding (`pb-20 md:pb-28`) and relied on the dark `CTABanner` above it for top spacing. When the CTABanner rendered `null` - which happens when its hardcoded product slug (`mxk-65-walnut`) is absent from the DB - the newsletter card collapsed against the Why section's `bg-surface` band with no cream gap. Gave `Newsletter` symmetric vertical padding (`py-20 md:py-28`) so it breathes regardless of what precedes it. Also made the homepage resilient: the CTA + Why-showcase products now fall back to a real product with photos (`all.filter(hasPhotos)[0]`) when the hardcoded slugs are missing, so the dark CTA section always renders. Non-breaking where the seeded slugs exist (prod still uses them).
+
 ### [0.16.1] — 2026-06-17 (shipped to production)
 - **Build fix:** Hostinger production build failed with `spawn pnpm ENOENT`. Root cause was the server-side build running a production-only install (no devDependencies), so `next build` could not find `typescript` / `eslint` and tried to auto-install them - shelling out to **pnpm**, which is not present on Hostinger (project is npm-only, ADR-09). Two-part fix: (1) removed the stale `pnpm-lock.yaml` (its presence made Next's auto-installer pick pnpm over npm; only `package-lock.json` remains); (2) moved `typescript`, `@types/react`, `@types/node` from devDependencies into dependencies so Next's TypeScript setup check passes against the prod-only install, and set `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` in `next.config.mjs` so the build never invokes eslint or the type checker on the host. Lint + type checks still run locally via `npm run lint` / `npm run typecheck` before every push. No application code touched.
 
