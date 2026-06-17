@@ -101,7 +101,7 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
         </div>
 
         {items.length > 1 && (
-          <div className="mt-3 grid grid-cols-4 gap-3 md:mt-4 md:gap-4">
+          <div className="mt-4 flex gap-3 md:mt-5 md:gap-3.5">
             {items.map((p, i) =>
               i === active ? (
                 <CarvedSocket key={p.id} swatch={p.swatch} />
@@ -112,8 +112,9 @@ function Showcase({ items, active, onSelect }: ShowcaseProps) {
                   onClick={() => onSelect(i)}
                   aria-label={`Show ${p.name}`}
                   className={cn(
-                    'relative aspect-square overflow-hidden rounded-[var(--radius)] outline-2 outline-offset-2',
-                    'outline-transparent opacity-80 transition-opacity hover:opacity-100',
+                    'relative size-14 shrink-0 overflow-hidden rounded-[10px] md:size-16',
+                    'shadow-[var(--shadow-sm)] ring-1 ring-ink/5 transition',
+                    'duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]',
                   )}
                 >
                   <motion.div
@@ -139,14 +140,14 @@ function CarvedSocket({ swatch }: { swatch: string }) {
     <div
       aria-current="true"
       aria-label="Current item"
-      className="relative aspect-square rounded-[var(--radius)]"
+      className="relative size-14 shrink-0 rounded-[10px] md:size-16"
       style={{
         background: swatch,
         boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(0,0,0,0.12)',
       }}
     >
       <div
-        className="absolute inset-0 rounded-[var(--radius)]"
+        className="absolute inset-0 rounded-[10px]"
         style={{ background: 'rgba(0,0,0,0.28)' }}
         aria-hidden
       />
