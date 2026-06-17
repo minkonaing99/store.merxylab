@@ -124,7 +124,7 @@ export function WhyImageUploader({ initialUrl }: Props) {
       </div>
 
       {error && <p className="text-[13px] text-red-600">{error}</p>}
-      <p className="text-[12px] text-muted">JPG, PNG, or WEBP. Max 10 MB. Displayed in the "Why merxylab" section on the homepage.</p>
+      <p className="text-[12px] text-muted">JPG, PNG, or WEBP. Max 10 MB. Displayed in the &ldquo;Why merxylab&rdquo; section on the homepage.</p>
     </div>
   )
 }

@@ -15,7 +15,7 @@ export default async function BrandingPage() {
 
       <div className="mt-8 space-y-2">
         <h3 className="font-medium text-[15px] text-ink">Why merxylab - section image</h3>
-        <p className="text-[13px] text-muted">Shown in the left panel of the "Why merxylab" section. PNG with transparent background supported.</p>
+        <p className="text-[13px] text-muted">Shown in the left panel of the &ldquo;Why merxylab&rdquo; section. PNG with transparent background supported.</p>
         <div className="mt-4">
           <WhyImageUploader initialUrl={url} />
         </div>
