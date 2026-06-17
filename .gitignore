@@ -9,10 +9,15 @@ out/
 build/
 dist/
 
-# Env
+# Env — catch every variant including Finder duplicates
+# ('.env copy', '.env.local copy 2', etc.), backups, and OS-named clones.
 .env
-.env.local
-.env.*.local
+.env.*
+.env*
+*.env
+*.env.*
+# Re-allow the committed template
+!.env.example
 
 # Logs
 *.log
