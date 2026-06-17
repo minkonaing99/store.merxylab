@@ -13,6 +13,7 @@
 --
 -- Run order (already in file): schema -> divisions -> payment_methods ->
 --                              categories -> products -> product_specs.
+-- site_settings ships empty; rows inserted at runtime via /admin/branding.
 --
 -- Reflects the post-0.14.x app:
 --   * 'paid' and 'shipped' are dropped from orders.status enum — live
@@ -235,6 +236,13 @@ CREATE TABLE `newsletter_subscribers` (
 	`unsubscribed_at` timestamp,
 	CONSTRAINT `newsletter_subscribers_id` PRIMARY KEY(`id`),
 	CONSTRAINT `newsletter_subscribers_email_unique` UNIQUE(`email`)
+);
+
+CREATE TABLE `site_settings` (
+	`key` varchar(80) NOT NULL,
+	`value` text NOT NULL,
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `site_settings_key` PRIMARY KEY(`key`)
 );
 
 ALTER TABLE `addresses` ADD CONSTRAINT `addresses_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;
