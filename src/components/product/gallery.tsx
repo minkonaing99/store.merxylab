@@ -31,16 +31,16 @@ export function Gallery({ product }: GalleryProps) {
     }
   }
 
-  // No photos at all → render swatch tile only
-  if (!product.hasPhotos) {
+  const thumbs = PHOTO_SLOTS.filter((s) => available.has(s))
+
+  // No photos at all (DB says so OR every slot 404'd at runtime) → swatch only.
+  if (!product.hasPhotos || available.size === 0) {
     return (
       <div>
         <Tile product={product} ratio="square" showLabel={false} priority useThumb={false} />
       </div>
     )
   }
-
-  const thumbs = PHOTO_SLOTS.filter((s) => available.has(s))
 
   return (
     <div>

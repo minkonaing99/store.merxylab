@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import type { PhotoSlot, Product } from '@/lib/types'
@@ -45,6 +48,12 @@ export function Tile({
   const muted = dark ? 'rgba(245, 239, 230, 0.6)' : 'rgba(28, 27, 25, 0.5)'
   const category = getCategory(product.category)
 
+  // `hasPhotos` is a hint from the DB. If the actual file is missing
+  // (orphan from a prior deploy, mid-upload race, etc.) the optimizer
+  // 400s — fall back to the swatch + label render path.
+  const [imgFailed, setImgFailed] = useState(false)
+  const showImage = product.hasPhotos && !imgFailed
+
   return (
     <div
       className={cn(
@@ -55,7 +64,7 @@ export function Tile({
       )}
       style={{ background: product.swatch }}
     >
-      {product.hasPhotos && (
+      {showImage && (
         <Image
           src={`${PHOTO_BASE}/${product.slug}/${photoFile}`}
           alt={`${product.name} — ${category?.name ?? product.category}`}
@@ -63,10 +72,11 @@ export function Tile({
           sizes={sizes}
           priority={priority}
           className="object-cover"
+          onError={() => setImgFailed(true)}
         />
       )}
 
-      {!product.hasPhotos && (
+      {!showImage && (
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-overlay"
           style={{
@@ -77,7 +87,7 @@ export function Tile({
         />
       )}
 
-      {showLabel && !product.hasPhotos && (
+      {showLabel && !showImage && (
         <>
           <div
             className="absolute top-4 left-4 text-[10px] tracking-[0.12em] uppercase font-medium"
