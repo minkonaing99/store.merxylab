@@ -289,6 +289,9 @@ Tasks:
 - [x] Catalog cache invalidation on admin stock moves + live DB stock check in cart-add (0.15.0). Closes spurious cart-add OUT_OF_STOCK.
 - [x] Drizzle/mysql2 `affectedRows` tuple bug fix (0.15.0). Was causing Confirm payment to always 409.
 
+### Phase 11 — Hero showcase deck redesign (shipped to testing 2026-06-17)
+- [x] Rewrite home `Hero` showcase (`src/components/home/hero.tsx`) to a deck/stable-slot model (0.16.0). Was portrait tile + vertical 4-thumb column; now square big tile + a row of 4 square thumbs beneath. Active featured product fills the big square; its thumb slot renders as a recessed carved well (inset shadow + darker swatch). Shared-element flight via Framer Motion `layoutId` per product promotes a clicked thumb to the big square while the previous one shrinks into its socket. Stable positions, no reshuffle. `prefers-reduced-motion` → crossfade fallback. Headline swatch chip + CTA still track the active product. Mobile carousel dots removed (thumb row replaces them). Manual verify (no test runner).
+
 ### Backlog
 - [ ] Hostinger deploy (follow `docs/DEPLOY.md` once domain + DB credentials ready)
 - [ ] Configure SMTP + Google OAuth env (`docs/AUTH-SETUP.md`)
