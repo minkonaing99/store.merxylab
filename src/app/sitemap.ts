@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next'
-import { categories, products } from '@/lib/products'
+import { getAllCategories, getAllProducts } from '@/lib/catalog'
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://merxylab.example'
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
+  const [categories, products] = await Promise.all([getAllCategories(), getAllProducts()])
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, lastModified: now, priority: 1 },
     { url: `${SITE}/shop`, lastModified: now, priority: 0.9 },

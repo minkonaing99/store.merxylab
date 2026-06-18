@@ -1,5 +1,5 @@
 import { getSetting } from '@/lib/site-settings'
-import { r2PublicUrl } from '@/lib/r2'
+import { r2PublicUrl } from '@/lib/cdn'
 import { WhyImageUploader } from './why-image-uploader'
 
 export const dynamic = 'force-dynamic'

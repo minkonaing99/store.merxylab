@@ -81,5 +81,3 @@ export async function getPrivateBytes(key: string): Promise<Buffer | null> {
     return null
   }
 }
-
-export { r2PublicUrl } from './cdn'

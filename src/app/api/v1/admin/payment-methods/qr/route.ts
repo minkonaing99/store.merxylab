@@ -4,7 +4,8 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { paymentMethods } from '@/db/schema/payment-methods'
 import { requireAdmin } from '@/lib/admin-guard'
-import { deletePublic, putPublic, r2PublicUrl } from '@/lib/r2'
+import { deletePublic, putPublic } from '@/lib/r2'
+import { r2PublicUrl } from '@/lib/cdn'
 
 const ID_RE = /^[a-z0-9_]+$/i
 const MAX_BYTES = 4 * 1024 * 1024

@@ -10,7 +10,7 @@ import {
   getProductBySlug,
 } from '@/lib/catalog'
 import { getSetting } from '@/lib/site-settings'
-import { r2PublicUrl } from '@/lib/r2'
+import { r2PublicUrl } from '@/lib/cdn'
 
 export const dynamic = 'force-dynamic'
 

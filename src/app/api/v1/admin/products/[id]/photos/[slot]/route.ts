@@ -6,7 +6,8 @@ import { db } from '@/db'
 import { products } from '@/db/schema/products'
 import { requireAdmin } from '@/lib/admin-guard'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
-import { deletePublic, putPublic, r2PublicUrl } from '@/lib/r2'
+import { deletePublic, putPublic } from '@/lib/r2'
+import { r2PublicUrl } from '@/lib/cdn'
 
 const SLUG_RE = /^[a-z0-9-]+$/
 const SLOT_RE = /^0[1-4]$/
