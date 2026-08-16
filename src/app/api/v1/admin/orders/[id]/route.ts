@@ -8,6 +8,7 @@ import { paymentMethods } from '@/db/schema/payment-methods'
 import { products } from '@/db/schema/products'
 import { users } from '@/db/schema/auth'
 import { requireAdmin } from '@/lib/admin-guard'
+import { canTransition } from '@/lib/order-transitions'
 import { sendMail } from '@/lib/mail'
 import { formatMmk } from '@/lib/money'
 import { OrderInvoice } from '@emails/order-invoice'
@@ -30,25 +31,6 @@ const patchSchema = z.object({
   ]),
   notes: z.string().max(2000).optional(),
 })
-
-// Single-step confirm model. `confirmed` is the payment-confirmation +
-// stock-commit + invoice-email boundary for BOTH wallet and COD;
-// `delivered` closes the order. Cancel from any state.
-const WALLET_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending_payment: ['payment_submitted', 'cancelled'],
-  payment_submitted: ['pending_payment', 'confirmed', 'cancelled'],
-  confirmed: ['delivered', 'cancelled'],
-  delivered: [],
-  cancelled: [],
-}
-
-const COD_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending_payment: ['confirmed', 'cancelled'],
-  confirmed: ['delivered', 'cancelled'],
-  delivered: [],
-  cancelled: [],
-  payment_submitted: [],
-}
 
 export async function PATCH(
   req: Request,
@@ -90,10 +72,9 @@ export async function PATCH(
     .from(paymentMethods)
     .where(eq(paymentMethods.id, order.paymentMethodId))
     .limit(1)
-  const transitions = method?.kind === 'cod' ? COD_TRANSITIONS : WALLET_TRANSITIONS
-  const allowed = transitions[order.status]
+  const kind = method?.kind === 'cod' ? 'cod' : 'wallet'
 
-  if (order.status !== parsed.data.status && !allowed.includes(parsed.data.status)) {
+  if (!canTransition(order.status, parsed.data.status, kind)) {
     return NextResponse.json(
       {
         data: null,

@@ -4,8 +4,15 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { SelectField, TextField } from '@/components/ui/field'
-import { isMyanmarPhone, required } from '@/lib/validators'
+import { PhoneField, SelectField, TextField } from '@/components/ui/field'
+import {
+  PHONE_HINT,
+  PHONE_PREFIX,
+  isPhoneLocal,
+  normalizePhoneLocal,
+  required,
+  toE164Phone,
+} from '@/lib/validators'
 
 interface AddressForm {
   id?: string
@@ -28,7 +35,7 @@ interface DivisionLite {
 const EMPTY: AddressForm = {
   label: 'Home',
   recipient: '',
-  phone: '+9591',
+  phone: '',
   divisionId: '',
   city: '',
   township: '',
@@ -65,9 +72,7 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
     if (recipient) next.recipient = recipient
     const phone = required(values.phone, 'Phone')
     if (phone) next.phone = phone
-    else if (!isMyanmarPhone(values.phone)) {
-      next.phone = 'Use +959 followed by 7–9 digits.'
-    }
+    else if (!isPhoneLocal(values.phone)) next.phone = PHONE_HINT
     const division = required(values.divisionId, 'Division')
     if (division) next.divisionId = 'Choose a division.'
     const city = required(values.city, 'City')
@@ -112,6 +117,7 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         ...form,
+        phone: toE164Phone(form.phone),
         landmark: form.landmark || null,
       }),
     })
@@ -204,17 +210,16 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
             onBlur={() => markTouched('recipient')}
             error={liveError('recipient')}
           />
-          <TextField
+          <PhoneField
             label="Phone"
             required
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="+9591234567"
-            helper="Format: +959 followed by 7–9 digits."
+            prefix={PHONE_PREFIX}
+            helper={PHONE_HINT}
             value={form.phone}
             onChange={(v) => {
-              set('phone', v)
-              if (touched.phone) setErrors(validate({ ...form, phone: v }))
+              const local = normalizePhoneLocal(v)
+              set('phone', local)
+              if (touched.phone) setErrors(validate({ ...form, phone: local }))
             }}
             onBlur={() => markTouched('phone')}
             error={liveError('phone')}

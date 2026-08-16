@@ -1,9 +1,7 @@
 export type CategoryId =
   | 'keyboards'
   | 'mice'
-  | 'headsets'
-  | 'microphones'
-  | 'speakers'
+  | 'audio'
   | 'accessories'
 
 export interface Spec {

@@ -86,9 +86,16 @@ function actionsFor(status: Status, methodKind: MethodKind, hasSlip: boolean): A
 export function AdminOrderActions({ orderId, status, methodKind, hasSlip }: Props) {
   const router = useRouter()
   const [pending, setPending] = useState<Status | null>(null)
+  // Cancelling is terminal and emails the customer - require a second click.
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
   const actions = actionsFor(status, methodKind, hasSlip)
 
   async function go(target: Status) {
+    if (target === 'cancelled' && !confirmingCancel) {
+      setConfirmingCancel(true)
+      return
+    }
+    setConfirmingCancel(false)
     setPending(target)
     const res = await fetch(`/api/v1/admin/orders/${orderId}`, {
       method: 'PATCH',
@@ -130,6 +137,7 @@ export function AdminOrderActions({ orderId, status, methodKind, hasSlip }: Prop
       <div className="mt-4 flex flex-wrap gap-3">
         {actions.map((a) => {
           const busy = pending === a.target
+          const armed = a.target === 'cancelled' && confirmingCancel
           const styleByVariant =
             a.variant === 'primary'
               ? 'bg-ink text-cream hover:bg-accent'
@@ -141,10 +149,13 @@ export function AdminOrderActions({ orderId, status, methodKind, hasSlip }: Prop
               key={a.target}
               type="button"
               onClick={() => go(a.target)}
+              onBlur={() => a.target === 'cancelled' && setConfirmingCancel(false)}
               disabled={busy || a.disabled}
-              className={`inline-flex items-center justify-center rounded-[var(--radius-pill)] px-5 py-2.5 text-[13px] font-medium transition-colors disabled:opacity-50 ${styleByVariant}`}
+              className={`inline-flex items-center justify-center rounded-[var(--radius-pill)] px-5 py-2.5 text-[13px] font-medium transition-colors disabled:opacity-50 ${
+                armed ? 'border border-error bg-error text-cream' : styleByVariant
+              }`}
             >
-              {busy ? 'Saving…' : a.label}
+              {busy ? 'Saving…' : armed ? 'Click again to cancel order' : a.label}
             </button>
           )
         })}

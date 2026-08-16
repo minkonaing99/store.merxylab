@@ -2,26 +2,25 @@ import Link from 'next/link'
 import { desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { orders } from '@/db/schema/orders'
+import { paymentMethods } from '@/db/schema/payment-methods'
 import { auth } from '@/lib/auth'
 import { formatMmk } from '@/lib/money'
-
-const STATUS_LABEL = {
-  pending_payment: 'Awaiting payment',
-  payment_submitted: 'Slip received',
-  confirmed: 'Confirmed',
-  paid: 'Paid',
-  shipped: 'Shipped',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
-} as const
+import { customerStatusLabel } from '@/lib/order-status'
 
 export default async function OrdersPage() {
   const session = await auth()
   if (!session?.user?.id) return null
 
   const rows = await db
-    .select()
+    .select({
+      id: orders.id,
+      status: orders.status,
+      totalMmk: orders.totalMmk,
+      placedAt: orders.placedAt,
+      methodKind: paymentMethods.kind,
+    })
     .from(orders)
+    .innerJoin(paymentMethods, eq(paymentMethods.id, orders.paymentMethodId))
     .where(eq(orders.userId, session.user.id))
     .orderBy(desc(orders.placedAt))
 
@@ -42,7 +41,7 @@ export default async function OrdersPage() {
                   {o.id.slice(0, 8)}
                 </Link>
                 <div className="mt-0.5 text-[12px] text-muted">
-                  {o.placedAt.toLocaleDateString()} · {STATUS_LABEL[o.status]}
+                  {o.placedAt.toLocaleDateString()} · {customerStatusLabel(o.status, o.methodKind)}
                 </div>
               </div>
               <span className="price text-[16px]">{formatMmk(Number(o.totalMmk))}</span>

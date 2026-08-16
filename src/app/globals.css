@@ -88,6 +88,13 @@
     font-family: var(--font-display);
   }
 
+  /* Burmese content pages. Applied on the page wrapper, inherited by children. */
+  .font-my {
+    font-family: var(--font-noto-myanmar), var(--font-sans);
+    word-break: break-word;
+    line-break: normal;
+  }
+
   .eyebrow {
     font-size: 12px;
     line-height: 16px;

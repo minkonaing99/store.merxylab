@@ -24,7 +24,7 @@
 - **Payments** — bank transfer only (Myanmar retail). Owner confirms receipt manually from `/admin/orders/[id]`; no online gateway, no card surface.
 
 **Operator surface**
-- **Custom `/admin` UI** — role-gated React pages (overview KPIs, products inline-edit, orders status, reviews moderation, newsletter CSV). All admin mutations call `requireAdmin()` guard server-side, never trust client claims.
+- **Custom `/admin` UI** — role-gated React pages (overview KPIs, products inline-edit, order work queue + ledger, reviews moderation). All admin mutations call `requireAdmin()` guard server-side, never trust client claims.
 - **Drizzle Studio** — local-only fallback for ad-hoc inspection (`npm run db:studio`). Production access only via SSH tunnel.
 
 **Deploy target**
@@ -52,8 +52,7 @@ merxylab-store/
 │   │   │   ├── layout.tsx + page.tsx          # KPI overview
 │   │   │   ├── products/page.tsx + product-table.tsx
 │   │   │   ├── orders/page.tsx + orders-table.tsx
-│   │   │   ├── reviews/page.tsx + reviews-list.tsx
-│   │   │   └── newsletter/page.tsx + newsletter-export.tsx
+│   │   │   └── reviews/page.tsx + reviews-list.tsx
 │   │   └── api/
 │   │       ├── auth/[...nextauth]/route.ts
 │   │       └── v1/
@@ -63,14 +62,14 @@ merxylab-store/
 │   │           ├── wishlist/route.ts + [productId]/route.ts + merge/route.ts
 │   │           ├── orders/route.ts + [id]/route.ts
 │   │           ├── addresses/route.ts + [id]/route.ts
-│   │           ├── newsletter/route.ts + unsubscribe/route.ts
+│   │           ├── contact/route.ts
 │   │           ├── auth/signup/route.ts + verify/route.ts
 │   │           ├── admin/products/[id]/route.ts
 │   │           ├── admin/orders/[id]/route.ts
 │   │           └── admin/reviews/[id]/route.ts
 │   ├── components/
 │   │   ├── nav.tsx, footer.tsx, cart-drawer.tsx, cart-hydrator.tsx, motion-provider.tsx, auth-provider.tsx
-│   │   ├── home/{hero,stats,product-grid,why,cta-banner,newsletter}.tsx
+│   │   ├── home/{hero,stats,product-grid,why,cta-banner}.tsx
 │   │   ├── product/{card,tile,gallery,add-to-cart-button,stock-badge}.tsx
 │   │   ├── shop/grid-controls.tsx
 │   │   ├── reviews/{stars,review-block}.tsx
@@ -98,20 +97,20 @@ merxylab-store/
 │   │   │   ├── orders.ts                      # orders, order_items
 │   │   │   ├── reviews.ts
 │   │   │   ├── wishlists.ts
-│   │   │   └── newsletter.ts
-│   │   └── migrations/                        # drizzle-kit output
+│   │   └── url.ts                             # DATABASE_URL / DB_* assembly
 │   ├── data/                                  # legacy JSON, kept for seed only
 │   └── styles/
-├── emails/                                    # React Email templates (Phase 8)
+├── emails/                                    # React Email templates
 │   ├── verify-email.tsx
-│   ├── order-confirmation.tsx
+│   ├── order-invoice.tsx, order-delivered.tsx, order-cancelled.tsx
+│   ├── new-order-alert.tsx, slip-submitted-alert.tsx
 │   └── low-stock-alert.tsx
 ├── public/
-│   ├── favicon.ico, logo.png
-│   └── products/{slug}/{01-04}.webp           # filesystem photo store
+│   └── favicon.ico, logo.png                  # product photos live on Cloudflare R2
 ├── scripts/
-│   ├── check-photos.ts                        # populates hasPhotos
-│   └── seed.ts                                # JSON → MySQL
+│   ├── cancel-expired-orders.ts               # nightly unpaid-order sweep
+│   ├── set-password.ts                       # operator password reset
+│   └── dump-seed.ts                          # regenerates db-bootstrap.sql seeds
 ├── drizzle.config.ts
 ├── docs/, .env.local, .env.example
 ├── package.json, tsconfig.json, next.config.ts
@@ -286,6 +285,48 @@ merxylab-store/
 **Decision:** Build a Save/Discard inline editor on `/admin/products`. A "+ New product" button opens a top-of-page form (name → auto-slug, category dropdown, price MMK, tagline, description, swatch via native color picker, stock_qty, low_stock_threshold, featured, is_active). Specs editor is a dynamic list of `{label, value}` rows added/removed in place; the whole record (product + specs) is committed in a single transaction via `POST /api/v1/admin/products`. Editing an existing row uses the same form via expand-row; `PATCH /api/v1/admin/products/[id]` accepts the same shape. Photos live in `/admin/products` as an Expand → 4-slot grid (01..04). Each slot has its own `POST` (replace) and `DELETE` (remove) endpoint. Server runs `sharp` twice per upload: one 1600×1600 WEBP hero (`0X.webp`) and one 600×600 WEBP thumb (`0X-thumb.webp`), both EXIF-stripped. PDP gallery reads the hero; `<ProductCard>` and `<Tile>` read the thumb. Soft delete only via `is_active = false` — no hard-delete path because order history references stay referentially intact.
 **Consequences:** Two image files per slot per product = up to 8 disk objects per SKU. Acceptable footprint at retail volume on Hostinger persistent disk. No JSON ↔ DB sync step needed anymore (the JSON files remain only as legacy seed sources for the bootstrap SQL). Adding a new color picker requirement in the future means swapping the native control for a curated palette — schema unchanged.
 
+### [2026-08-16] Burmese locale via `/my/*` route mirror, not i18n middleware
+**Status:** Accepted
+**Context:** Owner wanted six content pages (contact, shipping, returns, faq, terms, privacy) in Burmese, explicitly not the shop, product, cart or checkout pages. `/about` stays English-only. Next's usual answer — a `[locale]` root segment plus middleware — would match every route including the ones that must stay English, forcing a guard and `generateStaticParams` on paths that have no business knowing about locales.
+**Decision:** Mirror only the translated routes under `src/app/my/*` as ~10-line wrappers. Both languages live side by side in a `Dict<T>` inside one file per page under `src/components/pages/`, and the route file passes `locale` plus metadata. `src/lib/i18n.ts` holds `localePath()` and `languageAlternates()`; the sitemap emits both URLs with language alternates and each page emits `hreflang`. `Noto_Sans_Myanmar` loads in the root layout and applies via a `.font-my` utility, since Inter and Fraunces have no Burmese glyphs.
+**Consequences:** Adding a locale means copying route wrappers rather than configuring middleware — more files, zero routing surprises. English URLs never change, so existing links and SEO are untouched. Translating a shop page later means either extending this mirror or adopting real i18n routing; the `Dict` copy shape ports either way. Burmese legal copy is AI-drafted and needs a native review before it can be relied on.
+
+### [2026-08-16] Admin orders as a work queue with server-side paging
+**Status:** Accepted
+**Context:** `/admin/orders` loaded every order in one query and rendered a flat table with a status dropdown per row. No search, no filter, no pagination — fine at 1 order, quietly fatal later. It also gave equal weight to a slip waiting on verification and an order delivered last month, and cancelling (terminal, stock-restoring, customer-emailing) was one stray dropdown click away.
+**Decision:** Split into a "needs you" queue plus a paginated ledger. The queue derives three groups from existing columns — `payment_submitted`, `pending_payment` on a COD method, and `confirmed` older than `site_settings.orders_stale_days` — capped at 50 per group, oldest first, each row linking to the detail page rather than acting inline. The ledger runs search, status filter and `LIMIT/OFFSET` paging in SQL (25/page) with state in the URL. Cancel was removed from the list dropdown entirely and given a two-click confirm on the detail page. Terminal rows dim to 45% opacity. All queries live in `src/lib/admin-orders.ts`.
+**Consequences:** No schema change — the queue is derived, so there is no "needs attention" flag to keep in sync, and no status history either: only `placed_at` and `updated_at` exist, so steps cannot be individually timestamped. Search reaches all orders but costs a round trip per phrase. The stale threshold needed a settings writer, so `PATCH /api/v1/admin/settings` exists with a per-key allowlist rather than a generic key/value endpoint.
+
+### [2026-08-17] No root `loading.tsx` - streaming would turn every 404 into a soft 404
+**Status:** Accepted
+**Context:** A root `loading.tsx` was added to give the ten `force-dynamic` routes an instant skeleton. It silently broke status codes: with a loading file present Next streams the response, so the 200 header is already sent by the time `notFound()` runs. `/product/<unknown>` and `/shop/<unknown>` began returning HTTP 200 with not-found content - soft 404s, which search engines treat as thin duplicate pages and may index.
+**Decision:** Delete the root `loading.tsx`. Every segment that could reasonably host a skeleton (`/shop`, `/account`, `/admin`) has a `notFound()` descendant that would inherit the same bug, so there is no partial version worth keeping. Verified against a production build, not just dev: unknown product and category slugs return 404, real ones 200, and the branded not-found page still renders.
+**Consequences:** Dynamic pages show the previous page until the server responds - acceptable at ~100ms local render. If a page ever needs a skeleton, the safe pattern is to resolve the existence check first and wrap only the slow subtree in `<Suspense>`, so streaming starts after the 404 decision. `error.tsx` is unaffected; it does not stream.
+
+### [2026-08-17] Sitemap reads the database, not the seed JSON
+**Status:** Accepted
+**Context:** `sitemap.ts` imported the product list from `src/data/products.json`. That file is a legacy seed source and drifts from the database the moment a product is added or retired in `/admin`. In practice the sitemap was advertising four products that no longer existed (`logitech-g304`, both HyperX items, `mouse-wrist-rest`) while omitting the two most recently added ones.
+**Decision:** Make `sitemap()` async and read `getAllCategories()` + `getAllProducts()` from `src/lib/catalog.ts`, the same cached DB source the storefront uses. The JSON stays only as the category list behind `getCategory()` for nav and labels.
+**Consequences:** The sitemap costs one cached catalog read per request instead of being fully static, which is irrelevant next to the shop pages already being `force-dynamic`. Retiring a product in `/admin` now removes it from the sitemap within the 60-second catalog cache window.
+
+### [2026-08-17] Server errors alert over the existing Telegram bot, not Sentry
+**Status:** Accepted
+**Context:** Nothing reported server faults. A failed query on `/checkout` or `/admin/orders` surfaced as a broken page to whoever hit it and nowhere else — the owner learned about outages from customers. Sentry is the default answer, but it is a new dependency, a new account, a DSN to manage, and a bill, for a shop that already runs a Telegram bot the owner reads all day.
+**Decision:** `src/instrumentation.ts` implements Next's `onRequestError`, which fires for every uncaught server-side error across pages, layouts, route handlers and server actions. It calls `reportError()` in `src/lib/report-error.ts`, which pushes route, method, error, digest and three stack frames to the owner chat through the existing `sendTelegram()`. Faults are fingerprinted on message plus first stack frame and throttled to one alert per 10 minutes, with the tracking map bounded at 200 entries. Interpolated values are HTML-escaped because Telegram messages are sent with `parse_mode: HTML`. Every path is wrapped so reporting can never throw inside an error handler.
+**Consequences:** Zero new dependencies and zero cost, but no stack-trace grouping, no source maps, no searchable history — the alert says something broke and where, not why over time. The digest shown on the customer's error page matches the one in the alert, so a customer quoting it can be tied to a specific fault. Client-side errors are not captured. When traffic makes triage worth real tooling, `@sentry/nextjs` slots into the same `onRequestError` hook and `reportError` becomes a second sink.
+
+### [2026-08-17] Vitest with colocated tests, transitions extracted to one module
+**Status:** Accepted
+**Context:** No test runner existed. The order status transition tables were duplicated in `orders-table.tsx` and the admin PATCH route with a "keep in sync" comment — the kind of pairing that drifts silently and lets the UI offer a move the API rejects. Two bugs had already shipped this week that a unit test would have caught: a COD customer shown "Awaiting payment", and `getStaleDays` returning 1 instead of 3 because `Number(null)` is `0` and passed a finite check.
+**Decision:** Vitest, node environment, no jsdom. Tests colocated next to source as `*.test.ts`. `vitest.config.mts` aliases `@/` and stubs the `server-only` package so server modules import cleanly. Transition tables moved to `src/lib/order-transitions.ts` (`canTransition`, `forwardOptions`) and imported by both consumers, so the test enforces what the comment used to ask for. First six suites cover transitions, validators, status labels, admin-orders input guards, money/time, and the contact route.
+**Consequences:** Global coverage reads ~9% because the report includes DB and IO modules that need integration setup; the pure modules sit at 90–100%. No thresholds enforced until integration tests exist, or unrelated new files would fail the build. Stock commit/release stays untested until a Playwright run against a seeded DB is worth building. Writing the contact-route suite exposed dead code — the honeypot's "silently accept" branch was unreachable because zod already rejected a filled field — which was deleted.
+
+### [2026-08-16] Payment-kind-aware customer status labels
+**Status:** Accepted
+**Context:** `pending_payment` is the initial status for every order, but it means two different things: a wallet customer owes a transfer, a COD customer owes nothing until the courier arrives. The account pages rendered the raw enum without joining `payment_methods`, so COD buyers were told "Awaiting payment" and shown a "View payment instructions" button. `/order/[id]` already branched correctly on payment kind; the account views never did.
+**Decision:** `src/lib/order-status.ts` maps `(status, methodKind)` to customer wording plus a "what happens next" hint. COD `pending_payment` reads "Awaiting confirmation", COD `confirmed` reads "Confirmed - pay on delivery". The three account views join `payment_methods` to get the kind. `/account/orders/[id]` also gained a Shopee-style step tracker (`src/components/order/progress.tsx`) whose steps come from the payment kind — wallet has a slip step, COD does not.
+**Consequences:** Every customer-facing status render now needs the payment kind, which means a join wherever orders are listed. The step tracker can date only the first and current step, and folds "in transit" into `confirmed`, because the schema has no status history and no `shipped` state. Closing either gap needs an `order_status_events` table.
+
 ---
 
 ## Security
@@ -302,7 +343,7 @@ merxylab-store/
   - Brute-force defense: `@upstash/ratelimit` 5/min per email on sign-in, 5/hour per IP on signup.
 
 ### Input validation
-- Newsletter form: validate email format client-side (HTML5 `type=email` + regex), server validates with zod and persists to `newsletter_subscribers`.
+- Contact form: client checks the shape, server validates with zod, rate-limits 5/hour per IP, and rejects a filled honeypot field.
 - Search query: trim + length cap (200 chars) before passing to Fuse.
 - Cart qty: clamp to [1, 99]; reject non-integer; server re-validates against `stockQty`.
 - All POST/PATCH/DELETE: zod schema at route boundary, reject on parse fail with structured error.
@@ -335,7 +376,7 @@ merxylab-store/
 - **Auto-cancel race:** auto-cancel cron updates `status = 'cancelled'` only when current `status = 'pending_payment'` (conditional UPDATE). Concurrent slip upload that flipped to `payment_submitted` first wins; cron skips that row. No stock math runs in the cron because pending orders never held physical inventory.
 - **Stock oversell:** order placement does a snapshot `stockQty >= qty` *read* check on every line and rejects with `OUT_OF_STOCK` if any line fails — but does **not** decrement stock. The decrement happens at the single payment-confirmation boundary: when admin flips an order to `confirmed` (wallet OR COD), a transaction runs `UPDATE products SET stockQty = stockQty - qty WHERE id = ? AND stockQty >= qty` per line and rolls back if any affected-rows is 0, returning `OUT_OF_STOCK` to the admin. After commit the route calls `revalidateTag('products')` so the 60-second catalog cache picks up the new stock immediately. Cart-add (`POST /api/v1/cart/items`) does its own live DB read for stock — never the cached catalog — so customers see current numbers. Cancelling a `confirmed` order restores stock; cancelling a `pending_payment`/`payment_submitted` order does not (nothing to restore). Trade-off: tiny oversell window between two checkouts on the last unit. At retail volume the owner sees both pending orders in `/admin/orders` and can call one customer to swap; the system never silently double-sells because the admin-side confirm flip will return 409 for the second order.
 - **Photo path traversal:** photo paths constructed only from `slug` field (regex `^[a-z0-9-]+$`); never from user input.
-- **Admin CSV export leaking PII:** CSV is generated client-side from already-authorized server data (admin-only `/admin/newsletter` page). No public route exposes the dataset.
+- **Customer PII in admin views:** order and address data renders only inside `/admin/*`, which the layout gates on `role = 'admin'` server-side. No public route exposes the dataset.
 
 ### Dependency audit process
 - Run `npm audit` weekly (project is on npm, not pnpm — see ADR-09).

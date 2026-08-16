@@ -4,7 +4,7 @@ import { getAllProducts } from '@/lib/catalog'
 export const metadata = {
   title: 'Shop',
   description:
-    'Every peripheral on the bench. Keyboards, mice, headsets, mics, speakers, accessories.',
+    'Every peripheral on the bench. Keyboards, mice, audio, accessories.',
 }
 
 export const dynamic = 'force-dynamic'

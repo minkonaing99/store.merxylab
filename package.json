@@ -8,14 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "photos:check": "tsx scripts/check-photos.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
-    "db:seed:payment": "tsx --env-file=.env.local scripts/seed-payment.ts",
-    "cron:cancel-expired": "tsx --env-file=.env.local scripts/cancel-expired-orders.ts"
+    "cron:cancel-expired": "tsx --env-file=.env.local scripts/cancel-expired-orders.ts",
+    "user:password": "tsx --env-file=.env.local scripts/set-password.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "db:dump-seed": "tsx --env-file=.env.local scripts/dump-seed.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
@@ -51,11 +52,13 @@
     "@eslint/eslintrc": "^3.3.5",
     "@types/nodemailer": "^8.0.1",
     "@types/react-dom": "19.0.2",
+    "@vitest/coverage-v8": "^4.1.10",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "15.1.0",
-    "tsx": "^4.22.4"
+    "tsx": "^4.22.4",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20"

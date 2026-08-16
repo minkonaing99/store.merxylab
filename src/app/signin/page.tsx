@@ -50,7 +50,7 @@ function SignInForm() {
 
     setLoading(true)
     const res = await signIn('credentials', {
-      email,
+      email: email.trim(),
       password,
       redirect: false,
     })

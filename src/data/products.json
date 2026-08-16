@@ -147,7 +147,7 @@
     "id": "hyperx-cloud-iii-wireless",
     "slug": "hyperx-cloud-iii-wireless",
     "name": "HyperX Cloud III Wireless",
-    "category": "headsets",
+    "category": "audio",
     "price": 690000,
     "tagline": "120-hour battery. DTS spatial.",
     "description": "Cloud III over 2.4 GHz with 120-hour battery, DTS spatial audio, 53 mm angled drivers, detachable mic.",
@@ -183,7 +183,7 @@
     "id": "hyperx-quadcast-s",
     "slug": "hyperx-quadcast-s",
     "name": "HyperX QuadCast S",
-    "category": "microphones",
+    "category": "audio",
     "price": 750000,
     "tagline": "Four polar patterns. RGB shock-mount.",
     "description": "The full-featured streamer mic. Four polar patterns, anti-vibration mount, headphone monitoring jack, 24-bit/96 kHz capture.",
@@ -218,7 +218,7 @@
     "id": "edifier-m230-retro-brown",
     "slug": "edifier-m230-retro-brown",
     "name": "Edifier M230 Retro Brown",
-    "category": "speakers",
+    "category": "audio",
     "price": 320000,
     "tagline": "20W desk speaker with BT 5.0.",
     "description": "A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.",
@@ -261,7 +261,7 @@
     "specs": [
       {
         "label": "Size",
-        "value": "900 × 400 mm"
+        "value": "900 \u00d7 400 mm"
       },
       {
         "label": "Thickness",

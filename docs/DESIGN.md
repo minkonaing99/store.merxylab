@@ -6,7 +6,7 @@
 We are explicitly avoiding the standard peripheral-shop visual language (RGB gradients, black backgrounds, "GAMING GRADE" hype). The store should feel like a small-batch furniture shop or a design magazine that happens to sell keyboards.
 
 ## Reference
-- Layout reference: furniture e-commerce landing (warm cream/black palette, serif headline with inline product chip, hero with side thumbs + carousel dots, stats row, 3×2 product grid, lifestyle accordion, dark CTA banner, newsletter, dark footer).
+- Layout reference: furniture e-commerce landing (warm cream/black palette, serif headline, hero with side thumbs, stats row, 3x2 product grid, lifestyle accordion, dark CTA banner, dark footer). The inline product chip and carousel dots were dropped in Phase 9; the newsletter section was removed entirely.
 - Voice/tone reference: Teenage Engineering shop, MoMA Design Store, Drop's first product pages.
 
 ## Target devices + breakpoints
@@ -103,18 +103,18 @@ Restrained, warm-tinted (no blue shadow).
 
 ### Custom
 - `Nav` — sticky top, logo + categories + search icon + cart icon (badge)
-- `Footer` — 4-column dark, newsletter handled in separate section
+- `Footer` — dark, brand blurb + Shop / Company / Support columns, privacy link in the bottom bar
 - `ProductCard` — swatch tile + name + price + add-to-cart icon + stock badge
 - `ProductTile` — square placeholder (swatch) or real photo when `hasPhotos`
-- `Hero` — left text + inline product-swatch chip; right = square showcase (deck model). Active featured product fills the big square; its thumb in the 4-square row beneath renders as a recessed "carved well" instead of a duplicate. Clicking a thumb promotes it to the big square via a Framer Motion shared-element flight (`layoutId` per product); the previous one shrinks back into its socket. Stable slot positions, no reshuffle. Reduced-motion → crossfade. Same model on mobile (tap-only; the old carousel dots removed in favor of the visible thumb row).
+- `Hero` — left: headline, subcopy, two CTAs. Right: square showcase. The active featured product fills the big square with a glass caption strip (category, name, price) pinned inside it; the 4-thumb row beneath keeps every thumbnail showing its photo, the active one marked with an accent ring + offset. Switching products crossfades absolutely-positioned layers via `AnimatePresence`. Reduced motion → duration 0. Same model on mobile (tap-only; no carousel dots).
+  - Removed 2026-08: the inline product-swatch chip in the headline and the "carved well" active thumb. Both rendered as flat colour blocks and read as broken images. The old `layoutId` swatch-flight and its 1x1 transparent-pixel workaround went with them.
 - `StatsRow` — 3-column stat blocks
 - `WhyAccordion` — left image + right accordion
 - `CTABanner` — dark bg, headline + tile cutout
-- `Newsletter` — single-row email + submit, toast on submit
 - `CategoryChips` — horizontal scroll on mobile
 - `Gallery` — PDP main image + thumbs, hides missing slots
 - `SpecsTable` — two-column label/value
-- `Toast` (sonner) — newsletter + add-to-cart + auth confirm
+- `Toast` (sonner) — add-to-cart + auth confirm + admin save feedback
 - `QtyStepper` — - / value / +
 - **Phase 4-7 additions:**
   - `HeartButton` — wishlist toggle, outline → filled accent, optimistic state
@@ -130,15 +130,14 @@ Restrained, warm-tinted (no blue shadow).
   - `TelegramBackupContact` — `t.me/<username>` link button, secondary contact channel
   - `AccountNav` (in `account/layout.tsx`) — sub-nav for `/account` (Orders / Addresses / Wishlist / Sign out)
 - **Phase 8 additions:**
-  - `AdminNav` (in `admin/layout.tsx`) — Overview / Products / Orders / Reviews / Newsletter / Payment Methods / Divisions
+  - `AdminNav` (in `admin/layout.tsx`) — Overview / Products / Orders / Reviews / Payment Methods / Divisions / Branding
   - `PaymentMethodTable` — `/admin/payment-methods` inline editor (name, kind, account info, QR upload, active toggle).
   - `DivisionTable` — `/admin/divisions` inline editor (delivery_fee_mmk, cod_allowed, is_blocked, sort_order). Name + id immutable.
   - `AdminProductTable` — list with primary action "+ New product" at top. Row collapses to name + slug + view-link, price (MMK, tabular-nums), stock, low-stock threshold, isActive/featured pills. Two expand buttons per row: **Edit details** (opens an inline form pre-filled) and **Edit photos** (opens the 4-slot grid). Save / Discard pair per expanded section — no auto-save.
-  - `ProductDetailsForm` — used for both create + edit. Fields: name (drives auto-slug), slug (editable, regex-validated), category (select of 6), price MMK, tagline, description, swatch (`<input type="color">`), stock_qty, low_stock_threshold, featured + is_active toggles. Specs editor: list of `{label, value}` rows with `+` to add and trash to remove.
+  - `ProductDetailsForm` — used for both create + edit. Fields: name (drives auto-slug), slug (editable, regex-validated), category (select of the live categories), price MMK, tagline, description, swatch (`<input type="color">`), stock_qty, low_stock_threshold, featured + is_active toggles. Specs editor: list of `{label, value}` rows with `+` to add and trash to remove.
   - `ProductPhotoGrid` — fixed 4-slot grid (01..04). Each cell shows the 600px thumb preview if uploaded, otherwise a swatch-tinted placeholder. Per-slot Replace (file picker) and Remove (trash). Client validates JPG/PNG/WEBP ≤ 10 MB before sending. Server writes both hero (1600px) + thumb (600px) WEBPs from one upload.
-  - `AdminOrdersTable` — order id + customer + total + status dropdown + placed date.
+  - `AdminOrdersTable` — order id (+ slip mark) + customer + wallet/COD + total + forward-only status dropdown + relative placed time. Terminal rows dim to 45%. Sits under `OrderQueue` (needs-you groups) with search, status chips and pagination between them.
   - `AdminReviewsList` — filter chips (pending / approved / rejected / all) + per-review card with status pill + approve/reject buttons.
-  - `NewsletterExport` — single CSV download button (`Download` icon from lucide).
   - KPI tile (in `admin/page.tsx`) — eyebrow label + large display number, clickable to drill-down page.
 
 ## Interaction patterns
@@ -166,7 +165,6 @@ Restrained, warm-tinted (no blue shadow).
 - Position: bottom-right desktop, bottom-center mobile.
 - Duration: 3.2s default.
 - Add-to-cart: "Added to cart" + product name + "View cart" CTA.
-- Newsletter: "Thanks — you're on the list."
 
 ### Motion principles
 - Subtle scroll-fade-up on sections (10px → 0, opacity 0 → 1, 480ms, once).

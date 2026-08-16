@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 
 const querySchema = z.object({
   category: z
-    .enum(['keyboards', 'mice', 'headsets', 'microphones', 'speakers', 'accessories'])
+    .enum(['keyboards', 'mice', 'audio', 'accessories'])
     .optional(),
 })
 

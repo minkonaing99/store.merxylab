@@ -8,8 +8,12 @@
 --   Hostinger: hPanel -> MySQL Databases -> phpMyAdmin -> select the DB ->
 --              Import -> upload this file -> Go.
 --
--- Hand-maintained from src/db/schema/*.ts + src/data/*.json — if you change
--- the schema or seed JSON, edit the matching section here too.
+-- Schema section (1) is hand-maintained from src/db/schema/*.ts.
+-- Seed sections (2-6) are generated from a live database:
+--     npm run db:dump-seed
+-- Re-run that after changing the catalog in /admin so a fresh install
+-- matches what the shop actually sells. Customer data (users, orders,
+-- carts, reviews, wishlists, site_settings) is never dumped.
 --
 -- Run order: schema -> divisions -> payment_methods -> categories ->
 --            products -> product_specs.
@@ -218,18 +222,6 @@ CREATE TABLE `wishlists` (
 	CONSTRAINT `wishlists_user_id_product_id_pk` PRIMARY KEY(`user_id`,`product_id`)
 );
 
-CREATE TABLE `newsletter_subscribers` (
-	`id` varchar(36) NOT NULL,
-	`email` varchar(254) NOT NULL,
-	`source` varchar(40) NOT NULL DEFAULT 'homepage',
-	`status` enum('active','unsubscribed') NOT NULL DEFAULT 'active',
-	`unsubscribe_token` varchar(64) NOT NULL,
-	`subscribed_at` timestamp NOT NULL DEFAULT (now()),
-	`unsubscribed_at` timestamp,
-	CONSTRAINT `newsletter_subscribers_id` PRIMARY KEY(`id`),
-	CONSTRAINT `newsletter_subscribers_email_unique` UNIQUE(`email`)
-);
-
 CREATE TABLE `site_settings` (
 	`key` varchar(80) NOT NULL,
 	`value` text NOT NULL,
@@ -290,15 +282,17 @@ INSERT INTO `divisions` (`id`, `name`, `delivery_fee_mmk`, `cod_allowed`, `is_bl
 ('kayin', 'Kayin State', 0, 0, 1, 14),
 ('sagaing', 'Sagaing Region', 0, 0, 1, 15);
 
+
 -- =================================================================
--- 3. Payment methods (all inactive — owner activates via /admin)
+-- 3. Payment methods
 -- =================================================================
-INSERT INTO `payment_methods` (`id`, `name`, `kind`, `sort_order`, `is_active`) VALUES
-('kbz_pay', 'KBZ Pay', 'wallet', 1, 0),
-('aya_pay', 'Aya Pay', 'wallet', 2, 0),
-('uab_pay', 'UAB Pay', 'wallet', 3, 0),
-('kbz_bank', 'KBZ Bank', 'wallet', 4, 0),
-('cod', 'Cash on Delivery', 'cod', 5, 0);
+INSERT INTO `payment_methods` (`id`, `name`, `kind`, `account_name`, `account_phone`, `qr_image_url`, `instructions_md`, `sort_order`, `is_active`) VALUES
+('kbz_pay', 'KBZ Pay', 'wallet', NULL, NULL, NULL, NULL, 1, 0),
+('aya_pay', 'Aya Pay', 'wallet', NULL, NULL, NULL, NULL, 2, 0),
+('uab_pay', 'UAB Pay', 'wallet', NULL, NULL, NULL, NULL, 3, 0),
+('kbz_bank', 'KBZ Bank', 'wallet', NULL, NULL, NULL, NULL, 4, 0),
+('cod', 'Cash on Delivery', 'cod', NULL, NULL, NULL, NULL, 5, 1);
+
 
 -- =================================================================
 -- 4. Categories
@@ -306,64 +300,56 @@ INSERT INTO `payment_methods` (`id`, `name`, `kind`, `sort_order`, `is_active`) 
 INSERT INTO `categories` (`id`, `name`, `description`, `sort_order`) VALUES
 ('keyboards', 'Keyboards', 'Mechanical, low-profile, and hot-swap boards built for daily writing — not for tournaments.', 1),
 ('mice', 'Mice', 'Pointing devices with restraint. Quiet clicks, honest shapes, low-latency wireless.', 2),
-('headsets', 'Headsets', 'Over-ear cans tuned for voices and music — wired and wireless.', 3),
-('microphones', 'Microphones', 'Desktop USB mics for calls, streams, and clean voice capture.', 4),
-('speakers', 'Speakers', 'Compact desk speakers with warmth and presence — no subwoofer required.', 5),
-('accessories', 'Accessories', 'Mats, wrist rests, and the small things that finish a desk.', 6);
+('audio', 'Audio', 'Headsets, desktop mics, and compact desk speakers - tuned for voices first, music close behind.', 3),
+('accessories', 'Accessories', 'Mats, wrist rests, and the small things that finish a desk.', 4);
+
 
 -- =================================================================
 -- 5. Products
 -- =================================================================
 INSERT INTO `products` (`id`, `slug`, `name`, `category_id`, `price_mmk`, `tagline`, `description`, `swatch`, `stock_qty`, `low_stock_threshold`, `has_photos`, `is_active`, `featured`, `sort_order`) VALUES
-('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 0, 1, 1, 10),
-('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#2C2825', 5, 2, 0, 1, 1, 20),
-('logitech-g304', 'logitech-g304', 'Logitech G304', 'mice', 195000, 'LIGHTSPEED wireless, 250-hour battery.', 'The HERO sensor at its most accessible. LIGHTSPEED wireless, AA-powered for 250 hours, six programmable buttons.', '#262320', 13, 3, 0, 1, 1, 30),
-('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#1A1816', 4, 2, 0, 1, 1, 40),
-('hyperx-cloud-iii-wireless', 'hyperx-cloud-iii-wireless', 'HyperX Cloud III Wireless', 'headsets', 690000, '120-hour battery. DTS spatial.', 'Cloud III over 2.4 GHz with 120-hour battery, DTS spatial audio, 53 mm angled drivers, detachable mic.', '#2A2622', 4, 2, 0, 1, 1, 50),
-('hyperx-quadcast-s', 'hyperx-quadcast-s', 'HyperX QuadCast S', 'microphones', 750000, 'Four polar patterns. RGB shock-mount.', 'The full-featured streamer mic. Four polar patterns, anti-vibration mount, headphone monitoring jack, 24-bit/96 kHz capture.', '#28231F', 3, 1, 0, 1, 0, 60),
-('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'speakers', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 1, 70),
-('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 1, 80),
-('mouse-wrist-rest', 'mouse-wrist-rest', 'Mouse Wrist Rest', 'accessories', 25000, 'Ergonomic support for long days.', 'A contoured wrist rest sized for mouse pads. Memory foam core, fabric top, anti-slip base.', '#3D342A', 20, 5, 0, 1, 1, 90);
+('vxe-dragonfly-r1-se', 'vxe-dragonfly-r1-se', 'VXE Dragonfly R1 SE+', 'mice', 150000, '55g wireless esports mouse, PAW3395 SE, 70hr battery', 'Ultralight wireless gaming mouse built for esports and long work sessions. The PAW3395 SE optical sensor tracks up to 18,000 DPI at 400 IPS, so aim stays accurate on fast flicks. The symmetrical shell works for palm, claw, and fingertip grips, and the low weight keeps your hand fresh after hours of play.
+Connect three ways: 2.4GHz wireless, Bluetooth, or USB-C wired. SmartSpeed X keeps wireless latency low enough for competitive shooters. One charge lasts around 70 hours at 1000Hz, so you charge it once a week, not every night.
+
+Huano micro switches give a crisp click. PTFE feet glide smooth out of the box. Settings adjust through the web driver, no software install needed.', '#858585', 17, 3, 1, 1, 1, 1),
+('logitech-mx-master-4', 'logitech-mx-master-4', 'Logitech Mx Master 4', 'mice', 568000, 'mouse', 'Meet the MX Master 4 that brings immersive control and precision you can feel with customizable haptic feedback on specific actions. Save up to 33% of your time with Actions Ring shortcuts and MX Master 4, by accessing tools and filters at your cursor. Additional features: 2x better connectivity, ultra fast scrolling with the MagSpeed scroll wheel, 8k DPI any surface tracking, including glass & Logi Options+ for customization.', '#b0a39b', 5, 2, 1, 1, 1, 2),
+('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 1, 1, 1, 10),
+('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#eae1d7', 5, 2, 1, 1, 1, 20),
+('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#897e70', 4, 2, 1, 1, 1, 30),
+('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'audio', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 0, 70),
+('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 0, 80);
+
 
 -- =================================================================
 -- 6. Product specs
 -- =================================================================
 INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUES
-('keychron-k2-pro', 'Layout', '75% (84 keys)', 0),
-('keychron-k2-pro', 'Switches', 'Hot-swap, Brown or Red', 1),
-('keychron-k2-pro', 'Connection', 'BT 5.1 + 2.4G + USB-C', 2),
-('keychron-k2-pro', 'Firmware', 'QMK / VIA', 3),
-('nuphy-halo65', 'Layout', '65% (68 keys)', 0),
-('nuphy-halo65', 'Mount', 'Gasket', 1),
-('nuphy-halo65', 'Switches', 'Hot-swap, Night Breeze / Rose Glacier', 2),
-('nuphy-halo65', 'Connection', 'BT + 2.4G + USB-C', 3),
-('logitech-g304', 'Sensor', 'HERO 12K', 0),
-('logitech-g304', 'Connection', 'LIGHTSPEED 2.4G', 1),
-('logitech-g304', 'Battery', '250 hours (AA)', 2),
-('logitech-g304', 'Buttons', '6 programmable', 3),
-('logitech-g-pro-x-superlight-2', 'Sensor', 'HERO 2, 32000 DPI', 0),
-('logitech-g-pro-x-superlight-2', 'Weight', '< 60 g', 1),
-('logitech-g-pro-x-superlight-2', 'Connection', 'LIGHTSPEED 2.4G + USB-C', 2),
-('logitech-g-pro-x-superlight-2', 'Battery', '95 hours', 3),
-('hyperx-cloud-iii-wireless', 'Drivers', '53 mm angled', 0),
-('hyperx-cloud-iii-wireless', 'Audio', 'DTS Headphone:X spatial', 1),
-('hyperx-cloud-iii-wireless', 'Battery', '120 hours', 2),
-('hyperx-cloud-iii-wireless', 'Connection', '2.4G + USB-C', 3),
-('hyperx-quadcast-s', 'Patterns', 'Cardioid / Stereo / Omni / Bidirectional', 0),
-('hyperx-quadcast-s', 'Sample', '24-bit / 96 kHz', 1),
-('hyperx-quadcast-s', 'Features', 'Tap-mute, headphone monitor, RGB', 2),
-('hyperx-quadcast-s', 'Connection', 'USB-C', 3),
 ('edifier-m230-retro-brown', 'Output', '20 W', 0),
 ('edifier-m230-retro-brown', 'Connectivity', 'BT 5.0 / AUX / USB-C / TF', 1),
 ('edifier-m230-retro-brown', 'Battery', '10 hours', 2),
 ('edifier-m230-retro-brown', 'Finish', 'Retro Brown', 3),
+('keychron-k2-pro', 'Layout', '75% (84 keys)', 0),
+('keychron-k2-pro', 'Switches', 'Hot-swap, Brown or Red', 1),
+('keychron-k2-pro', 'Connection', 'BT 5.1 + 2.4G + USB-C', 2),
+('keychron-k2-pro', 'Firmware', 'QMK / VIA', 3),
+('logitech-g-pro-x-superlight-2', 'Sensor', 'HERO 2, 32000 DPI', 0),
+('logitech-g-pro-x-superlight-2', 'Weight', '< 60 g', 1),
+('logitech-g-pro-x-superlight-2', 'Connection', 'LIGHTSPEED 2.4G + USB-C', 2),
+('logitech-g-pro-x-superlight-2', 'Battery', '95 hours', 3),
+('nuphy-halo65', 'Layout', '65% (68 keys)', 0),
+('nuphy-halo65', 'Mount', 'Gasket', 1),
+('nuphy-halo65', 'Switches', 'Hot-swap, Night Breeze / Rose Glacier', 2),
+('nuphy-halo65', 'Connection', 'BT + 2.4G + USB-C', 3),
 ('premium-deskmat', 'Size', '900 × 400 mm', 0),
 ('premium-deskmat', 'Thickness', '4 mm', 1),
 ('premium-deskmat', 'Surface', 'Cloth, non-slip rubber base', 2),
 ('premium-deskmat', 'Care', 'Machine washable', 3),
-('mouse-wrist-rest', 'Core', 'Memory foam', 0),
-('mouse-wrist-rest', 'Top', 'Fabric', 1),
-('mouse-wrist-rest', 'Base', 'Anti-slip', 2);
+('vxe-dragonfly-r1-se', 'Sensor', 'PAW3395 SE optical', 0),
+('vxe-dragonfly-r1-se', 'Max', '18,000 (10 DPI steps)', 1),
+('vxe-dragonfly-r1-se', 'Max speed', '400 IPS', 2),
+('vxe-dragonfly-r1-se', 'Polling rate', '125 to 2000 Hz (2K dongle)', 3),
+('vxe-dragonfly-r1-se', 'Weight', '55g', 4);
+
 
 -- =================================================================
 -- Bootstrap complete.

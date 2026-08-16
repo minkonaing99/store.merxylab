@@ -82,6 +82,79 @@ export function TextField({
   )
 }
 
+interface PhoneFieldProps {
+  label: ReactNode
+  /** National part only - the prefix is rendered, not typed. */
+  value: string
+  onChange: (v: string) => void
+  onBlur?: () => void
+  error?: string | null
+  helper?: ReactNode
+  className?: string
+  prefix: string
+  id?: string
+  required?: boolean
+}
+
+/**
+ * Phone input with the country code pinned outside the editable area, so a
+ * customer can never delete it or type it twice.
+ */
+export function PhoneField({
+  label,
+  value,
+  onChange,
+  onBlur,
+  error,
+  helper,
+  className,
+  prefix,
+  id,
+  required,
+}: PhoneFieldProps) {
+  const autoId = useId()
+  const fieldId = id ?? autoId
+  return (
+    <FieldShell
+      htmlFor={fieldId}
+      label={label}
+      required={required}
+      error={error}
+      helper={helper}
+      className={className}
+    >
+      <div
+        className={cn(
+          'flex items-stretch overflow-hidden rounded-[var(--radius)] border bg-cream',
+          error ? 'border-error focus-within:border-error' : 'border-line focus-within:border-ink/40',
+        )}
+      >
+        <span
+          aria-hidden
+          className="flex items-center border-r border-line px-3 text-[14px] text-muted select-none"
+        >
+          {prefix}
+        </span>
+        <input
+          id={fieldId}
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          aria-invalid={Boolean(error)}
+          aria-describedby={`${fieldId}-prefix`}
+          className="w-full bg-transparent px-3.5 py-2.5 text-[14px] focus:outline-none"
+        />
+        <span id={`${fieldId}-prefix`} className="sr-only">
+          Country code {prefix}
+        </span>
+      </div>
+    </FieldShell>
+  )
+}
+
 interface SelectFieldProps
   extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange' | 'value'> {
   label: ReactNode

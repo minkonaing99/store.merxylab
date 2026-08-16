@@ -22,7 +22,7 @@ Computer peripheral shops feel like loud gamer marketplaces — RGB-saturated, s
 **Core (MVP — placeholder phase)**
 - Homepage mirroring reference layout: hero + thumbs + carousel, stats row, product grid, "why choose us" accordion, dark CTA banner, newsletter, dark footer
 - Shop catalog (`/shop`) with filter + sort
-- Category routes (`/shop/[category]`) — keyboards, mice, audio, accessories
+- Category routes (`/shop/[category]`) — keyboards, mice, audio, accessories (headsets/mics/speakers merged into `audio` in Phase 9)
 - Product detail page (`/product/[slug]`) with gallery, specs, add-to-cart
 - Cart drawer + dedicated cart page (`/cart`)
 - Search results page (`/search?q=`) — fuzzy match via Fuse.js
@@ -31,7 +31,7 @@ Computer peripheral shops feel like loud gamer marketplaces — RGB-saturated, s
 
 **Extended — Phase 4-7 (full e-commerce, shipped)**
 - Real product photography on disk (`public/products/{slug}/{01-04}.webp`), `hasPhotos` flag, gallery hides missing slots
-- MySQL backend (local: root/Tkhantnaing1) via Drizzle ORM, Next.js route handlers
+- MySQL backend via Drizzle ORM, Next.js route handlers. Credentials live in `.env.local` (`DATABASE_URL`), never in docs
 - Auth.js v5 — email + password + Google OAuth, Hostinger SMTP via nodemailer
 - Cart sync — cookie session for guests, merge on login
 - User accounts + saved addresses + order history (`/account/*`)
@@ -47,10 +47,21 @@ Computer peripheral shops feel like loud gamer marketplaces — RGB-saturated, s
 - Custom `/admin` UI — role-gated (`users.role = 'admin'`) dashboard with KPI tiles, inline product editor (price/stock/featured/active), order status updates, review moderation (approve/reject), newsletter CSV export
 - Lighthouse + axe-core audit playbook (`docs/LIGHTHOUSE.md`) — per-route loop, LHCI snippet, score targets per category
 
+**Extended — Phase 9 (storefront content + operator triage, shipped)**
+- Content pages: about, contact, shipping, returns + warranty, FAQ, privacy — wired to the footer, copy grounded in real system behaviour. No terms-of-sale page by owner decision
+- Newsletter removed by owner decision (no capacity to write one). The `newsletter_subscribers` table remains in the schema, unused
+- Burmese localisation of four of those pages under `/my/*`, with `hreflang` alternates and Noto Sans Myanmar (see `docs/CONTENT-PAGES.md`)
+- Contact form → `POST /api/v1/contact` (zod, per-IP rate limit, honeypot), delivered by SMTP
+- Admin orders rebuilt as a work queue + searchable paginated ledger, with an editable stale-delivery threshold (see `docs/ADMIN.md`)
+- Customer order tracking: payment-kind-aware status wording and a step progress tracker on `/account/orders/[id]`
+- Phone entry with a fixed `+95` prefix and input normalisation across both address forms
+- Categories merged from 6 to 4: headsets + microphones + speakers became `audio`
+- `docs/db-bootstrap.sql` is the single install path; Drizzle migrations removed
+
 **Out of scope (deferred or won't-do)**
 - Real-time shipping / tax calculation — handled manually via order confirmation email
 - Card payments / Stripe / online gateways — Myanmar retail uses bank transfer only
-- Multi-currency display (MMK only) / multi-language (English only)
+- Multi-currency display (MMK only). Multi-language is partial: six content pages ship English + Burmese (`/my/*`); shop, product, cart and checkout stay English
 - Photo uploads via web UI — files dropped into `public/products/{slug}/` directly
 - Vendor/seller onboarding
 - Marketing CMS / blog
@@ -170,7 +181,7 @@ Computer peripheral shops feel like loud gamer marketplaces — RGB-saturated, s
 
 ### Navigation structure
 - Top nav: logo (left) / Shop / Categories dropdown / Search icon / Cart icon
-- Footer: Company / Support / Legal / Social — placeholder `#` hrefs
+- Footer: Shop / Company / Support columns + a privacy link in the bottom bar — live hrefs
 - Mobile: hamburger drawer with same items
 
 ### Auth gating

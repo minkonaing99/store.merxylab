@@ -1,15 +1,50 @@
 import type { MetadataRoute } from 'next'
-import { categories, products } from '@/lib/products'
+import { getAllCategories, getAllProducts } from '@/lib/catalog'
+import { localePath } from '@/lib/i18n'
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://merxylab.example'
 
-export default function sitemap(): MetadataRoute.Sitemap {
+/** Content pages published in both English and Burmese. */
+const CONTENT_PATHS = [
+  '/contact',
+  '/shipping',
+  '/returns',
+  '/faq',
+] as const
+
+/**
+ * Reads the live catalog, not the legacy `src/data/*.json`. The JSON drifts
+ * from the database the moment a product is added or retired in /admin, which
+ * had this file advertising four products that 404 and omitting two that sell.
+ */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const [categories, products] = await Promise.all([getAllCategories(), getAllProducts()])
   const now = new Date()
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, lastModified: now, priority: 1 },
     { url: `${SITE}/shop`, lastModified: now, priority: 0.9 },
     { url: `${SITE}/search`, lastModified: now, priority: 0.4 },
     { url: `${SITE}/cart`, lastModified: now, priority: 0.3 },
+    { url: `${SITE}/about`, lastModified: now, priority: 0.5 },
+    { url: `${SITE}/privacy`, lastModified: now, priority: 0.3 },
+    ...CONTENT_PATHS.flatMap((path) => [
+      {
+        url: `${SITE}${path}`,
+        lastModified: now,
+        priority: 0.5,
+        alternates: {
+          languages: { en: `${SITE}${path}`, my: `${SITE}${localePath('my', path)}` },
+        },
+      },
+      {
+        url: `${SITE}${localePath('my', path)}`,
+        lastModified: now,
+        priority: 0.5,
+        alternates: {
+          languages: { en: `${SITE}${path}`, my: `${SITE}${localePath('my', path)}` },
+        },
+      },
+    ]),
   ]
 
   const categoryRoutes = categories.map((c) => ({

@@ -7,36 +7,24 @@ const COLUMNS = [
     links: [
       { href: '/shop/keyboards', label: 'Keyboards' },
       { href: '/shop/mice', label: 'Mice' },
-      { href: '/shop/headsets', label: 'Headsets' },
-      { href: '/shop/microphones', label: 'Microphones' },
-      { href: '/shop/speakers', label: 'Speakers' },
+      { href: '/shop/audio', label: 'Audio' },
       { href: '/shop/accessories', label: 'Accessories' },
     ],
   },
   {
     title: 'Company',
     links: [
-      { href: '#', label: 'About' },
-      { href: '#', label: 'Manifesto' },
-      { href: '#', label: 'Press' },
-      { href: '#', label: 'Contact' },
+      { href: '/about', label: 'About' },
+      { href: '/contact', label: 'Contact' },
     ],
   },
   {
     title: 'Support',
     links: [
-      { href: '#', label: 'Shipping' },
-      { href: '#', label: 'Returns' },
-      { href: '#', label: 'Warranty' },
-      { href: '#', label: 'FAQ' },
-    ],
-  },
-  {
-    title: 'Legal',
-    links: [
-      { href: '#', label: 'Terms' },
-      { href: '#', label: 'Privacy' },
-      { href: '#', label: 'Cookies' },
+      { href: '/shipping', label: 'Shipping' },
+      { href: '/returns', label: 'Returns' },
+      { href: '/returns#warranty', label: 'Warranty' },
+      { href: '/faq', label: 'FAQ' },
     ],
   },
 ] as const
@@ -44,7 +32,7 @@ const COLUMNS = [
 export function Footer() {
   return (
     <footer className="mt-24 bg-[var(--color-dark-bg)] text-[var(--color-dark-ink)]">
-      <div className="container-prose grid gap-12 py-16 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+      <div className="container-prose grid gap-12 py-16 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div>
           <Link href="/" className="flex items-center gap-3" aria-label="merxylab home">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-cream/8 ring-1 ring-cream/15">
@@ -85,7 +73,15 @@ export function Footer() {
       <div className="border-t border-cream/10">
         <div className="container-prose flex flex-col items-start justify-between gap-3 py-6 text-[12px] text-cream/55 md:flex-row md:items-center">
           <p>© {new Date().getFullYear()} merxylab - all quiet on the desk.</p>
-          <p>Made in small batches.</p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/privacy"
+              className="transition-colors hover:text-[var(--color-accent-soft)]"
+            >
+              Privacy
+            </Link>
+            <span>Made in small batches.</span>
+          </div>
         </div>
       </div>
     </footer>

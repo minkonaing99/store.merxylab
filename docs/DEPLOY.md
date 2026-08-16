@@ -35,17 +35,16 @@ Note: hyphen in `merxylab-store` requires backticks in raw SQL. Drizzle handles 
 
 Two options. Pick **A** for simplicity (run migrations from your laptop pointed at prod).
 
-### A. Remote migrate from local
+### A. Remote import from local
 1. Enable remote MySQL in hPanel → Databases → Remote MySQL. Whitelist your laptop's IP.
-2. On your laptop, point Drizzle at prod:
+2. Import the bootstrap script straight into prod:
    ```bash
-   DATABASE_URL="mysql://merxylab:PROD_PASSWORD@PROD_HOST:3306/merxylab-store" \
-     npm run db:migrate
+   mysql -h PROD_HOST -u merxylab -p merxylab-store < docs/db-bootstrap.sql
    ```
 3. Seed if you want catalog data immediately:
    ```bash
    DATABASE_URL="mysql://merxylab:PROD_PASSWORD@PROD_HOST:3306/merxylab-store" \
-     npm run db:seed
+     # (catalog seed is already inside docs/db-bootstrap.sql)
    ```
 4. **Disable remote MySQL after** to reduce surface. Only re-enable for ad-hoc admin.
 
@@ -157,21 +156,12 @@ If the OAuth consent screen is still in **Testing** mode, click **Publish app** 
 
 ## 8. Photos: upload to host
 
-Photos live in `public/products/{slug}/{01-04}.webp` on the running app's filesystem. On Hostinger Node deployments the `public/` folder ships with the app, so:
+Photos live on Cloudflare R2, not the app filesystem. Upload them per product in
+`/admin/products` → expand a row → **Edit photos**. The server writes a 1600px hero
+and a 600px thumb per slot and flips `has_photos` itself.
 
-```bash
-# from your local repo, after dropping new photos
-npm run photos:check
-rsync -avz public/products/ user@your-domain.com:/home/user/domains/your-domain.com/merxylab/public/products/
-```
-
-You can also use hPanel's File Manager to drop files into the same path — just remember to re-run `npm run photos:check` locally **and** re-deploy `src/data/products.json` so `hasPhotos` updates land in seed source.
-
-To re-sync the `has_photos` column in the live DB after dropping photos:
-```bash
-DATABASE_URL="mysql://merxylab:PASS@PROD_HOST:3306/merxylab-store" npm run db:seed
-```
-(Re-seed reinserts catalog rows from `products.json` — only run when you intentionally want to overwrite catalog state. To update only `has_photos` in place, do it via Drizzle Studio or a one-off SQL `UPDATE`.)
+Nothing to rsync, and no `public/products/` folder to keep in sync. Deploys do not
+touch product imagery.
 
 ---
 
@@ -225,8 +215,8 @@ For each new release:
 git pull
 npm ci
 npm run build
-npm run db:generate          # if schema changed
-DATABASE_URL=... npm run db:migrate
+# Schema changed? Apply the ALTER by hand or with a one-off script in scripts/
+# following the pattern in scripts/dump-seed.ts. There is no migration runner.
 # rebuild deploy bundle
 rsync -avz --delete deploy/ user@your-domain.com:/home/user/domains/your-domain.com/merxylab/
 # hPanel → Node.js → app → Restart
@@ -256,3 +246,9 @@ Migrations should always be backward-compatible during the window between the ol
 - [ ] Drizzle Studio (via SSH tunnel) shows expected rows.
 - [ ] hPanel auto-backup is enabled and ran in the last 24h.
 - [ ] No secrets in stdout logs.
+
+## CI
+
+`.github/workflows/ci.yml` gates every push and PR: typecheck, lint, test, build, plus a gitleaks secret scan. Nothing deploys from CI — Hostinger deploy stays manual (see above). Treat a red check as a blocked merge, not a blocked deploy.
+
+Build in CI uses dummy `DATABASE_URL` / `AUTH_SECRET` values. Real secrets live only in the host's environment panel and `.env.local`, never in the repo.

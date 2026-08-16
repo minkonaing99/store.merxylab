@@ -79,9 +79,9 @@ mysql -u root -p merxylab < docs/db-bootstrap.sql
 # hPanel → MySQL Databases → phpMyAdmin → select `u<acct>_merxylab_store` DB → Import → upload docs/db-bootstrap.sql → Go.
 ```
 
-The file is a single, idempotent-on-empty-DB script: 17 CREATE TABLEs + 18 FK constraints + 13 indexes + reference seed (15 divisions, 5 payment methods incl. KBZ Bank, 6 categories) + 15 products + 56 product_specs rows. No app code or env vars touched. Hand-maintained from `src/db/schema/*.ts` + `src/data/*.json` — if you change schema or seed JSON, regenerate the relevant sections manually.
+The file creates 17 tables + FK constraints + indexes, then seeds reference data: 15 divisions, 5 payment methods, 4 categories, and the live product catalog with its specs. No app code or env vars touched. Section 1 (schema) is hand-maintained from `src/db/schema/*.ts`; sections 2-6 are generated with `npm run db:dump-seed`.
 
-The Drizzle-managed migration path (`npm run db:generate`, `npm run db:migrate`, `npm run db:push`) is still wired and works on already-seeded DBs, but is **not** the recommended deploy path — Hostinger's phpMyAdmin paste is simpler and avoids dragging drizzle-kit's dev deps near prod.
+There is **no migration path**. `src/db/migrations/` and `npm run db:migrate` were removed: migrations never ran against these databases, so the history was empty and a migrate attempt replayed `CREATE TABLE`s that already existed. Schema changes go into the bootstrap file by hand plus a one-off script in `scripts/`. `npm run db:generate` still exists to produce SQL worth copying, and `npm run db:push` still diffs schema against a database.
 
 The tail of `db-bootstrap.sql` also documents the **stock-commit model** (0.13.6+) and includes a commented-out one-off **"release phantom-held stock"** SQL block for any DB that ran on the pre-0.13.6 order code. Uncomment + run that block once on prod if upload-failures left orders stuck in `pending_payment` / `payment_submitted` with stock decremented but never confirmed. Skip on fresh DBs.
 
@@ -134,8 +134,7 @@ cwebp -q 82 -resize 1600 0 mxk-keyboard-2.jpg -o 02.webp
 # 3. Clean up originals
 rm *.jpg
 
-# 4. Regenerate hasPhotos flags
-npm run photos:check
+# 4. Upload photos in /admin/products - has_photos is set by the server
 ```
 
 ### How to run locally
@@ -149,14 +148,15 @@ npm test              # vitest
 npm run test:e2e          # playwright
 npm run format            # prettier write
 
-# Phase 4
-npm run photos:check      # scan public/products/*/01.webp → set hasPhotos
-
-# Phase 5
-npm run db:generate       # drizzle-kit generate (from schema diffs)
-npm run db:migrate        # apply pending migrations
+# Database
+npm run db:generate       # drizzle-kit generate (SQL to copy into db-bootstrap.sql)
+npm run db:push           # diff schema against a database
 npm run db:studio         # open Drizzle Studio admin UI (local only)
-npm run db:seed           # populate from src/data/*.json
+npm run db:dump-seed      # regenerate seed sections of docs/db-bootstrap.sql
+
+# Operations
+npm run user:password     # set a user's password
+npm run cron:cancel-expired  # cancel unpaid orders past expires_at
 
 # Phase 6
 npm run email:dev         # react-email preview server on :3030
@@ -362,7 +362,7 @@ Versioning: SemVer.
 - `.env.example` extended with `TELEGRAM_BACKUP_USERNAME`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID`.
 
 ### [0.9.0] — 2026-06-16
-- Catalog cut to 15 curated SKUs across 6 cats (keyboards/mice/headsets/microphones/speakers/accessories). Real brand names (HyperX, Keychron, Nuphy, Logitech, Razer, VXE, Edifier, etc.). Placeholder photos copied into all 15 `public/products/<slug>/` dirs.
+- Catalog cut to 15 curated SKUs across 6 cats (keyboards/mice/headsets/microphones/speakers/accessories) — merged to 4 in Phase 9, headsets + microphones + speakers became `audio`. Real brand names (HyperX, Keychron, Nuphy, Logitech, Razer, VXE, Edifier, etc.). Placeholder photos copied into all 15 `public/products/<slug>/` dirs.
 - Stripe integration removed (Myanmar retail = bank transfer only). Uninstalled SDK; deleted `src/lib/stripe.ts`, `/api/v1/stripe/webhook`, `/api/v1/orders/[id]/stripe-session`, `StripePayButton` from `/order/[id]`; scrubbed Stripe env keys from `.env.example`. Renamed `docs/STRIPE-AND-ADMIN.md` → `docs/ADMIN.md` with bank-transfer confirmation flow + admin promotion SQL.
 - Docs scrubbed of Stripe refs: PRD (user stories, app flow, gating), TECH (ADR rewritten, security surface), SCHEMA (endpoint table, payment surface), DESIGN (order confirmation state), LIGHTHOUSE (TBT row).
 
@@ -424,7 +424,6 @@ Versioning: SemVer.
 - `PHOTO_SLOTS` and `PHOTO_BASE` constants exported from `src/lib/types.ts`.
 - `public/products/{slug}/` folder for all 32 SKUs (with `.gitkeep` so git tracks them).
 - `scripts/check-photos.ts` — scans `public/products/{slug}/01.webp`, updates `products.json` `hasPhotos` flag, prints summary table with extras detection.
-- `npm run photos:check` script wired in `package.json`.
 - `tsx` devDep for running TS scripts directly.
 - `Tile` component renders `next/image` of `/products/{slug}/01.webp` when `hasPhotos=true`; warm-palette swatch fallback otherwise.
 - New `Gallery` component on PDP — slots 01-04 with thumb grid, hides slots that 404 via `onError`, animated cross-fade on switch, `aria-pressed` on thumbs.
@@ -444,7 +443,7 @@ Versioning: SemVer.
 - `src/lib/catalog.ts` async DB-backed catalog helpers wrapped in `unstable_cache` (60s revalidate, tagged `products` + `categories`).
 - `src/components/product/stock-badge.tsx` — `In stock` (success), `Only N left` (warning), `Out of stock` (muted).
 - API routes: `GET /api/v1/products[?category=]`, `GET /api/v1/products/[slug]`, `GET /api/v1/categories`. Zod-validated query, structured error envelope.
-- `npm run db:generate | db:migrate | db:push | db:studio | db:seed` scripts.
+- `npm run db:generate | db:push | db:studio | db:dump-seed` scripts.
 - `dotenv` devDep for script env loading; `server-only` runtime guard.
 
 #### Changed

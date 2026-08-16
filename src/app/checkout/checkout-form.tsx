@@ -4,8 +4,15 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatMmk } from '@/lib/money'
-import { SelectField, TextField, TextAreaField } from '@/components/ui/field'
-import { isMyanmarPhone, required } from '@/lib/validators'
+import { PhoneField, SelectField, TextField, TextAreaField } from '@/components/ui/field'
+import {
+  PHONE_HINT,
+  PHONE_PREFIX,
+  isPhoneLocal,
+  normalizePhoneLocal,
+  required,
+  toE164Phone,
+} from '@/lib/validators'
 import type { CartLine } from '@/lib/cart-session'
 
 const COD_CAP_MMK = 500_000
@@ -58,7 +65,7 @@ interface AddressDraft {
 const EMPTY_DRAFT: AddressDraft = {
   label: 'Home',
   recipient: '',
-  phone: '+9591',
+  phone: '',
   divisionId: '',
   city: '',
   township: '',
@@ -87,7 +94,7 @@ function validateDraft(d: AddressDraft): DraftErrors {
   if (recipient) next.recipient = recipient
   const phone = required(d.phone, 'Phone')
   if (phone) next.phone = phone
-  else if (!isMyanmarPhone(d.phone)) next.phone = 'Use +959 followed by 7–9 digits.'
+  else if (!isPhoneLocal(d.phone)) next.phone = PHONE_HINT
   if (!d.divisionId) next.divisionId = 'Choose a division.'
   const city = required(d.city, 'City')
   if (city) next.city = city
@@ -196,7 +203,7 @@ export function CheckoutForm({
       body.newAddress = {
         label: draft.label,
         recipient: draft.recipient,
-        phone: draft.phone,
+        phone: toE164Phone(draft.phone),
         divisionId: draft.divisionId,
         city: draft.city,
         township: draft.township,
@@ -483,15 +490,13 @@ function DeliverySection(props: DeliverySectionProps) {
             onBlur={() => markTouched('recipient')}
             error={liveError('recipient')}
           />
-          <TextField
+          <PhoneField
             label="Phone"
             required
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="+9591234567"
-            helper="Format: +959 followed by 7–9 digits."
+            prefix={PHONE_PREFIX}
+            helper={PHONE_HINT}
             value={draft.phone}
-            onChange={(v) => setField('phone', v)}
+            onChange={(v) => setField('phone', normalizePhoneLocal(v))}
             onBlur={() => markTouched('phone')}
             error={liveError('phone')}
           />

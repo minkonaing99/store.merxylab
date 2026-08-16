@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Fraunces, Inter } from 'next/font/google'
+import { Fraunces, Inter, Noto_Sans_Myanmar } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { Nav } from '@/components/nav'
 import { Footer } from '@/components/footer'
@@ -23,6 +23,14 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
+// Inter and Fraunces carry no Burmese glyphs - the /my/* content pages need this.
+const notoMyanmar = Noto_Sans_Myanmar({
+  subsets: ['myanmar'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
+  variable: '--font-noto-myanmar',
+})
+
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://merxylab.example'
 
 export const metadata: Metadata = {
@@ -32,14 +40,14 @@ export const metadata: Metadata = {
     template: '%s · merxylab',
   },
   description:
-    'Editorial-grade keyboards, mice, headsets, mics, speakers, and accessories. Built quietly, made to last.',
+    'Editorial-grade keyboards, mice, audio and accessories. Built quietly, made to last.',
   applicationName: 'merxylab',
   icons: { icon: '/favicon.ico' },
   openGraph: {
     type: 'website',
     title: 'merxylab - peripherals for the desk you actually use',
     description:
-      'Editorial-grade keyboards, mice, headsets, mics, speakers, and accessories. Built quietly, made to last.',
+      'Editorial-grade keyboards, mice, audio and accessories. Built quietly, made to last.',
     siteName: 'merxylab',
     images: ['/logo.png'],
   },
@@ -59,7 +67,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${inter.variable} ${notoMyanmar.variable}`}
+    >
       <body className="bg-cream text-ink min-h-screen flex flex-col">
         <a
           href="#main"

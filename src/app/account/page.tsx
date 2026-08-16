@@ -2,9 +2,11 @@ import Link from 'next/link'
 import { desc, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { orders } from '@/db/schema/orders'
+import { paymentMethods } from '@/db/schema/payment-methods'
 import { addresses } from '@/db/schema/addresses'
 import { auth } from '@/lib/auth'
 import { formatMmk } from '@/lib/money'
+import { customerStatusLabel } from '@/lib/order-status'
 
 export default async function AccountOverview() {
   const session = await auth()
@@ -12,8 +14,15 @@ export default async function AccountOverview() {
 
   const [recentOrders, addrRows] = await Promise.all([
     db
-      .select()
+      .select({
+        id: orders.id,
+        status: orders.status,
+        totalMmk: orders.totalMmk,
+        placedAt: orders.placedAt,
+        methodKind: paymentMethods.kind,
+      })
       .from(orders)
+      .innerJoin(paymentMethods, eq(paymentMethods.id, orders.paymentMethodId))
       .where(eq(orders.userId, session.user.id))
       .orderBy(desc(orders.placedAt))
       .limit(3),
@@ -43,7 +52,7 @@ export default async function AccountOverview() {
                     {o.id.slice(0, 8)}
                   </Link>
                   <div className="mt-0.5 text-[12px] text-muted">
-                    {o.placedAt.toLocaleDateString()} · {o.status.replace('_', ' ')}
+                    {o.placedAt.toLocaleDateString()} · {customerStatusLabel(o.status, o.methodKind)}
                   </div>
                 </div>
                 <span className="price text-[15px]">{formatMmk(Number(o.totalMmk))}</span>
