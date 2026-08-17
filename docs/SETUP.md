@@ -103,20 +103,38 @@ Run from phpMyAdmin → SQL tab. Verify with `SELECT id, email, role FROM users 
 ### Setting up Cloudflare R2
 Required from 0.14.0+ for product photo / payment QR / slip uploads. See TECH ADR "Photos on Cloudflare R2".
 
-1. **Create two buckets** in the Cloudflare R2 dashboard:
-   - `merxylab-public` — for product photos + payment-method QR codes. Reads must be public.
-   - `merxylab-private` — for customer payment slips. No public binding.
-2. **Bind a custom domain** to `merxylab-public`: R2 dashboard → bucket → Settings → Custom domains → `cdn.merxylab.com` (or whatever subdomain you own under CF DNS). This becomes `NEXT_PUBLIC_CDN_URL`.
-3. **Create an API token** (R2 → Manage R2 API Tokens). Scope to both buckets, permissions: Object Read + Write + Delete. Capture `Access Key ID`, `Secret Access Key`, and your `Account ID` (URL bar in the R2 dashboard).
-4. **Populate `.env.local`** (or hPanel → Easy Deploy → env vars on Hostinger):
+1. **Create two buckets** in the Cloudflare R2 dashboard. They must be **two distinct
+   buckets** — see the warning below.
+   - `merxylab-store` — product photos + payment-method QR codes. Reads must be public.
+   - `merxylab-secret` — customer payment slips. **No public binding of any kind.**
+2. **Expose only the public bucket.** Bind a custom domain (bucket → Settings → Custom
+   domains → e.g. `cdn.merxylab.com` under CF DNS), which becomes `NEXT_PUBLIC_CDN_URL`.
+   The r2.dev Public Development URL also works and is what production currently uses, but
+   Cloudflare rate-limits it and does not recommend it for production; a custom domain is
+   the upgrade.
+3. **Leave the private bucket closed.** No custom domain, no Public Development URL, no
+   CORS policy — the app reads it server-side over the S3 API only. Do **not** add a Bucket
+   Lock rule either: retention blocks the `DeleteObject` the slip route issues when a
+   customer replaces a slip.
+4. **Create an API token** (R2 → Manage R2 API Tokens). Scope to both buckets, permissions:
+   Object Read + Write + Delete. Capture `Access Key ID`, `Secret Access Key`, and your
+   `Account ID` (URL bar in the R2 dashboard).
+5. **Populate `.env.local`** (or hPanel → Easy Deploy → env vars on Hostinger):
    ```
    R2_ACCOUNT_ID=...
    R2_ACCESS_KEY_ID=...
    R2_SECRET_ACCESS_KEY=...
-   R2_PUBLIC_BUCKET=merxylab-public
-   R2_PRIVATE_BUCKET=merxylab-private
+   R2_PUBLIC_BUCKET=merxylab-store
+   R2_PRIVATE_BUCKET=merxylab-secret
    NEXT_PUBLIC_CDN_URL=https://cdn.merxylab.com
    ```
+
+> **The two bucket names must differ.** Production ran with both variables set to the same
+> bucket, and because that bucket had a public r2.dev binding, every customer payment slip
+> written to `slips/<orderId>/<uuid>.webp` was fetchable without a session — bypassing the
+> authed `GET /api/v1/orders/[id]/slip` route entirely. The UUID path segments made the URLs
+> unguessable, which is the only reason this was not worse. Fixed 2026-08-17 by splitting
+> `merxylab-secret` out. If you ever set these two to the same value, you have re-created it.
 5. **Rotate the API token every 90 days** along with `AUTH_SECRET` and SMTP creds.
 
 Smoke test after deploy:
