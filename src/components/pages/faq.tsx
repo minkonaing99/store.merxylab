@@ -96,7 +96,11 @@ const COPY: Dict<FaqCopy> = {
         items: [
           {
             q: 'What if it arrives faulty?',
-            a: 'Tell us within a month and we refund or replace it. Full details are on the returns and warranty page.',
+            a: 'Tell us within two weeks and we refund or replace it ourselves. Full details are on the returns and warranty page.',
+          },
+          {
+            q: 'What happens after the first two weeks?',
+            a: 'A fault becomes a warranty claim. We send the product to the company and follow their warranty policy, so you are not dealing with the manufacturer alone.',
           },
           {
             q: 'How long is the warranty?',
@@ -104,7 +108,7 @@ const COPY: Dict<FaqCopy> = {
           },
           {
             q: 'Can I return something I simply did not like?',
-            a: 'Within a month, unused and in the original box, yes. You cover the return delivery.',
+            a: 'No - returns cover factory faults and our own mistakes, not a change of mind. Ask us anything before you order and we will tell you straight whether a product suits you.',
           },
         ],
       },
@@ -209,7 +213,11 @@ const COPY: Dict<FaqCopy> = {
         items: [
           {
             q: 'ပစ္စည်း ချွတ်ယွင်းနေရင် ဘယ်လိုလုပ်ရမလဲ',
-            a: 'တစ်လအတွင်း အကြောင်းကြားပါ - ငွေပြန်အမ်း သို့မဟုတ် အသစ်လဲပေးပါသည်။ အသေးစိတ်ကို ပြန်အမ်းခြင်းနှင့် အာမခံ စာမျက်နှာတွင် ကြည့်ပါ။',
+            a: 'နှစ်ပတ်အတွင်း အကြောင်းကြားပါ - ကျွန်ုပ်တို့ ကိုယ်တိုင် ငွေပြန်အမ်း သို့မဟုတ် အသစ်လဲပေးပါသည်။ အသေးစိတ်ကို ပြန်အမ်းခြင်းနှင့် အာမခံ စာမျက်နှာတွင် ကြည့်ပါ။',
+          },
+          {
+            q: 'ပထမ နှစ်ပတ် ကျော်ပြီးရင် ဘယ်လိုလဲ',
+            a: 'ချွတ်ယွင်းချက်သည် အာမခံကိစ္စ ဖြစ်လာသည်။ ပစ္စည်းကို ကုမ္ပဏီထံ ပို့ပြီး ၎င်းတို့၏ အာမခံ စည်းမျဉ်းအတိုင်း ဆောင်ရွက်ပေးသဖြင့် ထုတ်လုပ်သူနှင့် သင်တစ်ယောက်တည်း ဆက်သွယ်စရာ မလိုပါ။',
           },
           {
             q: 'အာမခံ ဘယ်လောက် ကြာလဲ',
@@ -217,7 +225,7 @@ const COPY: Dict<FaqCopy> = {
           },
           {
             q: 'သဘောမကျလို့ ပြန်အမ်းလို့ ရလား',
-            a: 'တစ်လအတွင်း မသုံးရသေးဘဲ မူလဘူးအတိုင်းဆိုလျှင် ရပါသည်။ ပြန်ပို့ခကို သင် ကျခံရသည်။',
+            a: 'မရပါ - ထုတ်လုပ်မှု ချွတ်ယွင်းချက်နှင့် ကျွန်ုပ်တို့ အမှားများအတွက်သာ ပြန်အမ်းပါသည်၊ စိတ်ပြောင်းသွားခြင်းအတွက် မဟုတ်ပါ။ မဝယ်ခင် လိုအပ်သည်များ မေးနိုင်ပါသည် - သင့်အတွက် သင့်မသင့် ဖြောင့်ဖြောင့် ပြောပါမည်။',
           },
         ],
       },

@@ -48,6 +48,10 @@ describe('customerStatusHint', () => {
     expect(hint).not.toMatch(/transfer|slip/i)
   })
 
+  it('gives a COD buyer a window for the confirmation call, not an open wait', () => {
+    expect(customerStatusHint('pending_payment', 'cod')).toMatch(/within 3 hours/i)
+  })
+
   it('tells a wallet buyer to transfer and warns about the 24h expiry', () => {
     const hint = customerStatusHint('pending_payment', 'wallet')
     expect(hint).toMatch(/slip/i)

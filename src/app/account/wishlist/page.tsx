@@ -4,16 +4,15 @@ import { wishlists } from '@/db/schema/wishlists'
 import { products } from '@/db/schema/products'
 import { auth } from '@/lib/auth'
 import { ProductCard } from '@/components/product/card'
-import type { Product, CategoryId } from '@/lib/types'
+import type { Product } from '@/lib/types'
+import type { CategoryId } from '@/lib/categories'
 
 export default async function WishlistPage() {
   const session = await auth()
   if (!session?.user?.id) return null
 
   const rows = await db
-    .select({
-      product: products,
-    })
+    .select({ product: products })
     .from(wishlists)
     .innerJoin(products, eq(products.id, wishlists.productId))
     .where(eq(wishlists.userId, session.user.id))

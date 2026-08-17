@@ -3,7 +3,6 @@ import { and, asc, count, desc, eq, like, lt, or } from 'drizzle-orm'
 import { db } from '@/db'
 import { orders, type OrderStatus } from '@/db/schema/orders'
 import { paymentMethods } from '@/db/schema/payment-methods'
-import { addresses } from '@/db/schema/addresses'
 import { users } from '@/db/schema/auth'
 import { getSetting } from '@/lib/site-settings'
 
@@ -52,7 +51,7 @@ const ROW_COLUMNS = {
   userName: users.name,
   methodKind: paymentMethods.kind,
   paymentProofUrl: orders.paymentProofUrl,
-  phone: addresses.phone,
+  phone: orders.shipPhone,
 }
 
 type RawRow = {
@@ -83,14 +82,13 @@ function toRow(r: RawRow): OrderRow {
   }
 }
 
-/** `addresses` is left-joined - an order can outlive a deleted address. */
+/** No address join: the phone comes off the order's own shipping snapshot. */
 function baseQuery() {
   return db
     .select(ROW_COLUMNS)
     .from(orders)
     .innerJoin(users, eq(users.id, orders.userId))
     .innerJoin(paymentMethods, eq(paymentMethods.id, orders.paymentMethodId))
-    .leftJoin(addresses, eq(addresses.id, orders.shippingAddressId))
 }
 
 export async function getStaleDays(): Promise<number> {

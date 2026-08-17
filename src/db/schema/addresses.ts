@@ -19,6 +19,10 @@ export const addresses = mysqlTable(
     township: varchar('township', { length: 120 }).notNull(),
     street: varchar('street', { length: 200 }).notNull(),
     landmark: varchar('landmark', { length: 200 }),
+    /** Bare handle, no `@` and no `t.me/`. Backup channel for the confirm call. */
+    telegramUsername: varchar('telegram_username', { length: 32 }),
+    /** Google Maps link, validated by `isGoogleMapsUrl` before it is ever stored. */
+    mapsUrl: varchar('maps_url', { length: 512 }),
     isDefault: boolean('is_default').notNull().default(false),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),

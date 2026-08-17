@@ -7,6 +7,7 @@ import { db } from '@/db'
 import { orders } from '@/db/schema/orders'
 import { paymentMethods } from '@/db/schema/payment-methods'
 import { auth } from '@/lib/auth'
+import { isAdmin } from '@/lib/admin-guard'
 import { sendMail } from '@/lib/mail'
 import { sendTelegram } from '@/lib/telegram'
 import { formatMmk } from '@/lib/money'
@@ -147,9 +148,11 @@ export async function GET(
   const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
   if (!order) return fail('NOT_FOUND', 'Order not found.', 404)
 
+  // Reading someone else's payment slip is an admin act, so the role comes from
+  // the database rather than the 30-day token. The owner path never pays for the
+  // lookup.
   const isOwner = order.userId === session.user.id
-  const isAdmin = session.user.role === 'admin'
-  if (!isOwner && !isAdmin) return fail('FORBIDDEN', 'Not your order.', 403)
+  if (!isOwner && !(await isAdmin())) return fail('FORBIDDEN', 'Not your order.', 403)
 
   const basename = slipBasename(order.paymentProofUrl)
   if (!basename) return fail('NOT_FOUND', 'No slip on this order.', 404)

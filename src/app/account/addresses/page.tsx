@@ -35,6 +35,8 @@ export default async function AddressesPage() {
           township: r.township,
           street: r.street,
           landmark: r.landmark ?? '',
+          telegramUsername: r.telegramUsername ?? '',
+          mapsUrl: r.mapsUrl ?? '',
           isDefault: r.isDefault,
         }))}
         divisions={divRows.map((d) => ({ id: d.id, name: d.name }))}

@@ -29,7 +29,7 @@ export function customerStatusLabel(status: OrderStatus, kind: MethodKind): stri
 export function customerStatusHint(status: OrderStatus, kind: MethodKind): string | null {
   if (status === 'pending_payment') {
     return kind === 'cod'
-      ? 'We will call to confirm this order. Pay the courier in cash on delivery.'
+      ? 'We will call to confirm this order within 3 hours. Pay the courier in cash on delivery.'
       : 'Transfer the total, then upload your payment slip. Unpaid orders are cancelled after 24 hours.'
   }
   if (status === 'payment_submitted') return 'We are checking your slip against our bank records.'

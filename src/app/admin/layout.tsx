@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { currentRole } from '@/lib/admin-guard'
 
 const NAV = [
   { href: '/admin', label: 'Overview' },
@@ -15,9 +15,9 @@ const NAV = [
 export const dynamic = 'force-dynamic'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
-  if (!session?.user?.id) redirect('/signin?callbackUrl=/admin')
-  if (session.user.role !== 'admin') redirect('/account')
+  const actor = await currentRole()
+  if (!actor) redirect('/signin?callbackUrl=/admin')
+  if (actor.role !== 'admin') redirect('/account')
 
   return (
     <section className="container-prose py-12 md:py-16">

@@ -1,16 +1,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { CATEGORIES } from '@/lib/categories'
 
-const COLUMNS = [
-  {
-    title: 'Shop',
-    links: [
-      { href: '/shop/keyboards', label: 'Keyboards' },
-      { href: '/shop/mice', label: 'Mice' },
-      { href: '/shop/audio', label: 'Audio' },
-      { href: '/shop/accessories', label: 'Accessories' },
-    ],
-  },
+const STATIC_COLUMNS = [
   {
     title: 'Company',
     links: [
@@ -28,6 +20,14 @@ const COLUMNS = [
     ],
   },
 ] as const
+
+const COLUMNS = [
+  {
+    title: 'Shop',
+    links: CATEGORIES.map((c) => ({ href: `/shop/${c.id}`, label: c.name })),
+  },
+  ...STATIC_COLUMNS,
+]
 
 export function Footer() {
   return (
@@ -80,7 +80,6 @@ export function Footer() {
             >
               Privacy
             </Link>
-            <span>Made in small batches.</span>
           </div>
         </div>
       </div>

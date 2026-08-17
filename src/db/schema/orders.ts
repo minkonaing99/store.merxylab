@@ -36,6 +36,26 @@ export const orders = mysqlTable(
       () => addresses.id,
       { onDelete: 'set null' },
     ),
+    /**
+     * Where this order actually ships, frozen at placement.
+     *
+     * The `shipping_address_id` link above is a convenience only. Address rows
+     * are editable and deletable by the customer, so reading delivery details
+     * through the join meant an edit on Wednesday silently redirected an
+     * undelivered order placed on Monday. `order_items` already snapshots
+     * product name and price for the same reason; this is that rule applied to
+     * the destination. No foreign keys here on purpose.
+     */
+    shipRecipient: varchar('ship_recipient', { length: 120 }),
+    shipPhone: varchar('ship_phone', { length: 20 }),
+    shipTelegram: varchar('ship_telegram', { length: 32 }),
+    shipDivisionId: varchar('ship_division_id', { length: 40 }),
+    shipDivisionName: varchar('ship_division_name', { length: 60 }),
+    shipCity: varchar('ship_city', { length: 120 }),
+    shipTownship: varchar('ship_township', { length: 120 }),
+    shipStreet: varchar('ship_street', { length: 200 }),
+    shipLandmark: varchar('ship_landmark', { length: 200 }),
+    shipMapsUrl: varchar('ship_maps_url', { length: 512 }),
     paymentMethodId: varchar('payment_method_id', { length: 40 })
       .notNull()
       .references(() => paymentMethods.id, { onDelete: 'restrict' }),

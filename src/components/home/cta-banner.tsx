@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { Tile } from '../product/tile'
-import { CATEGORY_NAME, type Product } from '@/lib/types'
+import type { Product } from '@/lib/types'
+import { CATEGORY_NAME } from '@/lib/categories'
 
 interface CTABannerProps {
   product?: Product

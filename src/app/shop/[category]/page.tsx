@@ -1,7 +1,8 @@
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { GridControls } from '@/components/shop/grid-controls'
+import { ShopGridSkeleton } from '@/components/shop/grid-skeleton'
 import { getCategoryById, getProductsByCategory } from '@/lib/catalog'
-import type { CategoryId } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,12 +12,17 @@ export async function generateMetadata({
   params: Promise<{ category: string }>
 }) {
   const { category } = await params
-  const cat = await getCategoryById(category as CategoryId)
+  const cat = await getCategoryById(category)
   if (!cat) return { title: 'Not found' }
   return {
     title: cat.name,
     description: cat.description,
   }
+}
+
+async function CategoryGrid({ id }: { id: string }) {
+  const items = await getProductsByCategory(id)
+  return <GridControls all={items} activeCategory={id} />
 }
 
 export default async function CategoryPage({
@@ -25,10 +31,13 @@ export default async function CategoryPage({
   params: Promise<{ category: string }>
 }) {
   const { category } = await params
-  const cat = await getCategoryById(category as CategoryId)
-  if (!cat) notFound()
 
-  const items = await getProductsByCategory(cat.id)
+  // Resolved before anything streams. A `loading.tsx` here would send the 200
+  // header first and turn every unknown slug into a soft 404 - the bug that
+  // got the root loading file deleted. `getCategoryById` reads an in-memory
+  // array, so this check costs nothing and the decision is made up front.
+  const cat = await getCategoryById(category)
+  if (!cat) notFound()
 
   return (
     <section className="container-prose py-16 md:py-20">
@@ -39,7 +48,9 @@ export default async function CategoryPage({
       <p className="mt-4 max-w-[52ch] text-[15px] text-ink-soft">{cat.description}</p>
 
       <div className="mt-10">
-        <GridControls all={items} activeCategory={cat.id} />
+        <Suspense fallback={<ShopGridSkeleton />}>
+          <CategoryGrid id={cat.id} />
+        </Suspense>
       </div>
     </section>
   )

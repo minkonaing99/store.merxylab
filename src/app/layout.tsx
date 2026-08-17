@@ -40,14 +40,14 @@ export const metadata: Metadata = {
     template: '%s · merxylab',
   },
   description:
-    'Editorial-grade keyboards, mice, audio and accessories. Built quietly, made to last.',
+    'Keyboards, mice, monitors, audio and accessories. Chosen slowly, made to last.',
   applicationName: 'merxylab',
   icons: { icon: '/favicon.ico' },
   openGraph: {
     type: 'website',
     title: 'merxylab - peripherals for the desk you actually use',
     description:
-      'Editorial-grade keyboards, mice, audio and accessories. Built quietly, made to last.',
+      'Keyboards, mice, monitors, audio and accessories. Chosen slowly, made to last.',
     siteName: 'merxylab',
     images: ['/logo.png'],
   },

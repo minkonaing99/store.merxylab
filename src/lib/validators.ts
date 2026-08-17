@@ -4,7 +4,9 @@
  */
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PHONE_REGEX = /^\+959\d{7,9}$/
+
+/** Exported so the API schemas build on it instead of restating the literal. */
+export const PHONE_REGEX = /^\+959\d{7,9}$/
 
 export function isEmail(v: string): boolean {
   return EMAIL_REGEX.test(v.trim())
@@ -54,6 +56,65 @@ export function checkPassword(v: string): PasswordCheck {
   if (!/[A-Z]/.test(v)) return { ok: false, reason: 'Add at least one uppercase letter.' }
   if (!/\d/.test(v)) return { ok: false, reason: 'Add at least one digit.' }
   return { ok: true }
+}
+
+/** Telegram's own rule: 5-32 chars, letters/digits/underscore, letter first. */
+const TELEGRAM_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/
+const TELEGRAM_PREFIX = /^(?:https?:\/\/)?(?:www\.)?t\.me\//i
+
+export const TELEGRAM_MAX = 32
+export const TELEGRAM_HINT = 'Telegram handle for the confirmation call. Optional.'
+
+/** `@minkonaing`, `t.me/minkonaing` and `minkonaing` all store the same way. */
+export function normalizeTelegramUsername(v: string): string {
+  return v.trim().replace(TELEGRAM_PREFIX, '').replace(/^@+/, '')
+}
+
+export function isTelegramUsername(v: string): boolean {
+  return TELEGRAM_REGEX.test(normalizeTelegramUsername(v))
+}
+
+export const MAPS_URL_MAX = 512
+export const MAPS_URL_HINT = 'Paste a Google Maps link. Share > Copy link in the Maps app.'
+
+/** Hosts that serve maps directly, whatever the path. */
+const MAPS_HOSTS = new Set(['maps.google.com', 'maps.app.goo.gl'])
+
+/**
+ * `google.com`, `google.mm`, `google.com.mm`, `google.co.uk`.
+ *
+ * The tail is deliberately tight. A loose `google\.[a-z.]+` would also accept
+ * `google.com.evil.com`, which is an attacker-controlled host wearing a
+ * Google-shaped prefix.
+ */
+const GOOGLE_HOST = /^google\.(com|[a-z]{2}|com\.[a-z]{2}|co\.[a-z]{2})$/
+const MAPS_PATH = /^\/maps(\/|$)/
+
+/**
+ * A customer-supplied URL that the admin order screen renders as a link, so
+ * this is the boundary between "the buyer pinned their house" and "the buyer
+ * handed the shop owner a link to anywhere". `https` only, Google hosts only.
+ */
+export function isGoogleMapsUrl(v: string): boolean {
+  const raw = v.trim()
+  if (raw.length === 0 || raw.length > MAPS_URL_MAX) return false
+
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return false
+  }
+  // Blocks javascript: and data:, which would otherwise be a stored XSS in the
+  // one screen that can edit products and orders.
+  if (url.protocol !== 'https:') return false
+
+  // `new URL` resolves userinfo tricks like https://google.com@evil.com, so
+  // reading hostname (not the raw string) is what makes this safe.
+  const host = url.hostname.toLowerCase().replace(/^www\./, '')
+  if (MAPS_HOSTS.has(host)) return true
+  if (host === 'goo.gl' || GOOGLE_HOST.test(host)) return MAPS_PATH.test(url.pathname)
+  return false
 }
 
 export function required(v: string, label = 'This field'): string | null {

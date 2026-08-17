@@ -8,7 +8,6 @@ interface Step {
   /** The order status this step represents - also drives progress position. */
   status: OrderStatus
   label: string
-  note: string
 }
 
 /**
@@ -16,20 +15,16 @@ interface Step {
  * straight from placed to confirmed, because the shop confirms by phone.
  */
 const WALLET_STEPS: readonly Step[] = [
-  { status: 'pending_payment', label: 'Order placed', note: 'We have your order.' },
-  {
-    status: 'payment_submitted',
-    label: 'Payment sent',
-    note: 'Slip uploaded, waiting on our check.',
-  },
-  { status: 'confirmed', label: 'Confirmed', note: 'Payment verified, packed and on the way.' },
-  { status: 'delivered', label: 'Delivered', note: 'Handed over. Enjoy the gear.' },
+  { status: 'pending_payment', label: 'Order placed' },
+  { status: 'payment_submitted', label: 'Payment sent' },
+  { status: 'confirmed', label: 'Confirmed' },
+  { status: 'delivered', label: 'Delivered' },
 ]
 
 const COD_STEPS: readonly Step[] = [
-  { status: 'pending_payment', label: 'Order placed', note: 'We have your order.' },
-  { status: 'confirmed', label: 'Confirmed', note: 'Phone-confirmed, packed and on the way.' },
-  { status: 'delivered', label: 'Delivered', note: 'Pay the courier in cash on arrival.' },
+  { status: 'pending_payment', label: 'Order placed' },
+  { status: 'confirmed', label: 'Confirmed' },
+  { status: 'delivered', label: 'Delivered' },
 ]
 
 interface OrderProgressProps {
@@ -37,18 +32,24 @@ interface OrderProgressProps {
   kind: MethodKind
   placedAt: string
   updatedAt: string
+  className?: string
 }
 
-export function OrderProgress({ status, kind, placedAt, updatedAt }: OrderProgressProps) {
+export function OrderProgress({
+  status,
+  kind,
+  placedAt,
+  updatedAt,
+  className,
+}: OrderProgressProps) {
   if (status === 'cancelled') {
+    // No heading here: the page states the status above this. Repeating it
+    // makes one fact read as two.
     return (
-      <div className="mt-8 rounded-[var(--radius)] border border-error/30 bg-error/5 px-5 py-4">
-        <div className="text-[14px] font-medium text-error">Order cancelled</div>
-        <p className="mt-1 text-[13px] text-ink-soft">
-          Cancelled {timeAgo(updatedAt)}. Nothing is owed. Message us if this was a mistake and we
-          will place it again.
-        </p>
-      </div>
+      <p className={cn('text-[14px] leading-[1.6] text-ink-soft', className)}>
+        Cancelled {timeAgo(updatedAt)}. Nothing is owed. Message us if this was a mistake and we
+        will place it again.
+      </p>
     )
   }
 
@@ -60,7 +61,7 @@ export function OrderProgress({ status, kind, placedAt, updatedAt }: OrderProgre
 
   return (
     <ol
-      className="mt-8 grid gap-0 sm:grid-cols-[repeat(var(--steps),minmax(0,1fr))]"
+      className={cn('grid gap-0 sm:grid-cols-[repeat(var(--steps),minmax(0,1fr))]', className)}
       style={{ '--steps': steps.length } as CSSProperties}
     >
       {steps.map((step, i) => {
@@ -71,15 +72,15 @@ export function OrderProgress({ status, kind, placedAt, updatedAt }: OrderProgre
         const stamp = i === 0 ? placedAt : isCurrent && i > 0 ? updatedAt : null
 
         return (
-          <li key={step.status} className="relative flex gap-3 pb-6 sm:block sm:pb-0">
+          <li key={step.status} className="relative flex gap-3 pb-5 last:pb-0 sm:block sm:pb-0">
             {/* Rail: vertical on mobile, horizontal on desktop. */}
             <div className="flex flex-col items-center sm:flex-row sm:items-center">
               <span
                 aria-hidden
                 className={cn(
-                  'z-10 size-3 shrink-0 rounded-full ring-4 ring-cream transition-colors',
+                  'z-10 size-2 shrink-0 rounded-full ring-4 ring-cream',
+                  isCurrent && 'size-2.5 bg-accent',
                   done && 'bg-ink',
-                  isCurrent && 'bg-accent',
                   !done && !isCurrent && 'bg-line',
                 )}
               />
@@ -94,18 +95,15 @@ export function OrderProgress({ status, kind, placedAt, updatedAt }: OrderProgre
               )}
             </div>
 
-            <div className="min-w-0 pb-1 sm:mt-3 sm:pr-4">
+            <div className="min-w-0 sm:mt-3 sm:pr-4">
               <div
                 className={cn(
-                  'text-[13px] leading-tight',
-                  isCurrent ? 'font-medium text-ink' : done ? 'text-ink' : 'text-muted',
+                  'text-[12px] leading-tight',
+                  isCurrent ? 'font-medium text-ink' : done ? 'text-ink-soft' : 'text-muted',
                 )}
               >
                 {step.label}
               </div>
-              {(isCurrent || done) && (
-                <p className="mt-1 text-[12px] leading-relaxed text-muted">{step.note}</p>
-              )}
               {stamp && (
                 <time
                   dateTime={stamp}

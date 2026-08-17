@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { fail, ok } from '@/lib/api-response'
+import { fail, ok, rateLimited } from '@/lib/api-response'
 import { z } from 'zod'
 import { getCartLines, removeCartItem, setCartItemQty } from '@/lib/cart-session'
+import { clientKey, rateLimit } from '@/lib/rate-limit'
 
 const SLUG_RE = /^[a-z0-9-]+$/
 
@@ -9,10 +10,20 @@ const patchSchema = z.object({
   qty: z.number().int().min(0).max(99),
 })
 
+/** Same bucket and budget as the sibling POST - one cart, one allowance. */
+function cartLimit(req: Request) {
+  return rateLimit({ key: clientKey(req, 'cart'), limit: 60, windowMs: 60_000 })
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ productId: string }> },
 ): Promise<NextResponse> {
+  const limit = cartLimit(req)
+  if (!limit.allowed) {
+    return rateLimited('Too many requests.', limit.retryAfterSeconds)
+  }
+
   const { productId } = await params
   if (!SLUG_RE.test(productId)) {
     return fail('VALIDATION_ERROR', 'Invalid id.', 400)
@@ -31,9 +42,14 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ productId: string }> },
 ): Promise<NextResponse> {
+  const limit = cartLimit(req)
+  if (!limit.allowed) {
+    return rateLimited('Too many requests.', limit.retryAfterSeconds)
+  }
+
   const { productId } = await params
   if (!SLUG_RE.test(productId)) {
     return fail('VALIDATION_ERROR', 'Invalid id.', 400)

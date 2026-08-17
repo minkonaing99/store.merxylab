@@ -4,11 +4,11 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { orders, orderItems } from '@/db/schema/orders'
 import { paymentMethods } from '@/db/schema/payment-methods'
-import { addresses } from '@/db/schema/addresses'
-import { divisions } from '@/db/schema/divisions'
 import { users } from '@/db/schema/auth'
+import { MapPin } from 'lucide-react'
 import { requireAdmin } from '@/lib/admin-guard'
 import { formatMmk } from '@/lib/money'
+import { isGoogleMapsUrl } from '@/lib/validators'
 import { AdminOrderActions } from './actions'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -26,18 +26,30 @@ export default async function AdminOrderDetailPage({
   const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
   if (!order) notFound()
 
-  const [items, [method], [user], [shipping]] = await Promise.all([
+  const [items, [method], [user]] = await Promise.all([
     db.select().from(orderItems).where(eq(orderItems.orderId, id)),
     db.select().from(paymentMethods).where(eq(paymentMethods.id, order.paymentMethodId)).limit(1),
     db.select().from(users).where(eq(users.id, order.userId)).limit(1),
-    order.shippingAddressId
-      ? db.select().from(addresses).where(eq(addresses.id, order.shippingAddressId)).limit(1)
-      : Promise.resolve([null]),
   ])
 
-  const [division] = shipping?.divisionId
-    ? await db.select().from(divisions).where(eq(divisions.id, shipping.divisionId)).limit(1)
-    : [null]
+  // The `ship_*` snapshot, not the address row. The customer can edit or
+  // delete that row at any point before the order is confirmed, and this
+  // screen is what the parcel gets packed from.
+  const shipping = order.shipRecipient
+    ? {
+        recipient: order.shipRecipient,
+        phone: order.shipPhone,
+        telegram: order.shipTelegram,
+        street: order.shipStreet,
+        township: order.shipTownship,
+        city: order.shipCity,
+        divisionName: order.shipDivisionName,
+        landmark: order.shipLandmark,
+        // Re-validated on the way out: a row could predate the validator, and
+        // this href is rendered in the one screen that can edit the catalog.
+        mapsUrl: order.shipMapsUrl && isGoogleMapsUrl(order.shipMapsUrl) ? order.shipMapsUrl : null,
+      }
+    : null
 
   const hasSlip = Boolean(order.paymentProofUrl)
 
@@ -95,14 +107,30 @@ export default async function AdminOrderDetailPage({
             <div className="mt-3 space-y-1 text-[13px]">
               <div className="text-ink">{shipping.recipient}</div>
               <div className="font-mono text-muted">{shipping.phone}</div>
+              {shipping.telegram && (
+                <div className="text-muted">
+                  Telegram <span className="font-mono text-ink">@{shipping.telegram}</span>
+                </div>
+              )}
               <div className="text-ink-soft">
                 {shipping.street}
                 {shipping.landmark ? ` (${shipping.landmark})` : ''}
               </div>
               <div className="text-ink-soft">
                 {shipping.township}, {shipping.city}
-                {division ? ` - ${division.name}` : ''}
+                {shipping.divisionName ? ` - ${shipping.divisionName}` : ''}
               </div>
+              {shipping.mapsUrl && (
+                <a
+                  href={shipping.mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="inline-flex items-center gap-1 pt-1 text-ink underline underline-offset-4 hover:text-accent"
+                >
+                  <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
+                  Open map pin
+                </a>
+              )}
             </div>
           ) : (
             <div className="mt-3 text-[13px] text-muted">No shipping address on file.</div>

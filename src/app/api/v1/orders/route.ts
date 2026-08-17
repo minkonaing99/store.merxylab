@@ -9,6 +9,7 @@ import { addresses } from '@/db/schema/addresses'
 import { divisions } from '@/db/schema/divisions'
 import { paymentMethods } from '@/db/schema/payment-methods'
 import { auth } from '@/lib/auth'
+import { optionalMapsUrl, optionalTelegram, phoneField } from '@/lib/address-fields'
 import { getCartLines, clearCart } from '@/lib/cart-session'
 import { sendMail } from '@/lib/mail'
 import { maskEmail } from '@/lib/mask'
@@ -18,19 +19,20 @@ import { sendTelegram } from '@/lib/telegram'
 import { NewOrderAlert } from '@emails/new-order-alert'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const PHONE_REGEX = /^\+959\d{7,9}$/
 const COD_CAP_MMK = 500_000
 const ORDER_EXPIRY_MS = 24 * 60 * 60 * 1000
 
 const newAddressSchema = z.object({
   label: z.string().min(1).max(40),
   recipient: z.string().min(1).max(120),
-  phone: z.string().regex(PHONE_REGEX).max(20),
+  phone: phoneField,
   divisionId: z.string().min(1).max(40),
   city: z.string().min(1).max(120),
   township: z.string().min(1).max(120),
   street: z.string().min(1).max(200),
   landmark: z.string().max(200).nullable().optional(),
+  telegramUsername: optionalTelegram,
+  mapsUrl: optionalMapsUrl,
   saveToAccount: z.boolean().optional().default(false),
 })
 
@@ -74,6 +76,19 @@ export async function POST(req: Request): Promise<NextResponse> {
   // - nor hand an unchecked `divisionId` to the foreign key, which surfaces as
   // a 500 instead of the 400 the division lookup gives.
   let addressToCreate: typeof addresses.$inferInsert | null = null
+  // Copied onto the order below rather than read back through the address FK.
+  // Address rows stay editable and deletable by the customer, so the join was
+  // never a stable answer to "where does this parcel go".
+  let ship: {
+    recipient: string
+    phone: string
+    telegram: string | null
+    city: string
+    township: string
+    street: string
+    landmark: string | null
+    mapsUrl: string | null
+  }
 
   if (parsed.data.shippingAddressId) {
     const [addr] = await db
@@ -86,6 +101,16 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
     shippingAddressId = addr.id
     divisionId = addr.divisionId
+    ship = {
+      recipient: addr.recipient,
+      phone: addr.phone,
+      telegram: addr.telegramUsername,
+      city: addr.city,
+      township: addr.township,
+      street: addr.street,
+      landmark: addr.landmark,
+      mapsUrl: addr.mapsUrl,
+    }
   } else if (parsed.data.newAddress) {
     const na = parsed.data.newAddress
     divisionId = na.divisionId
@@ -101,7 +126,19 @@ export async function POST(req: Request): Promise<NextResponse> {
       township: na.township,
       street: na.street,
       landmark: na.landmark ?? null,
+      telegramUsername: na.telegramUsername,
+      mapsUrl: na.mapsUrl,
       isDefault: false,
+    }
+    ship = {
+      recipient: na.recipient,
+      phone: na.phone,
+      telegram: na.telegramUsername,
+      city: na.city,
+      township: na.township,
+      street: na.street,
+      landmark: na.landmark ?? null,
+      mapsUrl: na.mapsUrl,
     }
   } else {
     return fail('VALIDATION_ERROR', 'Missing address.', 400)
@@ -168,6 +205,16 @@ export async function POST(req: Request): Promise<NextResponse> {
       deliveryFeeMmk: deliveryFee,
       totalMmk: total,
       shippingAddressId,
+      shipRecipient: ship.recipient,
+      shipPhone: ship.phone,
+      shipTelegram: ship.telegram,
+      shipDivisionId: divisionId,
+      shipDivisionName: division.name,
+      shipCity: ship.city,
+      shipTownship: ship.township,
+      shipStreet: ship.street,
+      shipLandmark: ship.landmark,
+      shipMapsUrl: ship.mapsUrl,
       paymentMethodId: method.id,
       paymentRef: orderId,
       expiresAt,

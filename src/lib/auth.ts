@@ -100,6 +100,13 @@ export const { handlers, auth } = NextAuth({
       : []),
   ],
   callbacks: {
+    /**
+     * `role` is written once, at sign-in, and the token then lives for 30 days.
+     * It is fine for deciding what to show, but it is not an authorisation
+     * answer: use `currentRole` / `requireAdmin` from ./admin-guard for that, so
+     * a revoked admin loses access on their next request rather than whenever
+     * their token happens to expire.
+     */
     async jwt({ token, user }) {
       if (user && 'id' in user && user.id) {
         token.id = user.id

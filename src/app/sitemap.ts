@@ -13,12 +13,37 @@ const CONTENT_PATHS = [
 ] as const
 
 /**
+ * The catalog, or nothing at all if it cannot be reached.
+ *
+ * This route is statically generated, so the read happens at build time against
+ * whatever database the build environment can reach - which in CI is none, and
+ * an unhandled throw there fails the entire build over a file that only lists
+ * URLs. The catalog read is cached with a 60-second revalidate, so a sitemap
+ * built without products fills them in on the first request that can reach the
+ * database.
+ */
+async function productsOrNone(): Promise<Awaited<ReturnType<typeof getAllProducts>>> {
+  try {
+    return await getAllProducts()
+  } catch (error: unknown) {
+    // The message alone (the failed query) is enough to diagnose this. Logging
+    // the error object instead prints the driver's `cause` chain, and a
+    // connection fault carries the database username in it.
+    console.warn(
+      '[sitemap] catalog unreachable; product URLs omitted.',
+      error instanceof Error ? error.message : String(error),
+    )
+    return []
+  }
+}
+
+/**
  * Reads the live catalog, not the legacy `src/data/*.json`. The JSON drifts
  * from the database the moment a product is added or retired in /admin, which
  * had this file advertising four products that 404 and omitting two that sell.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categories, products] = await Promise.all([getAllCategories(), getAllProducts()])
+  const [categories, products] = await Promise.all([getAllCategories(), productsOrNone()])
   const now = new Date()
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, lastModified: now, priority: 1 },

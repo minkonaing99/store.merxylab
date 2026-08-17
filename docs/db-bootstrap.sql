@@ -1,27 +1,33 @@
 -- merxylab-store bootstrap SQL
 --
 -- Fresh-install script. Run against an empty MySQL 8 database to create
--- every table, then seed reference data + the product catalog.
+-- every table, then insert the reference data the app cannot boot without.
+--
+-- No product catalog. A fresh install starts with an empty shop; add products
+-- through /admin. Divisions and payment methods are not catalog data and must
+-- stay: checkout reads divisions for delivery fees and COD eligibility, and
+-- the payment step reads payment_methods.
+--
+-- There is no `categories` table. The shop's five categories live in
+-- `src/lib/categories.ts` and ship with the code, so `products.category_id`
+-- carries no foreign key; the admin product routes validate it against that
+-- list instead.
 --
 -- How to apply:
 --   Local:     mysql -u root -p merxylab < docs/db-bootstrap.sql
 --   Hostinger: hPanel -> MySQL Databases -> phpMyAdmin -> select the DB ->
 --              Import -> upload this file -> Go.
 --
--- Schema section (1) is hand-maintained from src/db/schema/*.ts.
--- Seed sections (2-6) are generated from a live database:
---     npm run db:dump-seed
--- Re-run that after changing the catalog in /admin so a fresh install
--- matches what the shop actually sells. Customer data (users, orders,
--- carts, reviews, wishlists, site_settings) is never dumped.
+-- Section 1 (schema) is hand-maintained from src/db/schema/*.ts.
+-- Sections 2-3 are reference data. `npm run db:dump-seed` regenerates them
+-- from a live database; it never writes catalog or customer rows.
 --
--- Run order: schema -> divisions -> payment_methods -> categories ->
---            products -> product_specs.
+-- Run order: schema -> divisions -> payment_methods.
 --
 -- Notes:
 --   * site_settings ships empty; rows are inserted at runtime via /admin.
---   * Product photos, payment QR, and slips live on Cloudflare R2 — no
---     filesystem writes. has_photos ships 0; uploading via /admin flips it.
+--   * Product photos, payment QR, and slips live on Cloudflare R2, no
+--     filesystem writes. Uploading via /admin sets has_photos per product.
 --   * After install, grant yourself admin:
 --       UPDATE users SET role='admin' WHERE email='you@example.com';
 
@@ -39,6 +45,8 @@ CREATE TABLE `addresses` (
 	`township` varchar(120) NOT NULL,
 	`street` varchar(200) NOT NULL,
 	`landmark` varchar(200),
+	`telegram_username` varchar(32),
+	`maps_url` varchar(512),
 	`is_default` boolean NOT NULL DEFAULT false,
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
@@ -117,16 +125,6 @@ CREATE TABLE `divisions` (
 	CONSTRAINT `divisions_id` PRIMARY KEY(`id`)
 );
 
-CREATE TABLE `categories` (
-	`id` varchar(32) NOT NULL,
-	`name` varchar(80) NOT NULL,
-	`description` text NOT NULL,
-	`sort_order` int NOT NULL DEFAULT 0,
-	`created_at` timestamp NOT NULL DEFAULT (now()),
-	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	CONSTRAINT `categories_id` PRIMARY KEY(`id`)
-);
-
 CREATE TABLE `product_specs` (
 	`id` bigint AUTO_INCREMENT NOT NULL,
 	`product_id` varchar(64) NOT NULL,
@@ -190,6 +188,18 @@ CREATE TABLE `orders` (
 	`delivery_fee_mmk` bigint NOT NULL,
 	`total_mmk` bigint NOT NULL,
 	`shipping_address_id` varchar(36),
+	-- Delivery destination frozen at placement. Address rows stay editable, so
+	-- reading these through the join let a later edit redirect a live order.
+	`ship_recipient` varchar(120),
+	`ship_phone` varchar(20),
+	`ship_telegram` varchar(32),
+	`ship_division_id` varchar(40),
+	`ship_division_name` varchar(60),
+	`ship_city` varchar(120),
+	`ship_township` varchar(120),
+	`ship_street` varchar(200),
+	`ship_landmark` varchar(200),
+	`ship_maps_url` varchar(512),
 	`payment_method_id` varchar(40) NOT NULL,
 	`payment_proof_url` varchar(255),
 	`payment_tx_ref` varchar(120),
@@ -237,7 +247,6 @@ ALTER TABLE `cart_items` ADD CONSTRAINT `cart_items_cart_id_carts_id_fk` FOREIGN
 ALTER TABLE `cart_items` ADD CONSTRAINT `cart_items_product_id_products_id_fk` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE cascade ON UPDATE no action;
 ALTER TABLE `carts` ADD CONSTRAINT `carts_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;
 ALTER TABLE `product_specs` ADD CONSTRAINT `product_specs_product_id_products_id_fk` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE cascade ON UPDATE no action;
-ALTER TABLE `products` ADD CONSTRAINT `products_category_id_categories_id_fk` FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE no action ON UPDATE no action;
 ALTER TABLE `order_items` ADD CONSTRAINT `order_items_order_id_orders_id_fk` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE cascade ON UPDATE no action;
 ALTER TABLE `order_items` ADD CONSTRAINT `order_items_product_id_products_id_fk` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE no action ON UPDATE no action;
 ALTER TABLE `orders` ADD CONSTRAINT `orders_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE no action ON UPDATE no action;
@@ -292,63 +301,6 @@ INSERT INTO `payment_methods` (`id`, `name`, `kind`, `account_name`, `account_ph
 ('uab_pay', 'UAB Pay', 'wallet', NULL, NULL, NULL, NULL, 3, 0),
 ('kbz_bank', 'KBZ Bank', 'wallet', NULL, NULL, NULL, NULL, 4, 0),
 ('cod', 'Cash on Delivery', 'cod', NULL, NULL, NULL, NULL, 5, 1);
-
-
--- =================================================================
--- 4. Categories
--- =================================================================
-INSERT INTO `categories` (`id`, `name`, `description`, `sort_order`) VALUES
-('keyboards', 'Keyboards', 'Mechanical, low-profile, and hot-swap boards built for daily writing — not for tournaments.', 1),
-('mice', 'Mice', 'Pointing devices with restraint. Quiet clicks, honest shapes, low-latency wireless.', 2),
-('audio', 'Audio', 'Headsets, desktop mics, and compact desk speakers - tuned for voices first, music close behind.', 3),
-('accessories', 'Accessories', 'Mats, wrist rests, and the small things that finish a desk.', 4);
-
-
--- =================================================================
--- 5. Products
--- =================================================================
-INSERT INTO `products` (`id`, `slug`, `name`, `category_id`, `price_mmk`, `tagline`, `description`, `swatch`, `stock_qty`, `low_stock_threshold`, `has_photos`, `is_active`, `featured`, `sort_order`) VALUES
-('vxe-dragonfly-r1-se', 'vxe-dragonfly-r1-se', 'VXE Dragonfly R1 SE+', 'mice', 150000, '55g wireless esports mouse, PAW3395 SE, 70hr battery', 'Ultralight wireless gaming mouse built for esports and long work sessions. The PAW3395 SE optical sensor tracks up to 18,000 DPI at 400 IPS, so aim stays accurate on fast flicks. The symmetrical shell works for palm, claw, and fingertip grips, and the low weight keeps your hand fresh after hours of play.
-Connect three ways: 2.4GHz wireless, Bluetooth, or USB-C wired. SmartSpeed X keeps wireless latency low enough for competitive shooters. One charge lasts around 70 hours at 1000Hz, so you charge it once a week, not every night.
-
-Huano micro switches give a crisp click. PTFE feet glide smooth out of the box. Settings adjust through the web driver, no software install needed.', '#858585', 17, 3, 1, 1, 1, 1),
-('logitech-mx-master-4', 'logitech-mx-master-4', 'Logitech Mx Master 4', 'mice', 568000, 'mouse', 'Meet the MX Master 4 that brings immersive control and precision you can feel with customizable haptic feedback on specific actions. Save up to 33% of your time with Actions Ring shortcuts and MX Master 4, by accessing tools and filters at your cursor. Additional features: 2x better connectivity, ultra fast scrolling with the MagSpeed scroll wheel, 8k DPI any surface tracking, including glass & Logi Options+ for customization.', '#b0a39b', 5, 2, 1, 1, 1, 2),
-('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 1, 1, 1, 10),
-('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#eae1d7', 5, 2, 1, 1, 1, 20),
-('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#897e70', 4, 2, 1, 1, 1, 30),
-('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'audio', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 0, 70),
-('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 0, 80);
-
-
--- =================================================================
--- 6. Product specs
--- =================================================================
-INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUES
-('edifier-m230-retro-brown', 'Output', '20 W', 0),
-('edifier-m230-retro-brown', 'Connectivity', 'BT 5.0 / AUX / USB-C / TF', 1),
-('edifier-m230-retro-brown', 'Battery', '10 hours', 2),
-('edifier-m230-retro-brown', 'Finish', 'Retro Brown', 3),
-('keychron-k2-pro', 'Layout', '75% (84 keys)', 0),
-('keychron-k2-pro', 'Switches', 'Hot-swap, Brown or Red', 1),
-('keychron-k2-pro', 'Connection', 'BT 5.1 + 2.4G + USB-C', 2),
-('keychron-k2-pro', 'Firmware', 'QMK / VIA', 3),
-('logitech-g-pro-x-superlight-2', 'Sensor', 'HERO 2, 32000 DPI', 0),
-('logitech-g-pro-x-superlight-2', 'Weight', '< 60 g', 1),
-('logitech-g-pro-x-superlight-2', 'Connection', 'LIGHTSPEED 2.4G + USB-C', 2),
-('logitech-g-pro-x-superlight-2', 'Battery', '95 hours', 3),
-('nuphy-halo65', 'Layout', '65% (68 keys)', 0),
-('nuphy-halo65', 'Mount', 'Gasket', 1),
-('nuphy-halo65', 'Switches', 'Hot-swap, Night Breeze / Rose Glacier', 2),
-('nuphy-halo65', 'Connection', 'BT + 2.4G + USB-C', 3),
-('premium-deskmat', 'Size', '900 × 400 mm', 0),
-('premium-deskmat', 'Thickness', '4 mm', 1),
-('premium-deskmat', 'Surface', 'Cloth, non-slip rubber base', 2),
-('premium-deskmat', 'Care', 'Machine washable', 3),
-('vxe-dragonfly-r1-se', 'Sensor', 'PAW3395 SE optical', 0),
-('vxe-dragonfly-r1-se', 'Max', '18,000 (10 DPI steps)', 1),
-('vxe-dragonfly-r1-se', 'Max speed', '400 IPS', 2),
-('vxe-dragonfly-r1-se', 'Polling rate', '125 to 2000 Hz (2K dongle)', 3),
-('vxe-dragonfly-r1-se', 'Weight', '55g', 4);
 
 
 -- =================================================================

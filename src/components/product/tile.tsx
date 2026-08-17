@@ -4,7 +4,8 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import type { PhotoSlot, Product } from '@/lib/types'
-import { CATEGORY_NAME, PHOTO_BASE } from '@/lib/types'
+import { PHOTO_BASE } from '@/lib/types'
+import { CATEGORY_NAME } from '@/lib/categories'
 
 interface TileProps {
   product: Product

@@ -13,7 +13,7 @@ const HOW_IT_WORKS = [
   'Order online, pay by bank transfer or mobile wallet, and upload the slip on your order page.',
   'Cash on delivery is available in Yangon and Mandalay for orders under Ks 500,000.',
   'We ship nationwide from Mandalay. The delivery fee depends on your division and is shown at checkout.',
-  'Something wrong within a month? We refund or replace it here in Myanmar - nothing gets shipped overseas.',
+  'A factory fault in the first two weeks? We refund or replace it here in Myanmar. After that we take the warranty claim to the company for you - nothing is your problem to ship overseas.',
 ] as const
 
 /** English only - this page is deliberately not translated. */

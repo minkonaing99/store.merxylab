@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 
 const STATS = [
   { value: 'Genuine', label: 'real stock, manufacturer warranty on every product' },
-  { value: '1 month', label: 'something wrong? we refund or replace it' },
+  { value: '2 weeks', label: 'factory fault? we refund or replace it ourselves' },
   { value: 'Nationwide', label: 'delivery from Mandalay, across Myanmar' },
 ] as const
 

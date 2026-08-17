@@ -2,15 +2,20 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2 } from 'lucide-react'
+import { MapPin, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PhoneField, SelectField, TextField } from '@/components/ui/field'
 import { api } from '@/lib/api-client'
 import {
+  MAPS_URL_HINT,
   PHONE_HINT,
   PHONE_PREFIX,
+  TELEGRAM_HINT,
+  isGoogleMapsUrl,
   isPhoneLocal,
+  isTelegramUsername,
   normalizePhoneLocal,
+  normalizeTelegramUsername,
   required,
   toE164Phone,
 } from '@/lib/validators'
@@ -25,6 +30,8 @@ interface AddressForm {
   township: string
   street: string
   landmark: string
+  telegramUsername: string
+  mapsUrl: string
   isDefault: boolean
 }
 
@@ -42,6 +49,8 @@ const EMPTY: AddressForm = {
   township: '',
   street: '',
   landmark: '',
+  telegramUsername: '',
+  mapsUrl: '',
   isDefault: false,
 }
 
@@ -50,7 +59,16 @@ interface ManagerProps {
   divisions: DivisionLite[]
 }
 
-type FieldKey = 'label' | 'recipient' | 'phone' | 'divisionId' | 'city' | 'township' | 'street'
+type FieldKey =
+  | 'label'
+  | 'recipient'
+  | 'phone'
+  | 'divisionId'
+  | 'city'
+  | 'township'
+  | 'street'
+  | 'telegramUsername'
+  | 'mapsUrl'
 type Errors = Partial<Record<FieldKey, string>>
 type Touched = Partial<Record<FieldKey, boolean>>
 
@@ -82,6 +100,13 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
     if (township) next.township = township
     const street = required(values.street, 'Street')
     if (street) next.street = street
+    // Both optional: only judged once something has been typed.
+    if (values.telegramUsername.trim() && !isTelegramUsername(values.telegramUsername)) {
+      next.telegramUsername = '5-32 letters, digits or underscores, starting with a letter.'
+    }
+    if (values.mapsUrl.trim() && !isGoogleMapsUrl(values.mapsUrl)) {
+      next.mapsUrl = 'Must be a Google Maps link.'
+    }
     return next
   }
 
@@ -107,6 +132,8 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
       city: true,
       township: true,
       street: true,
+      telegramUsername: true,
+      mapsUrl: true,
     })
     if (Object.keys(v).length > 0) {
       toast('Fix the highlighted fields.')
@@ -119,6 +146,8 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
         ...form,
         phone: toE164Phone(form.phone),
         landmark: form.landmark || null,
+        telegramUsername: normalizeTelegramUsername(form.telegramUsername) || null,
+        mapsUrl: form.mapsUrl.trim() || null,
       }),
     })
     setSaving(false)
@@ -134,9 +163,11 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
   }
 
   async function remove(id: string) {
-    const res = await fetch(`/api/v1/addresses/${id}`, { method: 'DELETE' })
+    const res = await api(`/api/v1/addresses/${id}`, { method: 'DELETE' })
     if (!res.ok) {
-      toast('Failed to delete.')
+      // 409 carries the reason an address is frozen mid-delivery. Showing the
+      // generic failure instead would leave the customer clicking a dead button.
+      toast(res.error?.message ?? 'Failed to delete.')
       return
     }
     router.refresh()
@@ -167,7 +198,21 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
                     {a.landmark && (
                       <div className="text-[12px] text-muted">{a.landmark}</div>
                     )}
-                    <div className="mt-0.5 text-[12px] text-muted">{a.phone}</div>
+                    <div className="mt-0.5 text-[12px] text-muted">
+                      {a.phone}
+                      {a.telegramUsername ? ` · Telegram @${a.telegramUsername}` : ''}
+                    </div>
+                    {a.mapsUrl && isGoogleMapsUrl(a.mapsUrl) && (
+                      <a
+                        href={a.mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="mt-1 inline-flex items-center gap-1 text-[12px] text-ink underline underline-offset-4 hover:text-accent"
+                      >
+                        <MapPin className="h-3 w-3" strokeWidth={1.5} aria-hidden />
+                        Map pin
+                      </a>
+                    )}
                   </div>
                   <button
                     onClick={() => a.id && remove(a.id)}
@@ -282,6 +327,39 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
             label="Landmark (optional)"
             value={form.landmark}
             onChange={(v) => set('landmark', v)}
+          />
+          <TextField
+            label="Telegram (optional)"
+            inputMode="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="username"
+            helper={TELEGRAM_HINT}
+            value={form.telegramUsername}
+            onChange={(v) => {
+              set('telegramUsername', v)
+              if (touched.telegramUsername) setErrors(validate({ ...form, telegramUsername: v }))
+            }}
+            onBlur={() => markTouched('telegramUsername')}
+            error={liveError('telegramUsername')}
+          />
+          <TextField
+            label="Map pin (optional)"
+            type="url"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="https://maps.app.goo.gl/..."
+            helper={MAPS_URL_HINT}
+            value={form.mapsUrl}
+            onChange={(v) => {
+              set('mapsUrl', v)
+              if (touched.mapsUrl) setErrors(validate({ ...form, mapsUrl: v }))
+            }}
+            onBlur={() => markTouched('mapsUrl')}
+            error={liveError('mapsUrl')}
           />
           <label className="md:col-span-2 inline-flex items-center gap-2 text-[14px] text-ink-soft">
             <input

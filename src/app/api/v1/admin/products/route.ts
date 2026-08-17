@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
+import { isCategoryId } from '@/lib/categories'
 import { eq } from 'drizzle-orm'
 import { revalidateTag } from 'next/cache'
 import { db } from '@/db'
@@ -17,7 +18,10 @@ const specSchema = z.object({
 const bodySchema = z.object({
   slug: z.string().min(2).max(80).regex(SLUG_REGEX),
   name: z.string().min(1).max(120),
-  categoryId: z.string().min(1).max(32),
+  // Replaces the dropped `products.category_id` foreign key: with no
+  // `categories` table there is nothing at the database level stopping an
+  // unknown id, which would render a product no shop page can list.
+  categoryId: z.string().refine(isCategoryId, 'Unknown category.'),
   priceMmk: z.number().int().min(0).max(999_999_999),
   tagline: z.string().min(1).max(200),
   description: z.string().min(1).max(8000),

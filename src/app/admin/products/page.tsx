@@ -1,14 +1,13 @@
 import { asc } from 'drizzle-orm'
 import { db } from '@/db'
-import { categories as categoriesTbl, products, productSpecs } from '@/db/schema/products'
+import { products, productSpecs } from '@/db/schema/products'
 import { AdminProductTable } from './product-table'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminProductsPage() {
-  const [rows, cats, specs] = await Promise.all([
+  const [rows, specs] = await Promise.all([
     db.select().from(products).orderBy(asc(products.sortOrder), asc(products.name)),
-    db.select().from(categoriesTbl).orderBy(asc(categoriesTbl.sortOrder)),
     db.select().from(productSpecs).orderBy(asc(productSpecs.productId), asc(productSpecs.sortOrder)),
   ])
 
@@ -42,7 +41,6 @@ export default async function AdminProductsPage() {
           hasPhotos: r.hasPhotos,
           specs: specsByProduct[r.id] ?? [],
         }))}
-        categories={cats.map((c) => ({ id: c.id, name: c.name }))}
       />
     </div>
   )

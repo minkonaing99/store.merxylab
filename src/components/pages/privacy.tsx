@@ -12,6 +12,7 @@ export const PRIVACY_META = {
 const COLLECT = [
   'Account: your name and email address.',
   'Orders: recipient name, phone number, delivery address, the items you bought, and the order total.',
+  'Optional delivery extras: a Telegram handle we can use to confirm the order, and a Google Maps pin for your door. Both are optional, and you can leave either blank.',
   'Payments: the payment slip image you upload and any reference number on it.',
   'Support: whatever you write in the contact form, plus the email address you send it from.',
   'Technical: a cart session cookie, a sign-in cookie, and the server logs your request creates.',
@@ -25,7 +26,7 @@ const WHY = [
 ] as const
 
 const SHARED = [
-  'The courier delivering your parcel - name, phone number and address only.',
+  'The courier delivering your parcel - name, phone number, address, and the map pin if you gave one.',
   'Google, if you choose to sign in with a Google account.',
   'Cloudflare, which stores product photos and payment slips. Slips sit in a private bucket that only the site can read.',
   'Our email provider, which sends order and account emails on our behalf.',

@@ -1,17 +1,25 @@
+import { Suspense } from 'react'
 import { GridControls } from '@/components/shop/grid-controls'
+import { ShopGridSkeleton } from '@/components/shop/grid-skeleton'
 import { getAllProducts } from '@/lib/catalog'
 
 export const metadata = {
   title: 'Shop',
-  description:
-    'Every peripheral on the bench. Keyboards, mice, audio, accessories.',
+  description: 'Every peripheral on the bench. Keyboards, mice, monitors, audio, accessories.',
 }
 
 export const dynamic = 'force-dynamic'
 
-export default async function ShopPage() {
+/**
+ * The only part of this page that waits on the database, split out so the
+ * heading paints immediately and the catalog streams in behind it.
+ */
+async function ShopGrid() {
   const products = await getAllProducts()
+  return <GridControls all={products} />
+}
 
+export default function ShopPage() {
   return (
     <section className="container-prose py-16 md:py-20">
       <div className="eyebrow">Shop</div>
@@ -23,7 +31,9 @@ export default async function ShopPage() {
       </p>
 
       <div className="mt-10">
-        <GridControls all={products} />
+        <Suspense fallback={<ShopGridSkeleton />}>
+          <ShopGrid />
+        </Suspense>
       </div>
     </section>
   )

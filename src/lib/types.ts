@@ -1,17 +1,6 @@
-export const CATEGORY_IDS = ['keyboards', 'mice', 'audio', 'accessories'] as const
-export type CategoryId = (typeof CATEGORY_IDS)[number]
+import type { CategoryId } from './categories'
 
-/**
- * Display labels for the four fixed categories. The `categories` table carries
- * the same names plus a description, read server-side by the shop and product
- * pages; these labels exist so client components don't need a DB round-trip.
- */
-export const CATEGORY_NAME: Record<CategoryId, string> = {
-  keyboards: 'Keyboards',
-  mice: 'Mice',
-  audio: 'Audio',
-  accessories: 'Accessories',
-}
+export type { CategoryId }
 
 export interface Spec {
   readonly label: string
@@ -47,12 +36,6 @@ export type PhotoSlot = (typeof PHOTO_SLOTS)[number]
 const CDN_BASE = (process.env.NEXT_PUBLIC_CDN_URL ?? '').replace(/\/$/, '')
 export const PHOTO_BASE = CDN_BASE ? `${CDN_BASE}/products` : '/products'
 
-export interface Category {
-  readonly id: CategoryId
-  readonly name: string
-  readonly description: string
-  readonly order: number
-}
 
 export const QTY_MIN = 1
 export const QTY_MAX = 99

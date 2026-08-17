@@ -6,10 +6,15 @@ import { toast } from 'sonner'
 import { formatMmk } from '@/lib/money'
 import { PhoneField, SelectField, TextField, TextAreaField } from '@/components/ui/field'
 import {
+  MAPS_URL_HINT,
   PHONE_HINT,
   PHONE_PREFIX,
+  TELEGRAM_HINT,
+  isGoogleMapsUrl,
   isPhoneLocal,
+  isTelegramUsername,
   normalizePhoneLocal,
+  normalizeTelegramUsername,
   required,
   toE164Phone,
 } from '@/lib/validators'
@@ -28,6 +33,8 @@ interface AddressLite {
   township: string
   street: string
   landmark: string | null
+  telegramUsername: string | null
+  mapsUrl: string | null
 }
 
 interface DivisionLite {
@@ -60,6 +67,8 @@ interface AddressDraft {
   township: string
   street: string
   landmark: string
+  telegramUsername: string
+  mapsUrl: string
   saveToAccount: boolean
 }
 
@@ -72,6 +81,8 @@ const EMPTY_DRAFT: AddressDraft = {
   township: '',
   street: '',
   landmark: '',
+  telegramUsername: '',
+  mapsUrl: '',
   saveToAccount: true,
 }
 
@@ -84,6 +95,8 @@ type DraftFieldKey =
   | 'city'
   | 'township'
   | 'street'
+  | 'telegramUsername'
+  | 'mapsUrl'
 type DraftErrors = Partial<Record<DraftFieldKey, string>>
 type DraftTouched = Partial<Record<DraftFieldKey, boolean>>
 
@@ -103,6 +116,13 @@ function validateDraft(d: AddressDraft): DraftErrors {
   if (township) next.township = township
   const street = required(d.street, 'Street')
   if (street) next.street = street
+  // Both optional: only judged once something has been typed.
+  if (d.telegramUsername.trim() && !isTelegramUsername(d.telegramUsername)) {
+    next.telegramUsername = '5-32 letters, digits or underscores, starting with a letter.'
+  }
+  if (d.mapsUrl.trim() && !isGoogleMapsUrl(d.mapsUrl)) {
+    next.mapsUrl = 'Must be a Google Maps link.'
+  }
   return next
 }
 
@@ -177,6 +197,8 @@ export function CheckoutForm({
       city: true,
       township: true,
       street: true,
+      telegramUsername: true,
+      mapsUrl: true,
     })
     if (Object.keys(v).length > 0) {
       toast('Fix the highlighted fields.')
@@ -210,6 +232,8 @@ export function CheckoutForm({
         township: draft.township,
         street: draft.street,
         landmark: draft.landmark || null,
+        telegramUsername: normalizeTelegramUsername(draft.telegramUsername) || null,
+        mapsUrl: draft.mapsUrl.trim() || null,
         saveToAccount: draft.saveToAccount,
       }
     } else {
@@ -225,7 +249,7 @@ export function CheckoutForm({
       toast(res.error?.message ?? 'Order failed.')
       return
     }
-    router.push(`/order/${res.data.orderId}`)
+    router.push(`/order/${res.data.orderId}?placed=1`)
   }
 
   return (
@@ -443,6 +467,7 @@ function DeliverySection(props: DeliverySectionProps) {
                   <div className="font-display text-[16px]">{a.label}</div>
                   <div className="mt-0.5 text-[13px] text-ink-soft">
                     {a.recipient} · {a.phone}
+                    {a.telegramUsername ? ` · @${a.telegramUsername}` : ''}
                   </div>
                   <div className="text-[13px] text-ink-soft">
                     {a.street}, {a.township}, {a.city}
@@ -546,6 +571,32 @@ function DeliverySection(props: DeliverySectionProps) {
             label="Landmark (optional)"
             value={draft.landmark}
             onChange={(v) => setField('landmark', v)}
+          />
+          <TextField
+            label="Telegram (optional)"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="username"
+            helper={TELEGRAM_HINT}
+            value={draft.telegramUsername}
+            onChange={(v) => setField('telegramUsername', v)}
+            onBlur={() => markTouched('telegramUsername')}
+            error={liveError('telegramUsername')}
+          />
+          <TextField
+            label="Map pin (optional)"
+            type="url"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="https://maps.app.goo.gl/..."
+            helper={MAPS_URL_HINT}
+            value={draft.mapsUrl}
+            onChange={(v) => setField('mapsUrl', v)}
+            onBlur={() => markTouched('mapsUrl')}
+            error={liveError('mapsUrl')}
           />
           <label className="md:col-span-2 inline-flex items-center gap-2 text-[13px] text-ink-soft">
             <input

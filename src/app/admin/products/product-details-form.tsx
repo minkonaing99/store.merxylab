@@ -3,11 +3,7 @@
 import { useId } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { slugify, SLUG_REGEX } from '@/lib/slugify'
-
-export interface CategoryLite {
-  id: string
-  name: string
-}
+import { CATEGORIES } from '@/lib/categories'
 
 export interface ProductFormValues {
   name: string
@@ -28,11 +24,10 @@ export interface ProductFormValues {
 interface Props {
   values: ProductFormValues
   onChange: (next: ProductFormValues) => void
-  categories: CategoryLite[]
   mode: 'create' | 'edit'
 }
 
-export function ProductDetailsForm({ values, onChange, categories, mode }: Props) {
+export function ProductDetailsForm({ values, onChange, mode }: Props) {
   const slugId = useId()
   const slugInvalid = values.slug !== '' && !SLUG_REGEX.test(values.slug)
 
@@ -99,7 +94,7 @@ export function ProductDetailsForm({ values, onChange, categories, mode }: Props
         value={values.categoryId}
         onChange={(v) => set('categoryId', v)}
       >
-        {categories.map((c) => (
+        {CATEGORIES.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
           </option>

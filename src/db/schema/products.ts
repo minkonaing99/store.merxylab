@@ -11,24 +11,18 @@ import {
 } from 'drizzle-orm/mysql-core'
 import { relations } from 'drizzle-orm'
 
-export const categories = mysqlTable('categories', {
-  id: varchar('id', { length: 32 }).primaryKey(),
-  name: varchar('name', { length: 80 }).notNull(),
-  description: text('description').notNull(),
-  sortOrder: int('sort_order').notNull().default(0),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
-})
-
 export const products = mysqlTable(
   'products',
   {
     id: varchar('id', { length: 64 }).primaryKey(),
     slug: varchar('slug', { length: 80 }).notNull().unique(),
     name: varchar('name', { length: 120 }).notNull(),
-    categoryId: varchar('category_id', { length: 32 })
-      .notNull()
-      .references(() => categories.id),
+    /**
+     * One of `CATEGORIES` in `src/lib/categories.ts`. No foreign key: the
+     * category set is code, not a table. `isCategoryId` in the admin product
+     * routes is what keeps this column honest.
+     */
+    categoryId: varchar('category_id', { length: 32 }).notNull(),
     priceMmk: bigint('price_mmk', { mode: 'number' }).notNull(),
     tagline: varchar('tagline', { length: 200 }).notNull(),
     description: text('description').notNull(),
@@ -66,15 +60,7 @@ export const productSpecs = mysqlTable(
   }),
 )
 
-export const categoryRelations = relations(categories, ({ many }) => ({
-  products: many(products),
-}))
-
-export const productRelations = relations(products, ({ one, many }) => ({
-  category: one(categories, {
-    fields: [products.categoryId],
-    references: [categories.id],
-  }),
+export const productRelations = relations(products, ({ many }) => ({
   specs: many(productSpecs),
 }))
 

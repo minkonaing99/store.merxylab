@@ -8,7 +8,15 @@
 
 const API = 'https://api.telegram.org'
 
-export async function sendTelegram(text: string): Promise<void> {
+/**
+ * Plain text unless a caller opts in to markup.
+ *
+ * ponytail: `html` is a boolean rather than an escaping helper because only one
+ * caller wants markup. With HTML on by default, any interpolated value carrying
+ * a `<` made Telegram reject the whole message - so an order alert was one
+ * awkward payment-method name away from silently not arriving.
+ */
+export async function sendTelegram(text: string, opts: { html?: boolean } = {}): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN
   const chatId = process.env.TELEGRAM_OWNER_CHAT_ID
   if (!token || !chatId) return
@@ -20,7 +28,7 @@ export async function sendTelegram(text: string): Promise<void> {
       body: JSON.stringify({
         chat_id: chatId,
         text,
-        parse_mode: 'HTML',
+        ...(opts.html ? { parse_mode: 'HTML' } : {}),
         disable_web_page_preview: true,
       }),
     })

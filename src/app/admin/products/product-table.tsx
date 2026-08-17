@@ -6,7 +6,8 @@ import { toast } from 'sonner'
 import { Plus, Trash2 } from 'lucide-react'
 import { formatMmk } from '@/lib/money'
 import { SLUG_REGEX } from '@/lib/slugify'
-import { ProductDetailsForm, type ProductFormValues, type CategoryLite } from './product-details-form'
+import { ProductDetailsForm, type ProductFormValues } from './product-details-form'
+import { CATEGORIES } from '@/lib/categories'
 import { ProductPhotoGrid } from './product-photo-grid'
 import { api } from '@/lib/api-client'
 
@@ -30,7 +31,6 @@ export interface Row {
 
 interface Props {
   initial: Row[]
-  categories: CategoryLite[]
 }
 
 type ExpandedSection = 'details' | 'photos' | null
@@ -71,11 +71,11 @@ function emptyForm(catId: string): ProductFormValues {
   }
 }
 
-export function AdminProductTable({ initial, categories }: Props) {
+export function AdminProductTable({ initial }: Props) {
   const [rows, setRows] = useState<Row[]>(initial)
   const [creating, setCreating] = useState(false)
   const [newDraft, setNewDraft] = useState<ProductFormValues>(() =>
-    emptyForm(categories[0]?.id ?? 'keyboards'),
+    emptyForm(CATEGORIES[0].id),
   )
   const [savingNew, setSavingNew] = useState(false)
 
@@ -139,7 +139,7 @@ export function AdminProductTable({ initial, categories }: Props) {
     }
     setRows((rs) => [fresh, ...rs])
     setCreating(false)
-    setNewDraft(emptyForm(categories[0]?.id ?? 'keyboards'))
+    setNewDraft(emptyForm(CATEGORIES[0].id))
     toast('Product created. Open Edit photos to upload images.')
   }
 
@@ -261,14 +261,13 @@ export function AdminProductTable({ initial, categories }: Props) {
           <ProductDetailsForm
             values={newDraft}
             onChange={setNewDraft}
-            categories={categories}
             mode="create"
           />
           <div className="mt-6 flex justify-end gap-2">
             <button
               onClick={() => {
                 setCreating(false)
-                setNewDraft(emptyForm(categories[0]?.id ?? 'keyboards'))
+                setNewDraft(emptyForm(CATEGORIES[0].id))
               }}
               disabled={savingNew}
               className="inline-flex items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-5 py-2 text-[13px] font-medium text-ink hover:border-ink/40 disabled:opacity-50"
@@ -362,8 +361,7 @@ export function AdminProductTable({ initial, categories }: Props) {
                   <ProductDetailsForm
                     values={draft}
                     onChange={(v) => updateDraft(r.id, v)}
-                    categories={categories}
-                    mode="edit"
+                            mode="edit"
                   />
                   <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                     {dirty && <span className="text-[12px] text-muted sm:mr-auto">Unsaved changes.</span>}

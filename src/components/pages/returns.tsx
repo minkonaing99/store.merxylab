@@ -22,21 +22,22 @@ const COPY: Dict<ReturnsCopy> = {
     title: 'Returns and warranty.',
     lead: 'If something is wrong, we sort it out here in Myanmar. Nothing gets shipped overseas and you never deal with the manufacturer alone.',
     rule: {
-      title: 'The one-month rule',
+      title: 'The first two weeks',
       intro:
-        'You have one month from delivery to tell us something is wrong. We refund or replace it - your choice, once we have seen the fault.',
+        'You have two weeks from delivery to tell us about a factory fault. We handle it ourselves in that window - refund or replacement, your choice, once we have seen the fault. After two weeks a fault becomes a warranty claim, which we take to the company for you.',
       items: [
         'Faulty on arrival: full refund or a replacement unit, delivery on us.',
-        'Changed your mind: return it unused, in the original box, and we refund the item price. Return delivery is yours to cover.',
+        'A factory fault that shows up in the first two weeks: same - refund or replacement.',
         'Wrong item sent: our mistake, our cost, both ways.',
       ],
     },
     cannot: {
       title: 'What we cannot take back',
       items: [
+        'A product you simply changed your mind about. Check the specs and ask us anything before you order - we would rather answer questions than process a return.',
         'Keycaps, switches, and other opened consumable parts, unless they arrived faulty.',
         'Products damaged by drops, liquid, power surges, or an attempted repair.',
-        'Items returned after a month, which move to the warranty process below.',
+        'Faults reported after two weeks, which move to the warranty process below.',
       ],
     },
     start: {
@@ -54,9 +55,10 @@ const COPY: Dict<ReturnsCopy> = {
     warranty: {
       title: 'Warranty',
       intro:
-        'Every product is genuine, sealed stock and carries the manufacturer warranty that came with it - typically one to two years, depending on the brand. The warranty period for a specific product is listed in its specs.',
+        'Every product is genuine, sealed stock and carries the manufacturer warranty that came with it - typically one to two years, depending on the brand. The warranty period for a specific product is listed in its specs. This is the route for any fault found after the first two weeks.',
       items: [
         'Keep your order number: it is your proof of purchase, so no paper receipt is needed.',
+        'We send the product to the company and follow their warranty policy. The outcome - repair, replacement, or refusal - is theirs to decide, not ours.',
         'We handle the claim with the distributor on your behalf.',
         'Turnaround depends on the brand. We tell you the expected wait before you send anything in.',
         'Physical damage, liquid damage, and normal wear on cables or switches are not covered.',
@@ -72,21 +74,22 @@ const COPY: Dict<ReturnsCopy> = {
     title: 'ပြန်အမ်းခြင်းနှင့် အာမခံ',
     lead: 'ပြဿနာ ရှိပါက မြန်မာပြည်တွင်းမှာပင် ဖြေရှင်းပေးပါသည်။ နိုင်ငံရပ်ခြားသို့ ပို့စရာ မလိုပါ၊ ထုတ်လုပ်သူနှင့် သင်တစ်ယောက်တည်း ဆက်သွယ်စရာလည်း မလိုပါ။',
     rule: {
-      title: 'တစ်လ စည်းမျဉ်း',
+      title: 'ပထမ နှစ်ပတ်',
       intro:
-        'ပစ္စည်းရောက်ပြီးနောက် တစ်လအတွင်း ပြဿနာကို အကြောင်းကြားနိုင်သည်။ ချွတ်ယွင်းချက်ကို ကျွန်ုပ်တို့ စစ်ဆေးပြီးလျှင် ငွေပြန်အမ်းမလား၊ အသစ်လဲမလား သင် ရွေးနိုင်သည်။',
+        'ပစ္စည်းရောက်ပြီးနောက် နှစ်ပတ်အတွင်း ထုတ်လုပ်မှု ချွတ်ယွင်းချက်ကို အကြောင်းကြားနိုင်သည်။ ထိုကာလအတွင်း ကျွန်ုပ်တို့ ကိုယ်တိုင် ဖြေရှင်းပေးသည် - ချွတ်ယွင်းချက်ကို စစ်ဆေးပြီးလျှင် ငွေပြန်အမ်းမလား၊ အသစ်လဲမလား သင် ရွေးနိုင်သည်။ နှစ်ပတ်ကျော်ပါက အာမခံကိစ္စ ဖြစ်လာပြီး ကုမ္ပဏီထံ ကျွန်ုပ်တို့ ကိုယ်စား ဆောင်ရွက်ပေးသည်။',
       items: [
         'ရောက်ကတည်းက ချွတ်ယွင်းနေပါက - ငွေအပြည့် ပြန်အမ်း သို့မဟုတ် အသစ်လဲပေးပြီး ပို့ခကို ကျွန်ုပ်တို့ ကျခံသည်။',
-        'စိတ်ပြောင်းသွားပါက - မသုံးရသေးဘဲ မူလဘူးအတိုင်း ပြန်ပို့ပါက ပစ္စည်းဖိုး ပြန်အမ်းသည်။ ပြန်ပို့ခကို သင် ကျခံရသည်။',
+        'ပထမ နှစ်ပတ်အတွင်း ထုတ်လုပ်မှု ချွတ်ယွင်းချက် ပေါ်လာပါက - အတူတူပင် ငွေပြန်အမ်း သို့မဟုတ် အသစ်လဲပေးသည်။',
         'ပစ္စည်းမှား ပို့မိပါက - ကျွန်ုပ်တို့ အမှားဖြစ်၍ နှစ်ဖက်စလုံး ကျွန်ုပ်တို့ ကျခံသည်။',
       ],
     },
     cannot: {
       title: 'ပြန်မယူနိုင်သည့် အရာများ',
       items: [
+        'စိတ်ပြောင်းသွားခြင်းအတွက် ပြန်အမ်းခြင်း မရှိပါ။ မဝယ်ခင် အသေးစိတ်ကို ကြည့်ပြီး လိုအပ်သည်များ မေးနိုင်ပါသည် - ပြန်အမ်းရသည်ထက် မေးခွန်းဖြေရတာ ကျွန်ုပ်တို့ ပိုလိုလားသည်။',
         'ဖွင့်ပြီးသား keycap, switch စသည့် အသုံးအဆောင် အပိုပစ္စည်းများ - ရောက်ကတည်းက ချွတ်ယွင်းနေခြင်း မဟုတ်လျှင်။',
         'ပြုတ်ကျခြင်း၊ အရည်ဖိတ်ခြင်း၊ လျှပ်စစ်ဓာတ်အား တက်ခြင်း သို့မဟုတ် ကိုယ်တိုင် ပြုပြင်ရာမှ ပျက်စီးသော ပစ္စည်းများ။',
-        'တစ်လကျော် ပြန်ပို့သော ပစ္စည်းများ - ၎င်းတို့ကို အောက်ပါ အာမခံ လုပ်ငန်းစဉ်ဖြင့် ဆောင်ရွက်သည်။',
+        'နှစ်ပတ်ကျော်မှ အကြောင်းကြားသော ချွတ်ယွင်းချက်များ - ၎င်းတို့ကို အောက်ပါ အာမခံ လုပ်ငန်းစဉ်ဖြင့် ဆောင်ရွက်သည်။',
       ],
     },
     start: {
@@ -104,9 +107,10 @@ const COPY: Dict<ReturnsCopy> = {
     warranty: {
       title: 'အာမခံ',
       intro:
-        'ပစ္စည်းတိုင်းသည် ချိပ်ပိတ်ထားသော အစစ်အမှန်ဖြစ်ပြီး ထုတ်လုပ်သူ၏ အာမခံ ပါဝင်သည် - အမှတ်တံဆိပ်ပေါ် မူတည်၍ ပုံမှန်အားဖြင့် တစ်နှစ်မှ နှစ်နှစ်။ ပစ္စည်းတစ်ခုချင်းစီ၏ အာမခံကာလကို ၎င်း၏ အသေးစိတ်စာရင်းတွင် ဖော်ပြထားသည်။',
+        'ပစ္စည်းတိုင်းသည် ချိပ်ပိတ်ထားသော အစစ်အမှန်ဖြစ်ပြီး ထုတ်လုပ်သူ၏ အာမခံ ပါဝင်သည် - အမှတ်တံဆိပ်ပေါ် မူတည်၍ ပုံမှန်အားဖြင့် တစ်နှစ်မှ နှစ်နှစ်။ ပစ္စည်းတစ်ခုချင်းစီ၏ အာမခံကာလကို ၎င်း၏ အသေးစိတ်စာရင်းတွင် ဖော်ပြထားသည်။ ပထမ နှစ်ပတ်ကျော်ပြီးနောက် ပေါ်လာသော ချွတ်ယွင်းချက်များကို ဤလုပ်ငန်းစဉ်ဖြင့် ဆောင်ရွက်သည်။',
       items: [
         'အော်ဒါနံပါတ်ကို သိမ်းထားပါ - ဝယ်ယူကြောင်း သက်သေဖြစ်၍ စာရွက်ဘောက်ချာ မလိုပါ။',
+        'ပစ္စည်းကို ကုမ္ပဏီထံ ပို့ပြီး ၎င်းတို့၏ အာမခံ စည်းမျဉ်းအတိုင်း ဆောင်ရွက်သည်။ ပြုပြင်မလား၊ အသစ်လဲမလား၊ ငြင်းပယ်မလားကို ကုမ္ပဏီမှ ဆုံးဖြတ်သည် - ကျွန်ုပ်တို့ မဆုံးဖြတ်ပါ။',
         'ဖြန့်ချိသူနှင့် အာမခံကိစ္စကို ကျွန်ုပ်တို့ ကိုယ်စား ဆောင်ရွက်ပေးသည်။',
         'ကြာချိန်သည် အမှတ်တံဆိပ်ပေါ် မူတည်သည်။ ပစ္စည်း မပို့ခင် ခန့်မှန်းကြာချိန်ကို ကြိုပြောပါသည်။',
         'ရုပ်ပိုင်းဆိုင်ရာ ပျက်စီးမှု၊ အရည်ဖိတ်မှုနှင့် cable, switch များ သဘာဝအလျောက် ဟောင်းနွမ်းမှုကို အာမခံ မပါဝင်ပါ။',
@@ -122,11 +126,12 @@ const COPY: Dict<ReturnsCopy> = {
 export const RETURNS_META: Dict<{ title: string; description: string }> = {
   en: {
     title: 'Returns and warranty',
-    description: `One month to refund or replace, plus the manufacturer warranty on every product ${SITE.name} sells.`,
+    description: `Two weeks to refund or replace a factory fault, plus the manufacturer warranty on every product ${SITE.name} sells.`,
   },
   my: {
     title: 'ပြန်အမ်းခြင်းနှင့် အာမခံ',
-    description: 'တစ်လအတွင်း ငွေပြန်အမ်း သို့မဟုတ် အသစ်လဲပေးခြင်းနှင့် ထုတ်လုပ်သူ အာမခံ။',
+    description:
+      'ထုတ်လုပ်မှု ချွတ်ယွင်းချက်အတွက် နှစ်ပတ်အတွင်း ငွေပြန်အမ်း သို့မဟုတ် အသစ်လဲပေးခြင်းနှင့် ထုတ်လုပ်သူ အာမခံ။',
   },
 }
 

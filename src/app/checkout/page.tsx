@@ -60,6 +60,8 @@ export default async function CheckoutPage() {
           township: a.township,
           street: a.street,
           landmark: a.landmark,
+          telegramUsername: a.telegramUsername,
+          mapsUrl: a.mapsUrl,
         }))}
         divisions={divisionRows.map((d) => ({
           id: d.id,

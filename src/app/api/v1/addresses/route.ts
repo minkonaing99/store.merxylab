@@ -6,18 +6,20 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { addresses } from '@/db/schema/addresses'
 import { auth } from '@/lib/auth'
+import { optionalMapsUrl, optionalTelegram, phoneField } from '@/lib/address-fields'
 
-const PHONE_REGEX = /^\+959\d{7,9}$/
 
 const addressSchema = z.object({
   label: z.string().min(1).max(40),
   recipient: z.string().min(1).max(120),
-  phone: z.string().regex(PHONE_REGEX, 'Phone must be +959XXXXXXXXX').max(20),
+  phone: phoneField,
   divisionId: z.string().min(1).max(40),
   city: z.string().min(1).max(120),
   township: z.string().min(1).max(120),
   street: z.string().min(1).max(200),
   landmark: z.string().max(200).optional().nullable(),
+  telegramUsername: optionalTelegram,
+  mapsUrl: optionalMapsUrl,
   isDefault: z.boolean().optional().default(false),
 })
 
@@ -54,6 +56,8 @@ export async function POST(req: Request): Promise<NextResponse> {
     township: parsed.data.township,
     street: parsed.data.street,
     landmark: parsed.data.landmark ?? null,
+    telegramUsername: parsed.data.telegramUsername,
+    mapsUrl: parsed.data.mapsUrl,
     isDefault: parsed.data.isDefault,
   })
   return ok({ id })

@@ -54,7 +54,8 @@ export async function reportError(error: unknown, context: ErrorContext = {}): P
       err.stack ? `<pre>${escapeHtml(err.stack.split('\n').slice(1, 4).join('\n'))}</pre>` : null,
     ].filter(Boolean)
 
-    await sendTelegram(lines.join('\n'))
+    // The only caller that wants markup; every value above is escaped.
+    await sendTelegram(lines.join('\n'), { html: true })
   } catch {
     // Reporting must never become the failure it is reporting on.
   }

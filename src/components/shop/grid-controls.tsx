@@ -4,13 +4,14 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ProductCard } from '../product/card'
 import { cn } from '@/lib/utils'
-import { CATEGORY_IDS, CATEGORY_NAME, type CategoryId, type Product } from '@/lib/types'
+import type { Product } from '@/lib/types'
+import { CATEGORIES } from '@/lib/categories'
 
 type Sort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc'
 
 interface GridControlsProps {
   all: readonly Product[]
-  activeCategory?: CategoryId
+  activeCategory?: string
 }
 
 export function GridControls({ all, activeCategory }: GridControlsProps) {
@@ -45,18 +46,18 @@ export function GridControls({ all, activeCategory }: GridControlsProps) {
           >
             All
           </Link>
-          {CATEGORY_IDS.map((id) => (
+          {CATEGORIES.map((c) => (
             <Link
-              key={id}
-              href={`/shop/${id}`}
+              key={c.id}
+              href={`/shop/${c.id}`}
               className={cn(
                 'rounded-[var(--radius-pill)] border px-3.5 py-1.5 text-[13px] transition-colors',
-                activeCategory === id
+                activeCategory === c.id
                   ? 'border-ink bg-ink text-cream'
                   : 'border-line bg-cream text-ink-soft hover:border-ink/40',
               )}
             >
-              {CATEGORY_NAME[id]}
+              {c.name}
             </Link>
           ))}
         </div>

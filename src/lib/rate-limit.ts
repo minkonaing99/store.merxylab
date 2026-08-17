@@ -17,8 +17,40 @@ interface CheckResult {
   retryAfterSeconds: number
 }
 
+/**
+ * Ceiling on how many buckets the process holds at once. Reached only under a
+ * flood: at one bucket per caller per endpoint, ordinary traffic sits orders of
+ * magnitude below it.
+ */
+export const MAX_BUCKETS = 10_000
+
+/**
+ * Buckets are only ever inserted, so without this the map keeps one entry for
+ * every address the process has ever served and grows for as long as it stays
+ * up. Runs only when the store is at the cap, which leaves the ordinary path a
+ * single `Map` lookup.
+ *
+ * Expired buckets go first, since dropping those changes nothing. If the store
+ * is still full afterwards, the ones nearest their reset are dropped next:
+ * evicting a live bucket hands its owner a fresh allowance, so the ones with
+ * the least window left are the cheapest to lose.
+ */
+function evict(now: number): void {
+  for (const [key, bucket] of store) {
+    if (bucket.resetAt <= now) store.delete(key)
+  }
+  if (store.size < MAX_BUCKETS) return
+
+  const soonest = [...store.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt)
+  for (const [key] of soonest.slice(0, store.size - MAX_BUCKETS + 1)) {
+    store.delete(key)
+  }
+}
+
 export function rateLimit({ key, limit, windowMs }: CheckOptions): CheckResult {
   const now = Date.now()
+  if (store.size >= MAX_BUCKETS && !store.has(key)) evict(now)
+
   const existing = store.get(key)
 
   if (!existing || existing.resetAt <= now) {
@@ -69,4 +101,14 @@ export function clientIp(req: Request, hops: number = TRUSTED_PROXY_HOPS): strin
 
 export function clientKey(req: Request, prefix: string): string {
   return `${prefix}:${clientIp(req)}`
+}
+
+/** Test seam - the bucket store is module state. */
+export function bucketCount(): number {
+  return store.size
+}
+
+/** Test seam - the bucket store is module state. */
+export function resetBuckets(): void {
+  store.clear()
 }

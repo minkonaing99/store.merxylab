@@ -8,7 +8,8 @@ import { useState } from 'react'
 import { Tile } from '../product/tile'
 import { cn } from '@/lib/utils'
 import { formatMmk } from '@/lib/money'
-import { CATEGORY_NAME, PHOTO_BASE, type Product } from '@/lib/types'
+import { PHOTO_BASE, type Product } from '@/lib/types'
+import { CATEGORY_NAME } from '@/lib/categories'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 

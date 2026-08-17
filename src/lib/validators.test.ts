@@ -3,6 +3,9 @@ import {
   PHONE_PREFIX,
   checkPassword,
   isEmail,
+  isGoogleMapsUrl,
+  isTelegramUsername,
+  normalizeTelegramUsername,
   isPhoneLocal,
   normalizePhoneLocal,
   toE164Phone,
@@ -106,5 +109,69 @@ describe('checkPassword', () => {
 
   it('rejects absurd length', () => {
     expect(checkPassword(`Aa1${'x'.repeat(300)}`).ok).toBe(false)
+  })
+})
+
+describe('normalizeTelegramUsername', () => {
+  it('strips the @ people type out of habit', () => {
+    expect(normalizeTelegramUsername('@minkonaing')).toBe('minkonaing')
+  })
+
+  it('accepts a pasted t.me link, which is what the share sheet gives you', () => {
+    expect(normalizeTelegramUsername('https://t.me/minkonaing')).toBe('minkonaing')
+    expect(normalizeTelegramUsername('t.me/minkonaing')).toBe('minkonaing')
+  })
+})
+
+describe('isTelegramUsername', () => {
+  it('accepts a real handle', () => {
+    expect(isTelegramUsername('minkonaing')).toBe(true)
+    expect(isTelegramUsername('@min_ko_99')).toBe(true)
+  })
+
+  it('applies Telegram own rules: 5-32 chars, starts with a letter', () => {
+    expect(isTelegramUsername('abcd')).toBe(false)
+    expect(isTelegramUsername('9abcde')).toBe(false)
+    expect(isTelegramUsername('a'.repeat(33))).toBe(false)
+    expect(isTelegramUsername('a'.repeat(32))).toBe(true)
+  })
+
+  it('rejects anything that could break out of a t.me path', () => {
+    expect(isTelegramUsername('min/../admin')).toBe(false)
+    expect(isTelegramUsername('min ko')).toBe(false)
+    expect(isTelegramUsername('min?x=1')).toBe(false)
+  })
+})
+
+describe('isGoogleMapsUrl', () => {
+  it('accepts the links a customer actually pastes', () => {
+    expect(isGoogleMapsUrl('https://maps.app.goo.gl/aBcD1234')).toBe(true)
+    expect(isGoogleMapsUrl('https://www.google.com/maps/place/Mandalay/@21.97,96.08,15z')).toBe(true)
+    expect(isGoogleMapsUrl('https://maps.google.com/?q=21.97,96.08')).toBe(true)
+    expect(isGoogleMapsUrl('https://google.com.mm/maps/place/Foo')).toBe(true)
+    expect(isGoogleMapsUrl('https://goo.gl/maps/aBcD')).toBe(true)
+  })
+
+  it('rejects scheme abuse - this value becomes an href in the admin panel', () => {
+    expect(isGoogleMapsUrl('javascript:alert(1)')).toBe(false)
+    expect(isGoogleMapsUrl('data:text/html,<script>alert(1)</script>')).toBe(false)
+    expect(isGoogleMapsUrl('http://www.google.com/maps/place/Foo')).toBe(false)
+  })
+
+  it('rejects hosts that only look like Google', () => {
+    expect(isGoogleMapsUrl('https://google.com.evil.com/maps')).toBe(false)
+    expect(isGoogleMapsUrl('https://notgoogle.com/maps')).toBe(false)
+    expect(isGoogleMapsUrl('https://google.com@evil.com/maps')).toBe(false)
+    expect(isGoogleMapsUrl('https://evil.com/https://google.com/maps')).toBe(false)
+  })
+
+  it('requires a maps path on the plain Google domains', () => {
+    expect(isGoogleMapsUrl('https://www.google.com/search?q=x')).toBe(false)
+    expect(isGoogleMapsUrl('https://www.google.com/mapsomething')).toBe(false)
+  })
+
+  it('rejects empty and oversized input', () => {
+    expect(isGoogleMapsUrl('')).toBe(false)
+    expect(isGoogleMapsUrl(`https://maps.app.goo.gl/${'a'.repeat(600)}`)).toBe(false)
   })
 })

@@ -10,15 +10,29 @@ Currency: **MMK** stored as **whole-integer BIGINT** (no subunit). Display in UI
 
 ## Data Models
 
-### `categories`
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| id | VARCHAR(32) | PK | natural key, e.g. `keyboards` |
-| name | VARCHAR(80) | NOT NULL | |
-| description | TEXT | NOT NULL | |
-| sort_order | INT | NOT NULL DEFAULT 0 | display order |
-| created_at | TIMESTAMP | NOT NULL DEFAULT now() | |
-| updated_at | TIMESTAMP | NOT NULL DEFAULT now() ON UPDATE now() | |
+### Categories (no table)
+
+Categories are **code, not data**: `CATEGORIES` in `src/lib/categories.ts`, an
+`as const` array of `{ id, name, description }` in display order. The `id` is
+the `/shop/<id>` URL segment.
+
+There is no `categories` table, and `products.category_id` therefore carries no
+foreign key. `isCategoryId()` in the zod schemas of `POST /api/v1/admin/products`
+and `PATCH /api/v1/admin/products/[id]` is what enforces the reference, so an
+unknown category cannot be written even though the database would now accept
+one. The admin category picker renders the same array, so it cannot offer an id
+the storefront has no page for.
+
+The set is fixed at five (keyboards, mice, monitors, audio, accessories).
+Adding a sixth is a code change: append to `CATEGORIES` and deploy. Nothing else
+needs touching, because the nav, footer Shop column, `/shop` filter chips and
+product labels all read that array.
+
+History: the table existed through 0.13 alongside a hard-coded `CategoryId`
+union and a third hard-coded copy in the footer, which could and did disagree.
+0.14 briefly made the table authoritative; 0.15 dropped it. Products are the
+only catalog data that changes per deployment, so one source in code beats a
+table plus a union plus a join.
 
 ### `products`
 | Column | Type | Constraints | Notes |
@@ -26,7 +40,7 @@ Currency: **MMK** stored as **whole-integer BIGINT** (no subunit). Display in UI
 | id | VARCHAR(64) | PK | slug-safe id |
 | slug | VARCHAR(80) | UNIQUE NOT NULL | URL slug |
 | name | VARCHAR(120) | NOT NULL | |
-| category_id | VARCHAR(32) | NOT NULL, FK → categories.id | |
+| category_id | VARCHAR(32) | NOT NULL | One of `CATEGORIES` in `src/lib/categories.ts`. No FK: there is no categories table. Validated by `isCategoryId` in the admin write routes. |
 | price_mmk | BIGINT | NOT NULL, ≥ 0 | whole MMK units |
 | tagline | VARCHAR(200) | NOT NULL | |
 | description | TEXT | NOT NULL | |
@@ -90,6 +104,8 @@ Index: `idx_specs_product` on `(product_id, sort_order)`.
 | township | VARCHAR(120) | NOT NULL | e.g. Hlaing, Chanmyathazi |
 | street | VARCHAR(200) | NOT NULL | street + house no |
 | landmark | VARCHAR(200) | NULL | optional ("near X market") |
+| telegram_username | VARCHAR(32) | NULL | optional; bare handle, no `@` or `t.me/`. Backup channel for the confirmation call. Validated against Telegram's own rule (5-32, letter first, `[A-Za-z0-9_]`). |
+| maps_url | VARCHAR(512) | NULL | optional Google Maps pin for the courier. `https` only, Google hosts only, validated by `isGoogleMapsUrl` before storage and again before render. |
 | is_default | BOOLEAN | NOT NULL DEFAULT false | |
 | created_at, updated_at | TIMESTAMP | | |
 
@@ -163,7 +179,17 @@ PK: `(user_id, product_id)`. Guests use localStorage only; merge on login.
 | subtotal_mmk | BIGINT | NOT NULL, ≥ 0 | items only |
 | delivery_fee_mmk | BIGINT | NOT NULL, ≥ 0 | snapshot from `divisions.delivery_fee_mmk` at order time |
 | total_mmk | BIGINT | NOT NULL, ≥ 0 | `subtotal_mmk + delivery_fee_mmk` |
-| shipping_address_id | CHAR(36) | NULL, FK → addresses.id ON DELETE SET NULL | |
+| shipping_address_id | CHAR(36) | NULL, FK → addresses.id ON DELETE SET NULL | Provenance link only. Never read for delivery details — use the `ship_*` snapshot below. |
+| ship_recipient | VARCHAR(120) | NULL | Delivery destination frozen at placement, same rule as `order_items.name_snapshot`. Address rows stay customer-editable, so reading through the join let a Wednesday edit silently redirect a Monday order that had not shipped. No FKs on any `ship_*` column. |
+| ship_phone | VARCHAR(20) | NULL | |
+| ship_telegram | VARCHAR(32) | NULL | |
+| ship_division_id | VARCHAR(40) | NULL | plain value, not a FK |
+| ship_division_name | VARCHAR(60) | NULL | snapshot: division names are admin-editable |
+| ship_city | VARCHAR(120) | NULL | |
+| ship_township | VARCHAR(120) | NULL | |
+| ship_street | VARCHAR(200) | NULL | |
+| ship_landmark | VARCHAR(200) | NULL | |
+| ship_maps_url | VARCHAR(512) | NULL | re-validated at render, not trusted from storage |
 | payment_method_id | VARCHAR(40) | NOT NULL, FK → payment_methods.id ON DELETE RESTRICT | |
 | payment_proof_url | VARCHAR(255) | NULL | Bare basename `<uuid>.webp` of the slip object in R2 private bucket at key `slips/<order_id>/<basename>`. Legacy rows may hold a full `/slips/<orderId>/<uuid>.webp` path — the slip-streaming route strips to basename. Never a public URL. |
 | payment_tx_ref | VARCHAR(120) | NULL | optional customer-entered wallet tx ID |

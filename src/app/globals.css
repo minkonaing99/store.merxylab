@@ -63,11 +63,11 @@
     color: var(--color-cream);
   }
 
-  /* Focus ring */
+  /* Focus ring. No `border-radius` here - it overrides the element's own
+     radius, squaring pill buttons the moment they take keyboard focus. */
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
-    border-radius: 4px;
   }
 
   /* Reduced motion */
@@ -107,6 +107,28 @@
   .price {
     font-variant-numeric: tabular-nums;
     font-weight: 600;
+  }
+
+  /**
+   * Skeleton placeholder. Warm sand pulse, per DESIGN.md.
+   *
+   * The keyframe resting state is `--color-line`, so when the global
+   * reduced-motion rule collapses the duration the block still reads as a
+   * placeholder rather than freezing mid-fade.
+   */
+  @keyframes skeleton-pulse {
+    0%,
+    100% {
+      background-color: var(--color-line);
+    }
+    50% {
+      background-color: var(--color-sand);
+    }
+  }
+
+  .skeleton {
+    background-color: var(--color-line);
+    animation: skeleton-pulse 1.4s ease-in-out infinite;
   }
 
   .container-prose {

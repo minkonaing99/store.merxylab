@@ -16,19 +16,19 @@ interface WhyProps {
 const ITEMS = [
   {
     title: 'Curated, not crammed',
-    body: 'We stock a small selection instead of a wall of options. Aluminium, walnut, PBT - the gear built to last gets a place. The disposable plastic stuff does not.',
+    body: 'A short list in each category instead of a wall of options. Aluminium, PBT, wood that is actually wood. If something only looks good in photographs, it does not get a page here.',
   },
   {
     title: 'We try it first',
-    body: 'We use the peripherals before we list them. If a board rattles, a mouse feels cheap, or a mic hisses, it never reaches the shelf.',
+    body: 'Every board, mouse and mic spends time on a real desk before it is listed. Case flex, stabiliser rattle, a sensor that drifts, a mic that hisses - better we find it than you.',
   },
   {
     title: 'Genuine stock',
-    body: 'Real product in a sealed box, with the manufacturer warranty intact. No grey-market surprises.',
+    body: 'Sealed boxes with the manufacturer warranty intact, bought through proper channels. No grey-market imports, no refurbished units passed off as new.',
   },
   {
     title: 'Warranty and returns',
-    body: 'Every product carries its manufacturer warranty. And if something is wrong within a month, we refund or replace it here in Myanmar - no shipping overseas.',
+    body: 'A factory fault in the first two weeks we settle ourselves - refund or replacement, here in Myanmar. After that we take the warranty claim to the company for you, so you are never chasing a manufacturer overseas on your own.',
   },
 ] as const
 
@@ -63,11 +63,12 @@ export function Why({ showcase, imageUrl }: WhyProps) {
         <div>
           <div className="eyebrow">Why merxylab</div>
           <h2 className="mt-3 font-display text-[36px] leading-[1.05] text-ink md:text-[44px]">
-            Chosen for the desk, not the tournament.
+            Nothing on the shelf is filler.
           </h2>
           <p className="mt-4 max-w-[44ch] text-[15px] leading-relaxed text-ink-soft">
-            We pick peripherals the way a good furniture shop picks chairs - slowly, only the
-            well-made ones that age nicely. Calm gear for a desk you actually use.
+            Keyboards, mice, monitors, audio, accessories - a short list in each. We pick them the
+            way a furniture shop picks chairs: slowly, and only the ones that still feel right a
+            year in.
           </p>
 
           <ul className="mt-8 divide-y divide-line border-y border-line">

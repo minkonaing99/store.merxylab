@@ -12,7 +12,7 @@ export function ProductGrid({ products }: ProductGridProps) {
     <section className="container-prose py-20 md:py-28">
       <div className="flex items-end justify-between gap-6">
         <div>
-          <div className="eyebrow">Edit</div>
+          <div className="eyebrow">merxylab</div>
           <h2 className="mt-3 font-display text-[36px] leading-[1.05] text-ink md:text-[48px]">
             Best on the bench right now.
           </h2>

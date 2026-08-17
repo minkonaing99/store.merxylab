@@ -1,21 +1,40 @@
 import { NextResponse } from 'next/server'
-import { fail, ok } from '@/lib/api-response'
+import { fail, ok, rateLimited } from '@/lib/api-response'
 import { z } from 'zod'
 import { createHash } from 'node:crypto'
 import { and, eq, gt } from 'drizzle-orm'
 import { db } from '@/db'
 import { users, verificationTokens } from '@/db/schema/auth'
+import { clientKey, rateLimit } from '@/lib/rate-limit'
 
 const schema = z.object({
   email: z.string().email().max(254).toLowerCase(),
   token: z.string().length(64),
 })
 
+/**
+ * Verifying is a once-per-signup act, so this is generous by an order of
+ * magnitude - it exists to put a ceiling on an unauthenticated endpoint that
+ * spends database queries, not to ration a legitimate click. The token itself is
+ * 256-bit, so guessing was never the exposure.
+ */
+const VERIFY_LIMIT = 10
+const VERIFY_WINDOW_MS = 60 * 60 * 1000
+
 function hashToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex')
 }
 
 export async function POST(req: Request): Promise<NextResponse> {
+  const limit = rateLimit({
+    key: clientKey(req, 'verify'),
+    limit: VERIFY_LIMIT,
+    windowMs: VERIFY_WINDOW_MS,
+  })
+  if (!limit.allowed) {
+    return rateLimited('Too many attempts. Try again later.', limit.retryAfterSeconds)
+  }
+
   const raw = await req.json().catch(() => null)
   const parsed = schema.safeParse(raw)
   if (!parsed.success) {

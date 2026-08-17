@@ -1,13 +1,16 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { and, eq } from 'drizzle-orm'
-import { CheckCircle2 } from 'lucide-react'
+import { Check, MapPin } from 'lucide-react'
 import { db } from '@/db'
 import { orders, orderItems } from '@/db/schema/orders'
 import { paymentMethods } from '@/db/schema/payment-methods'
 import { auth } from '@/lib/auth'
 import { r2PublicUrl } from '@/lib/cdn'
 import { formatMmk } from '@/lib/money'
+import { customerStatusHint, customerStatusLabel } from '@/lib/order-status'
+import { orderTimestamp } from '@/lib/relative-time'
+import { isGoogleMapsUrl } from '@/lib/validators'
 import { WalletPanel } from './wallet-panel'
 import { CancelButton } from './cancel-button'
 
@@ -15,7 +18,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export const dynamic = 'force-dynamic'
 
-export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ placed?: string }>
+}) {
   const { id } = await params
   if (!UUID_RE.test(id)) notFound()
 
@@ -38,20 +47,57 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const tgUsername = process.env.TELEGRAM_BACKUP_USERNAME ?? ''
   const tgUrl = tgUsername ? `https://t.me/${tgUsername}` : null
 
-  return (
-    <article className="container-prose max-w-[760px] py-16 md:py-20">
-      <div className="flex items-center gap-3 text-[var(--color-success)]">
-        <CheckCircle2 size={22} strokeWidth={1.75} />
-        <div className="eyebrow">Order received</div>
-      </div>
-      <h1 className="mt-3 font-display text-[40px] leading-[1.05] text-ink md:text-[52px]">
-        Thanks &mdash; we&rsquo;ve got your order.
-      </h1>
-      <p className="mt-3 text-[15px] text-ink-soft">
-        Reference <code className="rounded bg-surface px-2 py-0.5 text-[13px] tabular-nums">{id}</code>
-      </p>
+  const kind = method?.kind ?? 'wallet'
+  const hint = customerStatusHint(order.status, kind)
+  const isOpen = order.status === 'pending_payment'
+  const showsWalletPanel = isOpen && method?.kind === 'wallet'
 
-      {order.status === 'pending_payment' && method?.kind === 'wallet' && (
+  // Checkout redirects here with `?placed=1`. The thank-you belongs to that one
+  // arrival: this URL is also where "pay now" and "cancel" land from the account
+  // page, and a cancelled order greeting the customer with a green tick and
+  // "thanks, we've got your order" is the page telling them a plain untruth.
+  const { placed } = await searchParams
+  const justPlaced = placed === '1' && isOpen
+
+  const shipping = order.shipRecipient
+    ? {
+        recipient: order.shipRecipient,
+        phone: order.shipPhone,
+        telegram: order.shipTelegram,
+        street: order.shipStreet,
+        township: order.shipTownship,
+        city: order.shipCity,
+        divisionName: order.shipDivisionName,
+        landmark: order.shipLandmark,
+        mapsUrl: order.shipMapsUrl && isGoogleMapsUrl(order.shipMapsUrl) ? order.shipMapsUrl : null,
+      }
+    : null
+
+  return (
+    <article className="mx-auto w-full max-w-[44rem] px-5 py-14 md:px-8 md:py-20">
+      {justPlaced && (
+        <p className="mb-6 inline-flex items-center gap-2 text-[13px] text-[var(--color-success)]">
+          <Check className="h-4 w-4" strokeWidth={2} aria-hidden />
+          Order placed. A copy is in your account.
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="eyebrow">Order</span>
+        <span className="font-mono text-[13px] tracking-[0.08em] text-ink-soft uppercase">
+          {id.slice(0, 8)}
+        </span>
+        <span className="text-[12px] text-muted">
+          placed {orderTimestamp(order.placedAt.toISOString())}
+        </span>
+      </div>
+
+      <h1 className="mt-3 font-display text-[34px] leading-[1.05] tracking-[-0.015em] text-ink sm:text-[42px]">
+        {customerStatusLabel(order.status, kind)}.
+      </h1>
+      {hint && <p className="mt-3 max-w-[52ch] text-[15px] leading-[1.6] text-ink-soft">{hint}</p>}
+
+      {showsWalletPanel && (
         <WalletPanel
           orderId={order.id}
           totalMmk={Number(order.totalMmk)}
@@ -67,109 +113,131 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         />
       )}
 
-      {order.status === 'pending_payment' && method?.kind === 'cod' && (
-        <section className="mt-10 rounded-[var(--radius-lg)] border border-line bg-surface p-6 md:p-8">
-          <h2 className="font-display text-[22px]">Cash on Delivery</h2>
-          <p className="mt-3 text-[14px] text-ink-soft">
-            We&rsquo;ll call to confirm the order before shipping. The driver will collect{' '}
-            <span className="price font-medium text-ink">{formatMmk(Number(order.totalMmk))}</span>{' '}
-            at the door.
-          </p>
-        </section>
+      {order.status === 'payment_submitted' && order.paymentProofUrl && (
+        <figure className="mt-8">
+          {/* eslint-disable-next-line @next/next/no-img-element -- slip is streamed
+              from a private bucket through our own route, not a public CDN URL. */}
+          <img
+            src={`/api/v1/orders/${order.id}/slip`}
+            alt="The payment slip you submitted"
+            className="max-h-64 rounded-[var(--radius)] border border-line"
+          />
+          <figcaption className="mt-2 text-[12px] text-muted">Your submitted slip.</figcaption>
+        </figure>
       )}
 
-      {order.status === 'payment_submitted' && (
-        <section className="mt-10 rounded-[var(--radius-lg)] border border-accent/30 bg-accent/5 p-6 md:p-8">
-          <h2 className="font-display text-[22px] text-accent">Slip received. Verifying with bank.</h2>
-          <p className="mt-2 text-[14px] text-ink-soft">
-            Usually within a few hours during business time.
-          </p>
-          {order.paymentProofUrl && (
-            <img
-              src={`/api/v1/orders/${order.id}/slip`}
-              alt="Submitted slip"
-              className="mt-4 max-h-64 rounded-[var(--radius)] border border-line"
-            />
-          )}
-        </section>
-      )}
+      <dl className="mt-10 divide-y divide-line border-y border-line text-[14px]">
+        <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-8">
+          <dt className="text-[12px] text-muted">Deliver to</dt>
+          <dd>
+            {shipping ? (
+              <div className="space-y-0.5 leading-[1.6] text-ink-soft">
+                <div className="text-ink">{shipping.recipient}</div>
+                <div className="font-mono text-[13px]">{shipping.phone}</div>
+                {shipping.telegram && (
+                  <div className="text-[13px]">
+                    <span className="text-muted">Telegram</span> @{shipping.telegram}
+                  </div>
+                )}
+                <div>{shipping.street}</div>
+                <div>
+                  {shipping.township}, {shipping.city}
+                </div>
+                {shipping.divisionName && <div>{shipping.divisionName}</div>}
+                {shipping.landmark && <div className="text-muted">{shipping.landmark}</div>}
+                {shipping.mapsUrl && (
+                  <a
+                    href={shipping.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1 pt-1 text-[13px] text-ink underline underline-offset-4 hover:text-accent"
+                  >
+                    <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
+                    Map pin
+                  </a>
+                )}
+              </div>
+            ) : (
+              <span className="text-muted">Address no longer on file.</span>
+            )}
+          </dd>
+        </div>
 
-      {order.status === 'confirmed' && (
-        <section className="mt-10 rounded-[var(--radius-lg)] border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 p-6 md:p-8">
-          <h2 className="font-display text-[22px] text-[var(--color-success)]">Confirmed.</h2>
-          <p className="mt-2 text-[14px] text-ink-soft">
-            Payment received. Your order is being prepared for delivery.
-          </p>
-        </section>
-      )}
+        <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-8">
+          <dt className="text-[12px] text-muted">Payment</dt>
+          <dd className="leading-[1.6]">
+            <div className="text-ink">{method?.name ?? 'Payment method'}</div>
+            <p className="text-[13px] text-muted">
+              {kind === 'cod'
+                ? 'Pay the courier when the parcel arrives.'
+                : 'Bank transfer or mobile wallet, verified by hand.'}
+            </p>
+          </dd>
+        </div>
+      </dl>
 
-      {order.status === 'delivered' && (
-        <section className="mt-10 rounded-[var(--radius-lg)] border border-line bg-surface p-6 md:p-8">
-          <h2 className="font-display text-[22px]">Delivered.</h2>
-        </section>
-      )}
-
-      {order.status === 'cancelled' && (
-        <section className="mt-10 rounded-[var(--radius-lg)] border border-error/30 bg-error/5 p-6 md:p-8">
-          <h2 className="font-display text-[22px] text-error">Cancelled.</h2>
-        </section>
-      )}
-
-      <section className="mt-10">
-        <h2 className="font-display text-[22px]">Items</h2>
-        <ul className="mt-4 divide-y divide-line border-y border-line">
-          {items.map((it) => (
-            <li key={it.id} className="flex items-center justify-between py-3.5 text-[14px]">
-              <span className="text-ink-soft">
-                {it.qty} × {it.nameSnapshot}
-              </span>
-              <span className="price text-ink">
-                {formatMmk(Number(it.unitPriceMmkSnapshot) * it.qty)}
-              </span>
-            </li>
-          ))}
-          <li className="flex items-center justify-between py-2.5 text-[13px]">
-            <span className="text-ink-soft">Subtotal</span>
-            <span className="price text-ink">{formatMmk(Number(order.subtotalMmk))}</span>
-          </li>
-          <li className="flex items-center justify-between py-2.5 text-[13px]">
-            <span className="text-ink-soft">Delivery</span>
-            <span className="price text-ink">{formatMmk(Number(order.deliveryFeeMmk))}</span>
-          </li>
-          <li className="flex items-center justify-between py-4">
-            <span className="font-display text-[18px]">Total</span>
-            <span className="price font-display text-[20px]">
-              {formatMmk(Number(order.totalMmk))}
+      <ul className="mt-8">
+        {items.map((it) => (
+          <li key={it.id} className="flex items-baseline justify-between gap-6 py-2.5">
+            <span className="text-[14px] text-ink">
+              <span className="text-muted">{it.qty} ×</span> {it.nameSnapshot}
+            </span>
+            <span className="price shrink-0 text-[14px] text-ink">
+              {formatMmk(Number(it.unitPriceMmkSnapshot) * it.qty)}
             </span>
           </li>
-        </ul>
-      </section>
+        ))}
+      </ul>
+
+      <dl className="mt-4 border-t border-line pt-4 text-[13px] text-muted">
+        <div className="flex items-baseline justify-between gap-6 py-1">
+          <dt>Subtotal</dt>
+          <dd className="price">{formatMmk(Number(order.subtotalMmk))}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-6 py-1">
+          <dt>Delivery</dt>
+          <dd className="price">
+            {Number(order.deliveryFeeMmk) > 0 ? formatMmk(Number(order.deliveryFeeMmk)) : 'Free'}
+          </dd>
+        </div>
+        <div className="mt-3 flex items-baseline justify-between gap-6 border-t border-ink/15 pt-4">
+          <dt className="font-display text-[20px] text-ink">Total</dt>
+          <dd className="price font-display text-[20px] text-ink">
+            {formatMmk(Number(order.totalMmk))}
+          </dd>
+        </div>
+      </dl>
 
       <div className="mt-10 flex flex-wrap items-center gap-3">
         <Link
-          href="/account/orders"
-          className="inline-flex items-center justify-center rounded-[var(--radius-pill)] bg-ink px-6 py-3 text-[14px] font-medium text-cream transition-colors hover:bg-accent"
-        >
-          View all orders
-        </Link>
-        <Link
           href="/shop"
-          className="inline-flex items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-6 py-3 text-[14px] font-medium text-ink hover:border-ink/40"
+          className="inline-flex h-12 items-center justify-center rounded-[var(--radius-pill)] bg-ink px-7 text-[14px] font-medium text-cream transition-colors hover:bg-accent"
         >
           Keep shopping
         </Link>
-        {order.status === 'pending_payment' && <CancelButton orderId={order.id} />}
-        {tgUrl && (
+        <Link
+          href={`/account/orders/${order.id}`}
+          className="inline-flex h-12 items-center justify-center rounded-[var(--radius-pill)] border border-line bg-cream px-7 text-[14px] font-medium text-ink transition-colors hover:border-ink/25"
+        >
+          Order details
+        </Link>
+      </div>
+
+      <p className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-muted">
+        {isOpen && <CancelButton orderId={order.id} />}
+        {/* The wallet panel already offers Telegram in context ("Trouble
+            uploading?"). Two links to the same chat on one screen is noise. */}
+        {tgUrl && !showsWalletPanel && (
           <a
             href={tgUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[13px] text-accent underline underline-offset-4"
+            className="text-ink underline underline-offset-4 hover:text-accent"
           >
-            Need help? Message us on Telegram →
+            Message us on Telegram
           </a>
         )}
-      </div>
+      </p>
     </article>
   )
 }

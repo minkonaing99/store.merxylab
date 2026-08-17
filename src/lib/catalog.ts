@@ -2,8 +2,9 @@ import 'server-only'
 import { unstable_cache } from 'next/cache'
 import { asc, eq } from 'drizzle-orm'
 import { db } from '@/db'
-import { categories, productSpecs, products } from '@/db/schema/products'
-import type { CategoryId, Product, Spec, Category } from './types'
+import { productSpecs, products } from '@/db/schema/products'
+import type { Product, Spec } from './types'
+import { CATEGORIES, type CategoryDef, type CategoryId } from './categories'
 
 interface ProductRow {
   id: string
@@ -53,18 +54,14 @@ function rowToProduct(row: ProductRow, specs: readonly Spec[]): Product {
   }
 }
 
-async function loadAll(): Promise<{
-  products: Product[]
-  categories: Category[]
-}> {
-  const [prodRows, specRows, catRows] = await Promise.all([
+async function loadAll(): Promise<{ products: Product[] }> {
+  const [prodRows, specRows] = await Promise.all([
     db
       .select()
       .from(products)
       .where(eq(products.isActive, true))
       .orderBy(asc(products.sortOrder), asc(products.name)),
     db.select().from(productSpecs).orderBy(asc(productSpecs.productId), asc(productSpecs.sortOrder)),
-    db.select().from(categories).orderBy(asc(categories.sortOrder)),
   ])
 
   const specsByProduct = new Map<string, Spec[]>()
@@ -78,19 +75,12 @@ async function loadAll(): Promise<{
     rowToProduct(row, specsByProduct.get(row.id) ?? []),
   )
 
-  const cats: Category[] = catRows.map((c) => ({
-    id: c.id as CategoryId,
-    name: c.name,
-    description: c.description,
-    order: c.sortOrder,
-  }))
-
-  return { products: productsList, categories: cats }
+  return { products: productsList }
 }
 
 const cachedLoadAll = unstable_cache(loadAll, ['catalog-all'], {
   revalidate: 60,
-  tags: ['products', 'categories'],
+  tags: ['products'],
 })
 
 export async function getAllProducts(): Promise<readonly Product[]> {
@@ -98,9 +88,9 @@ export async function getAllProducts(): Promise<readonly Product[]> {
   return products
 }
 
-export async function getAllCategories(): Promise<readonly Category[]> {
-  const { categories } = await cachedLoadAll()
-  return categories
+/** Async only so callers do not have to change when this was a table read. */
+export async function getAllCategories(): Promise<readonly CategoryDef[]> {
+  return CATEGORIES
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | undefined> {
@@ -108,12 +98,11 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
   return all.find((p) => p.slug === slug)
 }
 
-export async function getCategoryById(id: CategoryId): Promise<Category | undefined> {
-  const all = await getAllCategories()
-  return all.find((c) => c.id === id)
+export async function getCategoryById(id: string): Promise<CategoryDef | undefined> {
+  return CATEGORIES.find((c) => c.id === id)
 }
 
-export async function getProductsByCategory(id: CategoryId): Promise<readonly Product[]> {
+export async function getProductsByCategory(id: string): Promise<readonly Product[]> {
   const all = await getAllProducts()
   return all.filter((p) => p.category === id)
 }

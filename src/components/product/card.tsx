@@ -8,7 +8,8 @@ import { Tile } from './tile'
 import { StockBadge } from './stock-badge'
 import { formatMmk } from '@/lib/money'
 import { useCart } from '@/lib/cart-store'
-import { CATEGORY_NAME, type Product } from '@/lib/types'
+import type { Product } from '@/lib/types'
+import { CATEGORY_NAME } from '@/lib/categories'
 
 interface ProductCardProps {
   product: Product
