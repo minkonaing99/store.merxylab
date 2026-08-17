@@ -1,6 +1,6 @@
 # SCHEMA — merxylab store
 
-Phase 4-7: MySQL persistence via Drizzle ORM. Tables defined in `src/db/schema/*.ts`. The database is the only catalog source; the former `src/data/*.json` seed snapshot is gone (`scripts/dump-seed.ts` dumps live rows when a seed file is needed).
+Phase 4-7: MySQL persistence via Drizzle ORM. Tables defined in `src/db/schema/*.ts`. The database is the only catalog source; the former `src/data/*.json` seed snapshot is gone (`docs/db-bootstrap.sql` dumps live rows when a seed file is needed).
 
 Naming: `snake_case` columns, `lower_snake` table names, PKs are CHAR(36) UUIDs or VARCHAR slug-style natural keys where useful.
 
@@ -345,7 +345,7 @@ Changing the schema:
    copy from; delete the generated folder afterwards.
 3. Apply the change to each live database with a one-off script in `scripts/`
    (a short `db.execute(sql\`ALTER TABLE ...\`)` script) or a direct `ALTER`.
-4. Re-run `npm run db:dump-seed` if reference data moved.
+4. Hand-edit `docs/db-bootstrap.sql` if reference data or the catalog moved.
 
 Verify before trusting the file: create a scratch database, run the bootstrap
 into it, and diff `information_schema.COLUMNS` against the live database. Zero

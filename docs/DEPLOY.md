@@ -215,7 +215,7 @@ git pull
 npm ci
 npm run build
 # Schema changed? Apply the ALTER by hand or with a one-off script in scripts/
-# following the pattern in scripts/dump-seed.ts. There is no migration runner.
+# following the pattern in scripts/cancel-expired-orders.ts. No migration runner.
 # rebuild deploy bundle
 rsync -avz --delete deploy/ user@your-domain.com:/home/user/domains/your-domain.com/merxylab/
 # hPanel → Node.js → app → Restart

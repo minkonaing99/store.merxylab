@@ -111,8 +111,7 @@ merxylab-store/
 │   └── favicon.ico, logo.png                  # product photos live on Cloudflare R2
 ├── scripts/
 │   ├── cancel-expired-orders.ts               # nightly unpaid-order sweep
-│   ├── set-password.ts                       # operator password reset
-│   └── dump-seed.ts                          # regenerates db-bootstrap.sql seeds
+│   └── set-password.ts                       # operator password reset
 ├── drizzle.config.ts
 ├── docs/, .env.local, .env.example
 ├── package.json, tsconfig.json, next.config.ts
@@ -316,7 +315,7 @@ merxylab-store/
 ### [2026-08-17] Categories are code, not a table
 **Status:** Accepted (supersedes "Categories move to the database", same day)
 **Context:** Categories existed in three places at once: a `categories` table, a hard-coded `CategoryId` union plus `CATEGORY_NAME` map in `src/lib/types.ts`, and a third hard-coded copy as literal `/shop/<id>` links in the footer. They could disagree silently, and the union type checked nothing because every construction site reached it through `as CategoryId` on a plain DB string. The first attempt made the table authoritative and deleted the union. That was the wrong end to collapse toward: the shop sells a fixed set of five things, the owner only ever adds *products*, and there was no admin screen for categories, so "data" meant "hand-written INSERT" rather than anything self-service.
-**Decision:** Drop the table. `CATEGORIES` in `src/lib/categories.ts` is an `as const` array of `{ id, name, description }`; `CategoryId` is derived from it, so the union is real rather than asserted. `products.category_id` keeps its column but loses its foreign key, and `isCategoryId()` in the zod schemas of the two admin product routes takes over as the referential check. Nav, footer, shop filter chips and the admin category picker all read the same array. `getAllCategories()` and `getCategoryById()` stay async so callers did not change. `scripts/dump-seed.ts` was cut back to divisions and payment methods.
+**Decision:** Drop the table. `CATEGORIES` in `src/lib/categories.ts` is an `as const` array of `{ id, name, description }`; `CategoryId` is derived from it, so the union is real rather than asserted. `products.category_id` keeps its column but loses its foreign key, and `isCategoryId()` in the zod schemas of the two admin product routes takes over as the referential check. Nav, footer, shop filter chips and the admin category picker all read the same array. `getAllCategories()` and `getCategoryById()` stay async so callers did not change. `docs/db-bootstrap.sql` was cut back to divisions and payment methods.
 **Consequences:** Adding a category is a code change and a deploy, which matches how often it happens (once). One fewer table, one fewer join on every catalog read, and the category picker cannot offer an id the storefront has no page for. The database no longer guarantees `category_id` is valid, so the zod refinement is load-bearing: bypassing the admin API with direct SQL can write a product no shop page will list. `docs/db-bootstrap.sql` drops from 17 tables to 16 and seeds reference data only.
 
 ### [2026-08-17] Server errors alert over the existing Telegram bot, not Sentry

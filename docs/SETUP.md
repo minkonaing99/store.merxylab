@@ -79,13 +79,13 @@ mysql -u root -p merxylab < docs/db-bootstrap.sql
 # hPanel → MySQL Databases → phpMyAdmin → select `u<acct>_merxylab_store` DB → Import → upload docs/db-bootstrap.sql → Go.
 ```
 
-The file creates 16 tables + FK constraints + indexes, then inserts reference data only: 15 divisions and 5 payment methods. **No product catalog** — a fresh install starts with an empty shop and you add products through `/admin`. No app code or env vars touched.
+The file creates 16 tables + FK constraints + indexes, then inserts 15 divisions, 5 payment methods, and the **7-product catalog with its 25 spec rows** (sections 4-5), so a fresh install boots with a working shop. Edit those sections by hand as the catalog changes, or add products through `/admin` and leave the file as a baseline. No app code or env vars touched.
 
 Those two tables are not catalog data and must stay: checkout reads divisions for delivery fees and COD eligibility, and the payment step reads payment_methods.
 
 There is no `categories` table. The five categories live in `src/lib/categories.ts` and ship with the code.
 
-Section 1 (schema) is hand-maintained from `src/db/schema/*.ts`; sections 2-3 are regenerated with `npm run db:dump-seed`, which only ever writes divisions and payment methods.
+The whole file is hand-maintained: section 1 (schema) from `src/db/schema/*.ts`, sections 2-5 by editing it directly. A `db:dump-seed` generator used to rewrite sections 2-3 from a live database and was removed - its rewrite window ran to end-of-file, so it silently deleted the product catalog in sections 4-5.
 
 There is **no migration path**. `src/db/migrations/` and `npm run db:migrate` were removed: migrations never ran against these databases, so the history was empty and a migrate attempt replayed `CREATE TABLE`s that already existed. Schema changes go into the bootstrap file by hand plus a one-off script in `scripts/`. `npm run db:generate` still exists to produce SQL worth copying, and `npm run db:push` still diffs schema against a database.
 
@@ -135,7 +135,7 @@ Required from 0.14.0+ for product photo / payment QR / slip uploads. See TECH AD
 > authed `GET /api/v1/orders/[id]/slip` route entirely. The UUID path segments made the URLs
 > unguessable, which is the only reason this was not worse. Fixed 2026-08-17 by splitting
 > `merxylab-secret` out. If you ever set these two to the same value, you have re-created it.
-5. **Rotate the API token every 90 days** along with `AUTH_SECRET` and SMTP creds.
+6. **Rotate the API token every 90 days** along with `AUTH_SECRET` and SMTP creds.
 
 Smoke test after deploy:
 - `/admin/products` → upload one product photo → page render should load both 1600px hero and 600px thumb via `cdn.merxylab.com/products/<slug>/...`.
@@ -176,7 +176,6 @@ npm run format            # prettier write
 npm run db:generate       # drizzle-kit generate (SQL to copy into db-bootstrap.sql)
 npm run db:push           # diff schema against a database
 npm run db:studio         # open Drizzle Studio admin UI (local only)
-npm run db:dump-seed      # regenerate seed sections of docs/db-bootstrap.sql
 
 # Operations
 npm run user:password -- <email>   # set a user's password (prompts; never pass it as an argument)

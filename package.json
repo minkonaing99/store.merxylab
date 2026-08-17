@@ -15,8 +15,7 @@
     "user:password": "tsx --env-file=.env.local scripts/set-password.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "db:dump-seed": "tsx --env-file=.env.local scripts/dump-seed.ts"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

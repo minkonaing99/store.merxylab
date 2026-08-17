@@ -3,10 +3,10 @@
 -- Fresh-install script. Run against an empty MySQL 8 database to create
 -- every table, then insert the reference data the app cannot boot without.
 --
--- No product catalog. A fresh install starts with an empty shop; add products
--- through /admin. Divisions and payment methods are not catalog data and must
--- stay: checkout reads divisions for delivery fees and COD eligibility, and
--- the payment step reads payment_methods.
+-- Includes the current product catalog (sections 4-5) so a fresh install boots
+-- with a working shop. Divisions and payment methods must stay regardless:
+-- checkout reads divisions for delivery fees and COD eligibility, and the
+-- payment step reads payment_methods.
 --
 -- There is no `categories` table. The shop's five categories live in
 -- `src/lib/categories.ts` and ship with the code, so `products.category_id`
@@ -18,9 +18,10 @@
 --   Hostinger: hPanel -> MySQL Databases -> phpMyAdmin -> select the DB ->
 --              Import -> upload this file -> Go.
 --
--- Section 1 (schema) is hand-maintained from src/db/schema/*.ts.
--- Sections 2-3 are reference data. `npm run db:dump-seed` regenerates them
--- from a live database; it never writes catalog or customer rows.
+-- Every section is hand-maintained: schema from src/db/schema/*.ts, the rest by
+-- editing this file. A generator script used to rewrite sections 2-3 from a live
+-- database; it was removed because its rewrite window ran to the end of the file
+-- and silently deleted the catalog below.
 --
 -- Run order: schema -> divisions -> payment_methods.
 --
@@ -301,6 +302,53 @@ INSERT INTO `payment_methods` (`id`, `name`, `kind`, `account_name`, `account_ph
 ('uab_pay', 'UAB Pay', 'wallet', NULL, NULL, NULL, NULL, 3, 0),
 ('kbz_bank', 'KBZ Bank', 'wallet', NULL, NULL, NULL, NULL, 4, 0),
 ('cod', 'Cash on Delivery', 'cod', NULL, NULL, NULL, NULL, 5, 1);
+
+
+-- =================================================================
+-- 4. Products
+-- =================================================================
+INSERT INTO `products` (`id`, `slug`, `name`, `category_id`, `price_mmk`, `tagline`, `description`, `swatch`, `stock_qty`, `low_stock_threshold`, `has_photos`, `is_active`, `featured`, `sort_order`) VALUES
+('vxe-dragonfly-r1-se', 'vxe-dragonfly-r1-se', 'VXE Dragonfly R1 SE+', 'mice', 150000, '55g wireless esports mouse, PAW3395 SE, 70hr battery', 'Ultralight wireless gaming mouse built for esports and long work sessions. The PAW3395 SE optical sensor tracks up to 18,000 DPI at 400 IPS, so aim stays accurate on fast flicks. The symmetrical shell works for palm, claw, and fingertip grips, and the low weight keeps your hand fresh after hours of play.
+Connect three ways: 2.4GHz wireless, Bluetooth, or USB-C wired. SmartSpeed X keeps wireless latency low enough for competitive shooters. One charge lasts around 70 hours at 1000Hz, so you charge it once a week, not every night.
+
+Huano micro switches give a crisp click. PTFE feet glide smooth out of the box. Settings adjust through the web driver, no software install needed.', '#858585', 17, 3, 1, 1, 1, 1),
+('logitech-mx-master-4', 'logitech-mx-master-4', 'Logitech Mx Master 4', 'mice', 568000, 'mouse', 'Meet the MX Master 4 that brings immersive control and precision you can feel with customizable haptic feedback on specific actions. Save up to 33% of your time with Actions Ring shortcuts and MX Master 4, by accessing tools and filters at your cursor. Additional features: 2x better connectivity, ultra fast scrolling with the MagSpeed scroll wheel, 8k DPI any surface tracking, including glass & Logi Options+ for customization.', '#b0a39b', 5, 2, 1, 1, 1, 2),
+('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 1, 1, 1, 10),
+('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#eae1d7', 5, 2, 1, 1, 1, 20),
+('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#897e70', 4, 2, 1, 1, 1, 30),
+('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'audio', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 0, 70),
+('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 0, 80);
+
+
+-- =================================================================
+-- 5. Product specs
+-- =================================================================
+INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUES
+('edifier-m230-retro-brown', 'Output', '20 W', 0),
+('edifier-m230-retro-brown', 'Connectivity', 'BT 5.0 / AUX / USB-C / TF', 1),
+('edifier-m230-retro-brown', 'Battery', '10 hours', 2),
+('edifier-m230-retro-brown', 'Finish', 'Retro Brown', 3),
+('keychron-k2-pro', 'Layout', '75% (84 keys)', 0),
+('keychron-k2-pro', 'Switches', 'Hot-swap, Brown or Red', 1),
+('keychron-k2-pro', 'Connection', 'BT 5.1 + 2.4G + USB-C', 2),
+('keychron-k2-pro', 'Firmware', 'QMK / VIA', 3),
+('logitech-g-pro-x-superlight-2', 'Sensor', 'HERO 2, 32000 DPI', 0),
+('logitech-g-pro-x-superlight-2', 'Weight', '< 60 g', 1),
+('logitech-g-pro-x-superlight-2', 'Connection', 'LIGHTSPEED 2.4G + USB-C', 2),
+('logitech-g-pro-x-superlight-2', 'Battery', '95 hours', 3),
+('nuphy-halo65', 'Layout', '65% (68 keys)', 0),
+('nuphy-halo65', 'Mount', 'Gasket', 1),
+('nuphy-halo65', 'Switches', 'Hot-swap, Night Breeze / Rose Glacier', 2),
+('nuphy-halo65', 'Connection', 'BT + 2.4G + USB-C', 3),
+('premium-deskmat', 'Size', '900 × 400 mm', 0),
+('premium-deskmat', 'Thickness', '4 mm', 1),
+('premium-deskmat', 'Surface', 'Cloth, non-slip rubber base', 2),
+('premium-deskmat', 'Care', 'Machine washable', 3),
+('vxe-dragonfly-r1-se', 'Sensor', 'PAW3395 SE optical', 0),
+('vxe-dragonfly-r1-se', 'Max', '18,000 (10 DPI steps)', 1),
+('vxe-dragonfly-r1-se', 'Max speed', '400 IPS', 2),
+('vxe-dragonfly-r1-se', 'Polling rate', '125 to 2000 Hz (2K dongle)', 3),
+('vxe-dragonfly-r1-se', 'Weight', '55g', 4);
 
 
 -- =================================================================
