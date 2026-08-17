@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { revalidateTag } from 'next/cache'
@@ -30,40 +31,19 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: Request): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) {
-    return NextResponse.json(
-      { data: null, error: { code: 'FORBIDDEN', message: guard.message, status: guard.status } },
-      { status: guard.status },
-    )
-  }
+  const denied = await requireAdmin()
+  if (denied) return denied
   const raw = await req.json().catch(() => null)
   const parsed = bodySchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: parsed.error.issues[0]?.message ?? 'Invalid body.',
-          status: 400,
-        },
-      },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid body.', 400)
   }
   const b = parsed.data
 
   // Slug uniqueness check (id = slug).
   const existing = await db.select({ id: products.id }).from(products).where(eq(products.id, b.slug)).limit(1)
   if (existing.length > 0) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: { code: 'CONFLICT', message: 'Slug already in use.', status: 409 },
-      },
-      { status: 409 },
-    )
+    return fail('CONFLICT', 'Slug already in use.', 409)
   }
 
   await db.transaction(async (tx) => {
@@ -97,5 +77,5 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   revalidateTag('products')
 
-  return NextResponse.json({ data: { id: b.slug, slug: b.slug }, error: null })
+  return ok({ id: b.slug, slug: b.slug })
 }

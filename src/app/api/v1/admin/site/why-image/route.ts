@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok, rateLimited } from '@/lib/api-response'
 import sharp from 'sharp'
 import { requireAdmin } from '@/lib/admin-guard'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
@@ -11,28 +12,21 @@ const SETTING_KEY = 'why_image'
 const MAX_BYTES = 10 * 1024 * 1024
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
-function jsonError(code: string, message: string, status: number) {
-  return NextResponse.json({ data: null, error: { code, message, status } }, { status })
-}
-
 export async function POST(req: Request): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) return jsonError('FORBIDDEN', guard.message, guard.status)
+  const denied = await requireAdmin()
+  if (denied) return denied
 
   const limit = rateLimit({ key: clientKey(req, 'admin:why-image'), limit: 20, windowMs: 60 * 60 * 1000 })
   if (!limit.allowed) {
-    return NextResponse.json(
-      { data: null, error: { code: 'RATE_LIMITED', message: 'Too many uploads.', status: 429 } },
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
-    )
+    return rateLimited('Too many uploads.', limit.retryAfterSeconds)
   }
 
   const form = await req.formData().catch(() => null)
-  if (!form) return jsonError('VALIDATION_ERROR', 'Invalid form data.', 400)
+  if (!form) return fail('VALIDATION_ERROR', 'Invalid form data.', 400)
   const file = form.get('image')
-  if (!(file instanceof File)) return jsonError('VALIDATION_ERROR', 'Missing image file.', 400)
-  if (file.size > MAX_BYTES) return jsonError('VALIDATION_ERROR', 'File over 10 MB.', 413)
-  if (!ALLOWED_MIME.has(file.type)) return jsonError('VALIDATION_ERROR', 'Use JPG, PNG, or WEBP.', 415)
+  if (!(file instanceof File)) return fail('VALIDATION_ERROR', 'Missing image file.', 400)
+  if (file.size > MAX_BYTES) return fail('VALIDATION_ERROR', 'File over 10 MB.', 413)
+  if (!ALLOWED_MIME.has(file.type)) return fail('VALIDATION_ERROR', 'Use JPG, PNG, or WEBP.', 415)
 
   const buffer = Buffer.from(await file.arrayBuffer())
   let processed: Buffer
@@ -43,36 +37,36 @@ export async function POST(req: Request): Promise<NextResponse> {
       .webp({ quality: 88, alphaQuality: 100 })
       .toBuffer()
   } catch {
-    return jsonError('VALIDATION_ERROR', 'Could not read image.', 400)
+    return fail('VALIDATION_ERROR', 'Could not read image.', 400)
   }
 
   try {
     await putPublic(WHY_KEY, processed, 'image/webp')
   } catch {
-    return jsonError('UPSTREAM_ERROR', 'Could not store image.', 502)
+    return fail('UPSTREAM_ERROR', 'Could not store image.', 502)
   }
 
   await setSetting(SETTING_KEY, WHY_KEY)
   revalidateTag('site-settings')
 
-  return NextResponse.json({ data: { url: r2PublicUrl(WHY_KEY) }, error: null })
+  return ok({ url: r2PublicUrl(WHY_KEY) })
 }
 
 export async function GET(): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) return jsonError('FORBIDDEN', guard.message, guard.status)
+  const denied = await requireAdmin()
+  if (denied) return denied
 
   const key = await getSetting(SETTING_KEY)
-  return NextResponse.json({ data: { url: key ? r2PublicUrl(key) : null }, error: null })
+  return ok({ url: key ? r2PublicUrl(key) : null })
 }
 
 export async function DELETE(): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) return jsonError('FORBIDDEN', guard.message, guard.status)
+  const denied = await requireAdmin()
+  if (denied) return denied
 
   await deletePublic(WHY_KEY)
   await deleteSetting(SETTING_KEY)
   revalidateTag('site-settings')
 
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

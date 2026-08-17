@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok, rateLimited } from '@/lib/api-response'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { and, desc, eq } from 'drizzle-orm'
@@ -28,18 +29,12 @@ export async function GET(
 ): Promise<NextResponse> {
   const { slug } = await params
   if (!SLUG_RE.test(slug)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid slug.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid slug.', 400)
   }
 
   const [product] = await db.select().from(products).where(eq(products.slug, slug)).limit(1)
   if (!product) {
-    return NextResponse.json(
-      { data: null, error: { code: 'NOT_FOUND', message: 'Product not found.', status: 404 } },
-      { status: 404 },
-    )
+    return fail('NOT_FOUND', 'Product not found.', 404)
   }
 
   const rows = await db
@@ -57,7 +52,7 @@ export async function GET(
     .where(and(eq(reviews.productId, product.id), eq(reviews.status, 'approved')))
     .orderBy(desc(reviews.createdAt))
 
-  return NextResponse.json({ data: rows, error: null })
+  return ok(rows)
 }
 
 export async function POST(
@@ -66,10 +61,7 @@ export async function POST(
 ): Promise<NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
 
   const limit = rateLimit({
@@ -78,35 +70,23 @@ export async function POST(
     windowMs: 24 * 60 * 60 * 1000,
   })
   if (!limit.allowed) {
-    return NextResponse.json(
-      { data: null, error: { code: 'RATE_LIMITED', message: 'Too many reviews.', status: 429 } },
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
-    )
+    return rateLimited('Too many reviews.', limit.retryAfterSeconds)
   }
 
   const { slug } = await params
   if (!SLUG_RE.test(slug)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid slug.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid slug.', 400)
   }
 
   const [product] = await db.select().from(products).where(eq(products.slug, slug)).limit(1)
   if (!product) {
-    return NextResponse.json(
-      { data: null, error: { code: 'NOT_FOUND', message: 'Product not found.', status: 404 } },
-      { status: 404 },
-    )
+    return fail('NOT_FOUND', 'Product not found.', 404)
   }
 
   const raw = await req.json().catch(() => null)
   const parsed = bodySchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid body.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid body.', 400)
   }
 
   // verified-purchase check
@@ -131,20 +111,10 @@ export async function POST(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes('uniq_review_user_product') || msg.includes('Duplicate')) {
-      return NextResponse.json(
-        {
-          data: null,
-          error: {
-            code: 'CONFLICT',
-            message: 'You have already reviewed this product.',
-            status: 409,
-          },
-        },
-        { status: 409 },
-      )
+      return fail('CONFLICT', 'You have already reviewed this product.', 409)
     }
     throw err
   }
 
-  return NextResponse.json({ data: { ok: true, status: 'pending' }, error: null })
+  return ok({ ok: true, status: 'pending' })
 }

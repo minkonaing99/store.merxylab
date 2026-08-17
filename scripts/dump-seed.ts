@@ -30,8 +30,29 @@ function literal(value: unknown): string {
   return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "''")}'`
 }
 
-async function rows(query: string): Promise<Row[]> {
-  const [result] = await db.execute(sql.raw(query))
+/**
+ * Every statement this script runs, as constants.
+ *
+ * `sql.raw` skips parameterisation, so it must never see a string that was
+ * built at runtime. Keying `rows()` to this object is what enforces that: the
+ * parameter type is `keyof typeof QUERIES`, so an interpolated string is a
+ * compile error rather than something a reviewer has to notice.
+ */
+const QUERIES = {
+  divisions:
+    'SELECT id, name, delivery_fee_mmk, cod_allowed, is_blocked, sort_order FROM divisions ORDER BY sort_order',
+  payment_methods:
+    'SELECT id, name, kind, account_name, account_phone, qr_image_url, instructions_md, sort_order, is_active FROM payment_methods ORDER BY sort_order',
+  categories: 'SELECT id, name, description, sort_order FROM categories ORDER BY sort_order',
+  products: `SELECT id, slug, name, category_id, price_mmk, tagline, description, swatch, stock_qty,
+            low_stock_threshold, has_photos, is_active, featured, sort_order
+     FROM products ORDER BY sort_order, name`,
+  product_specs:
+    'SELECT product_id, label, value, sort_order FROM product_specs ORDER BY product_id, sort_order',
+} as const
+
+async function rows(query: keyof typeof QUERIES): Promise<Row[]> {
+  const [result] = await db.execute(sql.raw(QUERIES[query]))
   return result as unknown as Row[]
 }
 
@@ -49,23 +70,11 @@ function section(title: string, body: string): string {
 }
 
 async function main() {
-  const divisions = await rows(
-    'SELECT id, name, delivery_fee_mmk, cod_allowed, is_blocked, sort_order FROM divisions ORDER BY sort_order',
-  )
-  const methods = await rows(
-    'SELECT id, name, kind, account_name, account_phone, qr_image_url, instructions_md, sort_order, is_active FROM payment_methods ORDER BY sort_order',
-  )
-  const categories = await rows(
-    'SELECT id, name, description, sort_order FROM categories ORDER BY sort_order',
-  )
-  const products = await rows(
-    `SELECT id, slug, name, category_id, price_mmk, tagline, description, swatch, stock_qty,
-            low_stock_threshold, has_photos, is_active, featured, sort_order
-     FROM products ORDER BY sort_order, name`,
-  )
-  const specs = await rows(
-    'SELECT product_id, label, value, sort_order FROM product_specs ORDER BY product_id, sort_order',
-  )
+  const divisions = await rows('divisions')
+  const methods = await rows('payment_methods')
+  const categories = await rows('categories')
+  const products = await rows('products')
+  const specs = await rows('product_specs')
 
   const seed =
     section(

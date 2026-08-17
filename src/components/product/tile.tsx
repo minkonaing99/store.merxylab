@@ -4,8 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import type { PhotoSlot, Product } from '@/lib/types'
-import { PHOTO_BASE } from '@/lib/types'
-import { getCategory } from '@/lib/products'
+import { CATEGORY_NAME, PHOTO_BASE } from '@/lib/types'
 
 interface TileProps {
   product: Product
@@ -46,7 +45,6 @@ export function Tile({
   const dark = isDark(product.swatch)
   const ink = dark ? '#F5EFE6' : '#1C1B19'
   const muted = dark ? 'rgba(245, 239, 230, 0.6)' : 'rgba(28, 27, 25, 0.5)'
-  const category = getCategory(product.category)
 
   // `hasPhotos` is a hint from the DB. If the actual file is missing
   // (orphan from a prior deploy, mid-upload race, etc.) the optimizer
@@ -67,7 +65,7 @@ export function Tile({
       {showImage && (
         <Image
           src={`${PHOTO_BASE}/${product.slug}/${photoFile}`}
-          alt={`${product.name} - ${category?.name ?? product.category}`}
+          alt={`${product.name} - ${CATEGORY_NAME[product.category]}`}
           fill
           sizes={sizes}
           priority={priority}
@@ -93,7 +91,7 @@ export function Tile({
             className="absolute top-4 left-4 text-[10px] tracking-[0.12em] uppercase font-medium"
             style={{ color: muted }}
           >
-            {category?.name ?? product.category}
+            {CATEGORY_NAME[product.category]}
           </div>
           <div
             className="absolute bottom-4 left-4 right-4 text-[15px] font-semibold leading-tight"

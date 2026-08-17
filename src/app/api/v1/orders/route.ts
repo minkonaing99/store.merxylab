@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok, rateLimited } from '@/lib/api-response'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { and, desc, eq } from 'drizzle-orm'
@@ -10,6 +11,7 @@ import { paymentMethods } from '@/db/schema/payment-methods'
 import { auth } from '@/lib/auth'
 import { getCartLines, clearCart } from '@/lib/cart-session'
 import { sendMail } from '@/lib/mail'
+import { maskEmail } from '@/lib/mask'
 import { formatMmk } from '@/lib/money'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { sendTelegram } from '@/lib/telegram'
@@ -46,10 +48,7 @@ const bodySchema = z
 export async function POST(req: Request): Promise<NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const userId = session.user.id
 
@@ -59,30 +58,22 @@ export async function POST(req: Request): Promise<NextResponse> {
     windowMs: 60 * 60 * 1000,
   })
   if (!limit.allowed) {
-    return NextResponse.json(
-      { data: null, error: { code: 'RATE_LIMITED', message: 'Too many orders.', status: 429 } },
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
-    )
+    return rateLimited('Too many orders.', limit.retryAfterSeconds)
   }
 
   const raw = await req.json().catch(() => ({}))
   const parsed = bodySchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: parsed.error.issues[0]?.message ?? 'Invalid body.',
-          status: 400,
-        },
-      },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid body.', 400)
   }
 
   let shippingAddressId: string
   let divisionId: string
+  // Held rather than written. Everything below can still reject the checkout,
+  // and a rejected checkout must not leave an address on the customer's account
+  // - nor hand an unchecked `divisionId` to the foreign key, which surfaces as
+  // a 500 instead of the 400 the division lookup gives.
+  let addressToCreate: typeof addresses.$inferInsert | null = null
 
   if (parsed.data.shippingAddressId) {
     const [addr] = await db
@@ -91,10 +82,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       .where(and(eq(addresses.id, parsed.data.shippingAddressId), eq(addresses.userId, userId)))
       .limit(1)
     if (!addr) {
-      return NextResponse.json(
-        { data: null, error: { code: 'NOT_FOUND', message: 'Address not found.', status: 404 } },
-        { status: 404 },
-      )
+      return fail('NOT_FOUND', 'Address not found.', 404)
     }
     shippingAddressId = addr.id
     divisionId = addr.divisionId
@@ -102,7 +90,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     const na = parsed.data.newAddress
     divisionId = na.divisionId
     shippingAddressId = randomUUID()
-    await db.insert(addresses).values({
+    addressToCreate = {
       id: shippingAddressId,
       userId,
       label: na.saveToAccount ? na.label : `Order ${new Date().toISOString().slice(0, 10)}`,
@@ -114,12 +102,9 @@ export async function POST(req: Request): Promise<NextResponse> {
       street: na.street,
       landmark: na.landmark ?? null,
       isDefault: false,
-    })
+    }
   } else {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Missing address.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Missing address.', 400)
   }
 
   const [division] = await db
@@ -128,13 +113,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     .where(eq(divisions.id, divisionId))
     .limit(1)
   if (!division || division.isBlocked) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: { code: 'VALIDATION_ERROR', message: 'Delivery to that division is unavailable.', status: 400 },
-      },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Delivery to that division is unavailable.', 400)
   }
 
   const [method] = await db
@@ -143,21 +122,12 @@ export async function POST(req: Request): Promise<NextResponse> {
     .where(and(eq(paymentMethods.id, parsed.data.paymentMethodId), eq(paymentMethods.isActive, true)))
     .limit(1)
   if (!method) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: { code: 'VALIDATION_ERROR', message: 'Payment method unavailable.', status: 400 },
-      },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Payment method unavailable.', 400)
   }
 
   const lines = await getCartLines()
   if (lines.length === 0) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Cart is empty.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Cart is empty.', 400)
   }
 
   const subtotal = lines.reduce((sum, l) => sum + l.product.priceMmk * l.qty, 0)
@@ -166,17 +136,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   if (method.kind === 'cod') {
     if (!division.codAllowed || total > COD_CAP_MMK) {
-      return NextResponse.json(
-        {
-          data: null,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: `Cash on Delivery available only for Yangon/Mandalay orders under ${formatMmk(COD_CAP_MMK)}.`,
-            status: 400,
-          },
-        },
-        { status: 400 },
-      )
+      return fail('VALIDATION_ERROR', `Cash on Delivery available only for Yangon/Mandalay orders under ${formatMmk(COD_CAP_MMK)}.`, 400)
     }
   }
 
@@ -186,13 +146,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   // succeeds but slip upload fails or customer abandons.
   for (const l of lines) {
     if (l.product.stockQty < l.qty) {
-      return NextResponse.json(
-        {
-          data: null,
-          error: { code: 'OUT_OF_STOCK', message: `OUT_OF_STOCK:${l.productId}`, status: 409 },
-        },
-        { status: 409 },
-      )
+      return fail('OUT_OF_STOCK', `OUT_OF_STOCK:${l.productId}`, 409)
     }
   }
 
@@ -200,6 +154,12 @@ export async function POST(req: Request): Promise<NextResponse> {
   const expiresAt = new Date(Date.now() + ORDER_EXPIRY_MS)
 
   await db.transaction(async (tx) => {
+    // Inside the transaction so the address and the order it exists for are
+    // written together or not at all.
+    if (addressToCreate) {
+      await tx.insert(addresses).values(addressToCreate)
+    }
+
     await tx.insert(orders).values({
       id: orderId,
       userId,
@@ -241,25 +201,27 @@ export async function POST(req: Request): Promise<NextResponse> {
     }),
   }).catch(() => {})
 
+  // Telegram is a third party. The alert is a nudge to go look at the order, so
+  // it carries the reference and a masked address - never the address itself.
+  // The full details are in the owner's own inbox via NewOrderAlert above.
   await sendTelegram(
-    `🆕 New order ${orderId.slice(0, 8)}\nMethod: ${method.name}\nTotal: ${formatMmk(total)}\nCustomer: ${session.user.email ?? userId}`,
+    `🆕 New order ${orderId.slice(0, 8)}\nMethod: ${method.name}\nTotal: ${formatMmk(total)}\nCustomer: ${
+      session.user.email ? maskEmail(session.user.email) : '****'
+    }`,
   )
 
-  return NextResponse.json({ data: { orderId }, error: null })
+  return ok({ orderId })
 }
 
 export async function GET(): Promise<NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const rows = await db
     .select()
     .from(orders)
     .where(eq(orders.userId, session.user.id))
     .orderBy(desc(orders.placedAt))
-  return NextResponse.json({ data: rows, error: null })
+  return ok(rows)
 }

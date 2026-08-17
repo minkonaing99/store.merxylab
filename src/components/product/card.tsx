@@ -8,8 +8,7 @@ import { Tile } from './tile'
 import { StockBadge } from './stock-badge'
 import { formatMmk } from '@/lib/money'
 import { useCart } from '@/lib/cart-store'
-import { getCategory } from '@/lib/products'
-import type { Product } from '@/lib/types'
+import { CATEGORY_NAME, type Product } from '@/lib/types'
 
 interface ProductCardProps {
   product: Product
@@ -17,7 +16,6 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const add = useCart((s) => s.add)
-  const category = getCategory(product.category)
   const stockQty = product.stockQty ?? (product.inStock ? 10 : 0)
   const isOut = stockQty <= 0
 
@@ -42,7 +40,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="mt-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <div className="eyebrow">{category?.name}</div>
+              <div className="eyebrow">{CATEGORY_NAME[product.category]}</div>
               {stockQty > 0 && stockQty <= (product.lowStockThreshold ?? 3) && (
                 <StockBadge
                   stockQty={stockQty}

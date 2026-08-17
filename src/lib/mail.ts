@@ -2,6 +2,9 @@ import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
 import { render } from '@react-email/render'
 import type { ReactElement } from 'react'
+import { maskEmail } from './mask'
+
+const isProd = process.env.NODE_ENV === 'production'
 
 interface MailTextParams {
   to: string
@@ -49,11 +52,23 @@ export async function sendMail(params: MailParams): Promise<{ delivered: boolean
     : params.text
 
   if (!cached) {
-    console.warn('[mail] SMTP not configured. Would send:', {
-      to: params.to,
-      subject: params.subject,
-    })
-    console.warn(text)
+    // Dev prints the whole message on purpose - it is how you get the
+    // verification link without an SMTP account. In production that same branch
+    // fires whenever SMTP credentials break or expire, and the body carries
+    // single-use tokens: a verification link in the log is a live account
+    // takeover for anyone who can read the log.
+    if (isProd) {
+      console.warn('[mail] SMTP not configured; message dropped.', {
+        to: maskEmail(params.to),
+        subject: params.subject,
+      })
+    } else {
+      console.warn('[mail] SMTP not configured. Would send:', {
+        to: params.to,
+        subject: params.subject,
+      })
+      console.warn(text)
+    }
     return { delivered: false }
   }
 

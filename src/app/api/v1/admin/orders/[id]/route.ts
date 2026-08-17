@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { and, eq, sql } from 'drizzle-orm'
@@ -36,35 +37,21 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) {
-    return NextResponse.json(
-      { data: null, error: { code: 'FORBIDDEN', message: guard.message, status: guard.status } },
-      { status: guard.status },
-    )
-  }
+  const denied = await requireAdmin()
+  if (denied) return denied
   const { id } = await params
   if (!UUID_RE.test(id)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
   const raw = await req.json().catch(() => null)
   const parsed = patchSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid status.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid status.', 400)
   }
 
   const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
   if (!order) {
-    return NextResponse.json(
-      { data: null, error: { code: 'NOT_FOUND', message: 'Order not found.', status: 404 } },
-      { status: 404 },
-    )
+    return fail('NOT_FOUND', 'Order not found.', 404)
   }
 
   const [method] = await db
@@ -75,17 +62,7 @@ export async function PATCH(
   const kind = method?.kind === 'cod' ? 'cod' : 'wallet'
 
   if (!canTransition(order.status, parsed.data.status, kind)) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: 'CONFLICT',
-          message: `Cannot transition ${order.status} → ${parsed.data.status}.`,
-          status: 409,
-        },
-      },
-      { status: 409 },
-    )
+    return fail('CONFLICT', `Cannot transition ${order.status} → ${parsed.data.status}.`, 409)
   }
 
   const patch: { status: OrderStatus; notes?: string } = { status: parsed.data.status }
@@ -145,10 +122,7 @@ export async function PATCH(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.startsWith('OUT_OF_STOCK')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'OUT_OF_STOCK', message: msg, status: 409 } },
-        { status: 409 },
-      )
+      return fail('OUT_OF_STOCK', msg, 409)
     }
     throw err
   }
@@ -224,5 +198,5 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

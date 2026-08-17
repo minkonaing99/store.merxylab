@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
@@ -23,38 +24,22 @@ const addressSchema = z.object({
 export async function GET(): Promise<NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const rows = await db.select().from(addresses).where(eq(addresses.userId, session.user.id))
-  return NextResponse.json({ data: rows, error: null })
+  return ok(rows)
 }
 
 export async function POST(req: Request): Promise<NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
 
   const raw = await req.json().catch(() => null)
   const parsed = addressSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: parsed.error.issues[0]?.message ?? 'Invalid body.',
-          status: 400,
-        },
-      },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid body.', 400)
   }
 
   const id = randomUUID()
@@ -71,5 +56,5 @@ export async function POST(req: Request): Promise<NextResponse> {
     landmark: parsed.data.landmark ?? null,
     isDefault: parsed.data.isDefault,
   })
-  return NextResponse.json({ data: { id }, error: null })
+  return ok({ id })
 }

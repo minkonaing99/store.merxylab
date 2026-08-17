@@ -91,9 +91,8 @@ mkdir -p deploy
 cp -r .next/standalone/. deploy/
 cp -r public deploy/public
 cp -r .next/static deploy/.next/static
-# copy migrations + seed inputs in case you re-run on host:
+# copy migrations in case you re-run them on the host:
 cp -r src/db/migrations deploy/db-migrations
-cp -r src/data deploy/src-data
 ```
 
 The standalone build embeds `node_modules` it actually uses. The startup file is `deploy/server.js`.

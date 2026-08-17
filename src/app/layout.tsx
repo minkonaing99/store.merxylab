@@ -65,6 +65,19 @@ export const viewport: Viewport = {
   colorScheme: 'light',
 }
 
+/**
+ * The CSP nonce in `src/middleware.ts` is minted per request, so a page has to
+ * be rendered per request for Next to stamp it onto the script tags it emits.
+ * Prerendered HTML is built without one, and under a nonce policy every script
+ * on it is refused - the page arrives as dead markup.
+ *
+ * This costs static generation on the content pages (about, faq, legal, the
+ * Burmese mirrors, signin/signup). None of them query the database, so the
+ * per-request work is React rendering only. Remove this line and the
+ * `'unsafe-inline'` fallback returns in `src/lib/csp.ts`.
+ */
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html

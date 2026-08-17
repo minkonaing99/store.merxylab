@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { wishlists } from '@/db/schema/wishlists'
@@ -8,10 +9,7 @@ import { auth } from '@/lib/auth'
 export async function GET(): Promise<NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const rows = await db
     .select({
@@ -33,5 +31,5 @@ export async function GET(): Promise<NextResponse> {
     .from(wishlists)
     .innerJoin(products, eq(products.id, wishlists.productId))
     .where(eq(wishlists.userId, session.user.id))
-  return NextResponse.json({ data: rows, error: null })
+  return ok(rows)
 }

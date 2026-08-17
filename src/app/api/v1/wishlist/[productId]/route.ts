@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { wishlists } from '@/db/schema/wishlists'
@@ -18,31 +19,22 @@ export async function POST(
 ): Promise<NextResponse> {
   const userId = await requireUser()
   if (!userId) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const { productId } = await params
   if (!SLUG_RE.test(productId)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
   const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1)
   if (!product) {
-    return NextResponse.json(
-      { data: null, error: { code: 'NOT_FOUND', message: 'Product not found.', status: 404 } },
-      { status: 404 },
-    )
+    return fail('NOT_FOUND', 'Product not found.', 404)
   }
   try {
     await db.insert(wishlists).values({ userId, productId })
   } catch {
     // ignore duplicates (PK conflict)
   }
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }
 
 export async function DELETE(
@@ -51,20 +43,14 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const userId = await requireUser()
   if (!userId) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const { productId } = await params
   if (!SLUG_RE.test(productId)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
   await db
     .delete(wishlists)
     .where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)))
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

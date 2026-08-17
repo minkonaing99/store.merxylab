@@ -1,8 +1,17 @@
-export type CategoryId =
-  | 'keyboards'
-  | 'mice'
-  | 'audio'
-  | 'accessories'
+export const CATEGORY_IDS = ['keyboards', 'mice', 'audio', 'accessories'] as const
+export type CategoryId = (typeof CATEGORY_IDS)[number]
+
+/**
+ * Display labels for the four fixed categories. The `categories` table carries
+ * the same names plus a description, read server-side by the shop and product
+ * pages; these labels exist so client components don't need a DB round-trip.
+ */
+export const CATEGORY_NAME: Record<CategoryId, string> = {
+  keyboards: 'Keyboards',
+  mice: 'Mice',
+  audio: 'Audio',
+  accessories: 'Accessories',
+}
 
 export interface Spec {
   readonly label: string

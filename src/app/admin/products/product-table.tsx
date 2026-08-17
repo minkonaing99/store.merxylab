@@ -8,6 +8,7 @@ import { formatMmk } from '@/lib/money'
 import { SLUG_REGEX } from '@/lib/slugify'
 import { ProductDetailsForm, type ProductFormValues, type CategoryLite } from './product-details-form'
 import { ProductPhotoGrid } from './product-photo-grid'
+import { api } from '@/lib/api-client'
 
 export interface Row {
   id: string
@@ -109,18 +110,16 @@ export function AdminProductTable({ initial, categories }: Props) {
     }
     setSavingNew(true)
     const body = formToBody(newDraft)
-    const res = await fetch('/api/v1/admin/products', {
+    const res = await api<{ slug: string }>('/api/v1/admin/products', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     })
     setSavingNew(false)
-    const json = await res.json().catch(() => null)
-    if (!res.ok) {
-      toast(json?.error?.message ?? 'Create failed.')
+    if (!res.ok || !res.data) {
+      toast(res.error?.message ?? 'Create failed.')
       return
     }
-    const slug = json.data.slug as string
+    const slug = res.data.slug
     const fresh: Row = {
       id: slug,
       slug,
@@ -156,15 +155,13 @@ export function AdminProductTable({ initial, categories }: Props) {
     }
 
     setSavingRow((m) => ({ ...m, [id]: true }))
-    const res = await fetch(`/api/v1/admin/products/${id}`, {
+    const res = await api(`/api/v1/admin/products/${id}`, {
       method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(formToBody(draft)),
     })
     setSavingRow((m) => ({ ...m, [id]: false }))
-    const json = await res.json().catch(() => null)
     if (!res.ok) {
-      toast(json?.error?.message ?? 'Save failed.')
+      toast(res.error?.message ?? 'Save failed.')
       return
     }
 
@@ -205,7 +202,7 @@ export function AdminProductTable({ initial, categories }: Props) {
     if (!ok) return
 
     setSavingRow((m) => ({ ...m, [id]: true }))
-    const res = await fetch(`/api/v1/admin/products/${id}`, { method: 'DELETE' })
+    const res = await api(`/api/v1/admin/products/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setRows((rs) => rs.filter((r) => r.id !== id))
       setDrafts((d) => {
@@ -223,14 +220,10 @@ export function AdminProductTable({ initial, categories }: Props) {
       return
     }
 
-    const body = (await res.json().catch(() => null)) as
-      | { error?: { code?: string; message?: string } }
-      | null
-    if (body?.error?.code === 'CONFLICT') {
+    if (res.error?.code === 'CONFLICT') {
       // Soft-delete fallback via PATCH isActive = false.
-      const patchRes = await fetch(`/api/v1/admin/products/${id}`, {
+      const patchRes = await api(`/api/v1/admin/products/${id}`, {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ isActive: false }),
       })
       setSavingRow((m) => ({ ...m, [id]: false }))
@@ -247,7 +240,7 @@ export function AdminProductTable({ initial, categories }: Props) {
       return
     }
     setSavingRow((m) => ({ ...m, [id]: false }))
-    toast(body?.error?.message ?? `Delete failed (${res.status}).`)
+    toast(res.error?.message ?? `Delete failed (${res.status}).`)
   }
 
   return (

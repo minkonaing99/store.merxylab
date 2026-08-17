@@ -1,6 +1,6 @@
 # SCHEMA — merxylab store
 
-Phase 4-7: MySQL persistence via Drizzle ORM. Tables defined in `src/db/schema/*.ts`. Inline JSON in `src/data/` is retained only as the seed source.
+Phase 4-7: MySQL persistence via Drizzle ORM. Tables defined in `src/db/schema/*.ts`. The database is the only catalog source; the former `src/data/*.json` seed snapshot is gone (`scripts/dump-seed.ts` dumps live rows when a seed file is needed).
 
 Naming: `snake_case` columns, `lower_snake` table names, PKs are CHAR(36) UUIDs or VARCHAR slug-style natural keys where useful.
 
@@ -285,7 +285,7 @@ const SESSION_DAYS = 30
 ## Caching layer
 - Catalog reads: `unstable_cache` wrapping Drizzle queries, tagged `products`, `category:{id}`. Revalidate every 60s + on demand via `revalidateTag` after Studio writes (manual trigger).
 - Cart, orders, wishlist: no cache (per-user, mutating).
-- Search index (Fuse): client-side, refreshed on page reload.
+- Search index (Fuse): built on the server-rendered catalog, per page load.
 
 ## Background jobs
 - Phase 4-7 has no queue. Tasks run inline:
@@ -350,13 +350,13 @@ rebuild.
 ### Endpoint table
 
 **Catalog (public reads)**
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| GET | `/api/v1/products` | List active products (filter `?category=`, sort `?sort=`) | No |
-| GET | `/api/v1/products/[slug]` | One product (active only) | No |
-| GET | `/api/v1/categories` | List categories | No |
-| GET | `/api/v1/categories/[id]/products` | Products in category | No |
-| GET | `/api/v1/search?q=` | Server search (FULLTEXT fallback to Fuse client) | No |
+
+There are no catalog endpoints. Every catalog read - shop, category, product,
+search, sitemap - happens inside a server component through `src/lib/catalog.ts`
+(`getAllProducts`, `getAllCategories`, `getProductBySlug`, ...), which wraps the
+DB query in `unstable_cache` with a 60s revalidate and the `products` /
+`categories` tags. The public `GET /api/v1/products`, `/products/[slug]` and
+`/categories` routes were removed in favour of that path - nothing called them.
 
 **Cart**
 | Method | Path | Description | Auth |
@@ -388,20 +388,16 @@ rebuild.
 |---|---|---|---|
 | POST | `/api/v1/orders` | Place order from current cart. Body: `{shippingAddressId \| newAddress, paymentMethodId, notes?}`. Server snapshots delivery_fee from `divisions`, sets `expires_at = now() + 24h`. Performs a per-line `stockQty >= qty` snapshot check (returns 409 `OUT_OF_STOCK` if any fails) but **does not** decrement stock — see TECH "Stock oversell". Order is created in `pending_payment` and physical inventory is committed later when admin flips status to `confirmed`. | Yes |
 | GET | `/api/v1/orders` | List own orders | Yes |
-| GET | `/api/v1/orders/[id]` | Get one (IDOR-checked) | Yes |
 | POST | `/api/v1/orders/[id]/slip` | Upload payment proof (multipart, image ≤ 8MB). Server validates magic-byte + MIME (JPG/PNG/WEBP), `sharp` resize to ≤1600px + WebP re-encode (EXIF stripped), `PutObject` to R2 private bucket at key `slips/<orderId>/<uuid>.webp`. Sets `payment_proof_url` = basename, `payment_tx_ref` (optional), flips status `pending_payment` → `payment_submitted`. On replacement deletes the prior R2 object only after the new put succeeds. Rejects if status not `pending_payment`/`payment_submitted` or method `kind = 'cod'`. Rate-limit 10/hour/user. | Yes |
 | GET  | `/api/v1/orders/[id]/slip` | Stream the slip back as `image/webp` after auth check (`order.user_id === session.user.id` OR `users.role = 'admin'`). Response headers: `Cache-Control: private, no-store`. 404 if no slip on the order. Used by both customer order page and admin order view; the static `/slips/...` path is no longer served. | Yes |
 | POST | `/api/v1/orders/[id]/cancel` | Customer-initiated cancel. Allowed only when `status = 'pending_payment'`. Pure status flip — pending orders never held stock under the commit-at-payment model. | Yes |
 
-**Payment methods**
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| GET | `/api/v1/payment-methods` | Public list of active + complete methods (no missing account info or QR). Used by checkout. | No |
+**Payment methods and divisions**
 
-**Divisions**
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| GET | `/api/v1/divisions` | Public list of non-blocked divisions with `delivery_fee_mmk` + `cod_allowed`. Used by checkout address form. | No |
+No public endpoints. `/checkout` is a server component and reads active payment
+methods and non-blocked divisions straight from the DB; `/shipping` uses
+`getDeliveryFees()`. The former `GET /api/v1/payment-methods` and
+`GET /api/v1/divisions` routes were removed - no client called them.
 
 **Reviews**
 | Method | Path | Description | Auth |
@@ -481,6 +477,14 @@ Standard error codes: `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHENTICATED`, `FORBI
 ### Rate limiting
 Implemented in `src/lib/rate-limit.ts` — in-memory bucket, single instance. Swap to Upstash on horizontal scale.
 
+The client IP comes from the **proxy-appended end** of `X-Forwarded-For`, not the
+first entry. Each proxy appends the address it saw, so everything left of the
+last `TRUSTED_PROXY_HOPS` entries is caller-supplied: reading the first entry
+lets any client mint a fresh bucket per request and bypass every limit below.
+`TRUSTED_PROXY_HOPS` defaults to 1 (Hostinger's terminating proxy); set it to 0
+when nothing fronts the app, which makes the limiter ignore `X-Forwarded-For`
+and fall back to `X-Real-IP`.
+
 | Endpoint | Limit |
 |---|---|
 | `POST /api/v1/contact` | 5/hour/IP |
@@ -491,10 +495,34 @@ Implemented in `src/lib/rate-limit.ts` — in-memory bucket, single instance. Sw
 | `POST /api/v1/admin/products/*/photos/*` | 30/hour/admin |
 | `POST /api/v1/products/*/reviews` | 5/day/user |
 | `POST /api/v1/auth/signup` | 5/hour/IP |
-| `POST /api/auth/signin` (credentials, future) | 5/min/email + 20/min/IP |
+| `POST /api/auth/callback/credentials` | 10/15min/email + 20/15min/IP |
 | `POST /api/auth/forgot-password` (future) | 3/hour/email |
 
-429 response includes `Retry-After` header.
+429 response includes `Retry-After` header. The sign-in limiter wraps Auth.js's
+own handler in `src/lib/auth-handlers.ts` (Auth.js owns that route, so the app's
+per-route limiting never sees it) and answers in the `{ url }` shape the Auth.js
+client expects, carrying `?error=TooManyRequests`. Attempts are counted whether
+or not they succeed.
+
+### Cross-origin writes
+`src/middleware.ts` refuses any non-`GET`/`HEAD`/`OPTIONS` request to `/api/*`
+whose `Origin` does not match either `AUTH_URL`/`NEXT_PUBLIC_SITE_URL` or the
+request's own `Host`, returning 403 `CROSS_ORIGIN`. Sessions are cookie-borne, so
+without this the only thing standing between a third-party page and an
+authenticated write is the Auth.js cookie's default `SameSite=lax` — a default
+this repo never asserts. A missing `Origin` is treated as cross-site.
+
+The same middleware sets `Content-Security-Policy` with a per-request nonce;
+`next.config.mjs` deliberately does not, since two CSP headers are intersected by
+the browser and the policy must live in one place.
+
+### Owner alerts and PII
+
+Telegram alerts carry an order reference, method, total and a **masked** customer
+address (`maskEmail()` in `src/lib/mask.ts`, e.g. `mi****om`). The unmasked
+address goes only to the owner's own inbox via the order-alert email. When SMTP
+is unconfigured, production logs the recipient masked and never the body, which
+would otherwise contain live verification tokens.
 
 ### Admin actions audit
 No `audit_log` table yet — admin role is single-operator in MVP, and Drizzle Studio access already requires SSH tunnel. When second admin lands, add `audit_log(actor_id, action, target_table, target_id, payload_json, created_at)` and log every `/api/v1/admin/*` mutation.

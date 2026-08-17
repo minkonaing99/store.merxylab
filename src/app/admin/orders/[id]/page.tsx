@@ -21,8 +21,7 @@ export default async function AdminOrderDetailPage({
   const { id } = await params
   if (!UUID_RE.test(id)) notFound()
 
-  const guard = await requireAdmin()
-  if (!guard.ok) notFound()
+  if (await requireAdmin()) notFound()
 
   const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
   if (!order) notFound()

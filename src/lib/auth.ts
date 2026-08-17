@@ -24,6 +24,13 @@ const credentialsSchema = z.object({
 
 const hasGoogle = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
 
+/**
+ * A bcrypt-12 digest of a random value nobody holds. Compared against when no
+ * user matches, purely so a failed lookup costs the same wall time as a real
+ * one. Never matches any password.
+ */
+const ABSENT_USER_HASH = '$2b$12$E31s8sxwUuJY8S8A2Q/J7e2J9.UtwI7SzImyK4yfqyryQ/AVu9tzq'
+
 export const { handlers, auth } = NextAuth({
   adapter: DrizzleAdapter(db, {
     usersTable: users,
@@ -54,11 +61,20 @@ export const { handlers, auth } = NextAuth({
           .where(eq(users.email, parsed.data.email.toLowerCase()))
           .limit(1)
 
-        if (!user || !user.passwordHash) return null
-        if (!user.emailVerified) return null
+        // Compare unconditionally. Returning early on "no such user" makes a
+        // miss finish in ~5ms against ~250ms for a hit, which is enough of a
+        // gap to enumerate registered addresses; hashing against a throwaway
+        // digest keeps both paths on the same clock.
+        const ok = await bcrypt.compare(
+          parsed.data.password,
+          user?.passwordHash ?? ABSENT_USER_HASH,
+        )
+        if (!user || !user.passwordHash || !ok) return null
 
-        const ok = await bcrypt.compare(parsed.data.password, user.passwordHash)
-        if (!ok) return null
+        // Checked after the comparison so the cost is identical either way. A
+        // caller who gets this far already supplied the right password, so
+        // learning the account is unverified tells them nothing new.
+        if (!user.emailVerified) return null
 
         return {
           id: user.id,
@@ -74,7 +90,11 @@ export const { handlers, auth } = NextAuth({
           Google({
             clientId: process.env.AUTH_GOOGLE_ID!,
             clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-            allowDangerousEmailAccountLinking: true,
+            // Left at the default (false). Enabling it hands an existing
+            // account to anyone who can present a Google profile carrying the
+            // same address, with no proof they own the local account. Auth.js
+            // answers the collision with `error=OAuthAccountNotLinked`, which
+            // /signin renders as "sign in with your password first".
           }),
         ]
       : []),

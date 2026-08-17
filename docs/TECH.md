@@ -10,7 +10,7 @@
 - **Tailwind CSS v4** — design tokens via CSS vars (CSS-first `@theme`), zero runtime cost.
 - **Framer Motion** — restrained scroll fades + hover micro-interactions; `MotionConfig reducedMotion="user"` honors a11y system pref.
 - **Zustand** — cart store for client UI state (drawer open/close, optimistic updates). DB cart syncs via cookie session.
-- **Fuse.js** — client-side fuzzy search; ~10KB; products list fetched from API once then indexed in memory.
+- **Fuse.js** — client-side fuzzy search; ~10KB; the `/search` server component passes the live catalog down and the client indexes it in memory.
 - **Fonts:** Fraunces (display, opsz+SOFT axes) + Inter (body), `next/font/google` for zero CLS.
 
 **Backend (Phase 5+)**
@@ -20,7 +20,9 @@
 - **Auth.js v5 (NextAuth)** + **@auth/drizzle-adapter** — email + password (bcryptjs 12 rounds) + Google OAuth. Sessions via JWT in httpOnly cookies. Role propagated through `jwt`/`session` callbacks.
 - **nodemailer + React Email** — `src/lib/mail.ts` accepts either text+html or a React element; `@react-email/render` produces HTML + plaintext fallback per send. Templates in `emails/`.
 - **zod** — request schema validation at every route boundary.
-- **In-memory bucket rate limit** (`src/lib/rate-limit.ts`) — single-instance safe; will swap to Upstash on scale.
+- **In-memory bucket rate limit** (`src/lib/rate-limit.ts`) — single-instance safe; will swap to Upstash on scale. Buckets reset on redeploy.
+- **Origin gate** (`src/middleware.ts`) — every `/api/*` write must carry a same-origin `Origin` header; CSRF protection that does not depend on the Auth.js cookie's `SameSite` default.
+- **Nonce CSP** (`src/lib/csp.ts` + middleware) — production `script-src` is `'nonce-<per-request>' 'strict-dynamic'`, no `'unsafe-inline'`. Costs static generation on every page: a prerendered page is built without a nonce, so its scripts would be refused. See the ADR below.
 - **Payments** — bank transfer only (Myanmar retail). Owner confirms receipt manually from `/admin/orders/[id]`; no online gateway, no card surface.
 
 **Operator surface**
@@ -120,7 +122,7 @@ merxylab-store/
 - **Placeholder phase (done):** all data statically imported JSON. Pages render at build time.
 - **Phase 4-7:**
   - Catalog reads: RSC fetches via Drizzle directly in server components → cached with `unstable_cache` (revalidate 60s).
-  - Search: client fetches `/api/v1/products` once, builds Fuse index in memory.
+  - Search: `/search` server component loads the catalog via `getAllProducts()`, client builds the Fuse index in memory.
   - Cart mutations: client → optimistic update via zustand → POST `/api/v1/cart/items` → server validates → DB write → revalidates.
   - Auth: NextAuth route handlers under `/api/auth/*`, JWT in httpOnly cookie, server components read `auth()` helper.
   - Photos: served as static from `public/products/{slug}/01.webp` via `next/image`. Missing files = swatch fallback.
@@ -192,7 +194,7 @@ merxylab-store/
 ### [2026-06-15] Fuse.js client-side search, not server search
 **Status:** Accepted
 **Context:** No backend in placeholder phase. 30+ products comfortably fit in-memory.
-**Decision:** Fuse.js, indexed in `src/lib/search.ts`, lazy-loaded on `/search` route.
+**Decision:** Fuse.js, index built by `buildSearchIndex()` in `src/lib/search.ts` from the catalog the `/search` server component passes in.
 **Consequences:** Instant results, zero infra. Will not scale past ~1000 products without server search (Algolia / Meilisearch when needed).
 
 ### [2026-06-15] MySQL via Drizzle, not Postgres
@@ -366,7 +368,7 @@ merxylab-store/
 - **CSRF:** NextAuth uses double-submit cookie + SameSite=lax. All mutating route handlers require an authed session OR a same-origin guest cart cookie.
 - **Open redirect:** all redirect targets validated against allowlist; user input never used in `redirect()` calls.
 - **Account enumeration:** sign-in always returns the same generic error on bad password OR unknown email; signup always returns "check your email" regardless of whether email was already registered.
-- **Brute force:** rate-limit sign-in 5/min/email, signup 5/hr/IP, password reset 3/hr/email, reviews 5/day/user, newsletter 5/hr/IP, orders 10/hr/user, cart 60/min/session.
+- **Brute force:** rate-limit sign-in 10/15min/email + 20/15min/IP (wraps the Auth.js handler in `src/lib/auth-handlers.ts`), signup 5/hr/IP, reviews 5/day/user, orders 10/hr/user, slip upload 10/hr/user, cancel 5/hr/user, contact 5/hr/IP. Client IP is read from the proxy-appended end of `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`, default 1) so a forged chain cannot mint a fresh bucket.
 - **IDOR (orders / addresses / wishlist):** every read/write checks `row.userId === session.user.id`.
 - **Privilege escalation to admin:** `users.role` is only set via DB `UPDATE`. No API or UI path can elevate. `requireAdmin()` re-checks the JWT-derived role on every admin endpoint.
 - **Email injection:** all email headers via nodemailer's typed API, never string-concatenated. React Email renders auto-escape interpolated values.
@@ -390,3 +392,87 @@ merxylab-store/
 - CSP header set in `next.config.mjs` for all routes.
 - Production drops `'unsafe-eval'` from `script-src`; dev retains it for HMR/React Refresh (gated on `process.env.NODE_ENV === 'production'`).
 - `'unsafe-inline'` still permitted on `script-src` + `style-src` pending nonce middleware. Tightening to nonce-based CSP is a deferred follow-up — requires a `middleware.ts` that issues a per-request nonce and threads it through `<Script nonce={...} />` / `<style nonce={...}>` plus Next's internal injections.
+
+
+### [2026-08-17] Nonce CSP, at the cost of static generation
+
+**Context:** production `script-src` carried `'unsafe-inline'`, which is most of
+what CSP buys against XSS - an injected inline `<script>` simply runs. No XSS
+sink exists in the codebase today (no `dangerouslySetInnerHTML`, no `eval`, all
+user content renders as escaped JSX), so this was the second layer being off
+rather than an open hole.
+
+**Decision:** mint a nonce per request in `src/middleware.ts`, hand it to Next
+through the `Content-Security-Policy` request header so it stamps its own script
+tags, and drop `'unsafe-inline'`. `'strict-dynamic'` lets the nonced bootstrap
+pull the chunk graph without allowlisting chunk URLs.
+
+**Consequence:** `export const dynamic = 'force-dynamic'` in `src/app/layout.tsx`.
+A prerendered page is built without a nonce, so under this policy every script on
+it is refused and the page arrives as dead markup - verified against `/about`,
+which served 32 script tags and zero nonces before the change. Static routes went
+from 15 to 2 (`robots.txt`, `sitemap.xml`, neither of which carries script). The
+13 affected pages are content pages that issue no database queries, so the added
+per-request cost is React rendering only.
+
+**Rejected:** hash-based CSP (Next's inline bootstrap is not stable enough to
+pin), and a split policy where prerendered pages keep `'unsafe-inline'` (an
+attacker picks the weakest page, so it buys nothing).
+
+**Reversal:** delete the `dynamic` export in `src/app/layout.tsx` and have
+`contentSecurityPolicy()` ignore its nonce argument.
+
+### [2026-08-17] Google account linking left at the safe default
+
+**Context:** `allowDangerousEmailAccountLinking: true` handed an existing local
+account to anyone presenting a Google profile with the same address, with no
+proof they owned the local account.
+
+**Decision:** removed, so Auth.js falls back to refusing the collision with
+`error=OAuthAccountNotLinked`.
+
+**Consequence:** a customer who registered with a password and later clicks
+"Continue with Google" is refused. `/signin` reads the error off the redirect and
+tells them to sign in with their password instead. There is no account-linking UI;
+if one is ever added, linking must require an authenticated session first.
+
+
+### [2026-08-17] Checkout writes nothing until every check has passed
+
+**Context:** `POST /api/v1/orders` inserted the new shipping address before
+validating the division, payment method, cart contents and stock. A checkout
+that failed any of those left a stray address on the customer's account, and an
+unknown `divisionId` reached the foreign key as a 500 instead of the 400 the
+division lookup produces.
+
+**Decision:** build the address row in memory, run every validation gate, then
+insert it inside the same transaction as the order. The address and the order it
+exists for are now written together or not at all.
+
+**Untested:** the repo has no database test harness - `contact/route.test.ts`
+mocks its dependencies, which is not practical for the order route's query
+surface. The change is ordering-only and was verified by reading the resulting
+control flow (no write precedes any `return fail`).
+
+
+### [2026-08-17] Customer addresses are masked before leaving the system
+
+**Context:** the new-order Telegram alert carried the customer's full email
+address, and `sendMail` printed whole message bodies - verification links and
+their single-use tokens included - whenever SMTP was unconfigured. Telegram is a
+third party; a production log is readable by anyone with host access. A
+verification link in either is a live account takeover.
+
+**Decision:** `maskEmail()` in `src/lib/mask.ts` reduces an address to
+`mi****om` - first two characters, fixed-width mask, last two. Fixed width so
+the address length does not leak; the domain goes entirely, since it is the part
+that makes guessing cheap. Applied to the Telegram alert and to the production
+mail-failure log. Message bodies are printed only outside production, which is
+where reading the verification link off the console is the intended workflow.
+
+**Not masked:** the owner's own `NewOrderAlert` email still carries the full
+address - it is the owner's inbox and they need it to contact the buyer. The
+Telegram alert is a nudge to go look, not the record.
+
+**Still outstanding:** `reportError()` sends stack traces, which contain internal
+file paths, to the same Telegram chat. Owner-only diagnostics, left as-is.

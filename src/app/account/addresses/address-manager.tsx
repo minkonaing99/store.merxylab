@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PhoneField, SelectField, TextField } from '@/components/ui/field'
+import { api } from '@/lib/api-client'
 import {
   PHONE_HINT,
   PHONE_PREFIX,
@@ -112,9 +113,8 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
       return
     }
     setSaving(true)
-    const res = await fetch('/api/v1/addresses', {
+    const res = await api('/api/v1/addresses', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         ...form,
         phone: toE164Phone(form.phone),
@@ -122,9 +122,8 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
       }),
     })
     setSaving(false)
-    const json = await res.json().catch(() => null)
     if (!res.ok) {
-      toast(json?.error?.message ?? 'Failed to save address.')
+      toast(res.error?.message ?? 'Failed to save address.')
       return
     }
     toast('Address saved.')

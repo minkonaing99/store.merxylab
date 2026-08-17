@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
@@ -15,28 +16,17 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) {
-    return NextResponse.json(
-      { data: null, error: { code: 'FORBIDDEN', message: guard.message, status: guard.status } },
-      { status: guard.status },
-    )
-  }
+  const denied = await requireAdmin()
+  if (denied) return denied
   const { id } = await params
   if (!UUID_RE.test(id)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
   const raw = await req.json().catch(() => null)
   const parsed = patchSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid status.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid status.', 400)
   }
   await db.update(reviews).set({ status: parsed.data.status }).where(eq(reviews.id, id))
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

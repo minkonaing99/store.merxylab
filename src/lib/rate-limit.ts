@@ -38,8 +38,35 @@ export function rateLimit({ key, limit, windowMs }: CheckOptions): CheckResult {
   return { allowed: true, remaining: limit - existing.count, retryAfterSeconds: 0 }
 }
 
+/**
+ * How many reverse proxies sit in front of this process. Hostinger terminates
+ * with one, hence the default. Set to 0 when the app is exposed directly - then
+ * `X-Forwarded-For` is caller-supplied and must be ignored outright.
+ */
+const TRUSTED_PROXY_HOPS = Number(process.env.TRUSTED_PROXY_HOPS ?? 1)
+
+/**
+ * Every proxy *appends* the address it received the connection from, so the
+ * rightmost entries are the ones our own infrastructure wrote and everything to
+ * their left is whatever the caller chose to send. Reading the leftmost entry -
+ * the obvious-looking choice - hands the client a free rate-limit bypass: a new
+ * forged value per request means a new bucket per request.
+ */
+export function clientIp(req: Request, hops: number = TRUSTED_PROXY_HOPS): string {
+  const realIp = req.headers.get('x-real-ip')?.trim()
+  if (hops <= 0) return realIp || 'unknown'
+
+  const chain = (req.headers.get('x-forwarded-for') ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  if (chain.length === 0) return realIp || 'unknown'
+
+  // Short chain means fewer proxies than configured; take the oldest entry we
+  // have rather than indexing past the front.
+  return chain[Math.max(0, chain.length - hops)] ?? 'unknown'
+}
+
 export function clientKey(req: Request, prefix: string): string {
-  const xff = req.headers.get('x-forwarded-for')
-  const ip = xff?.split(',')[0]?.trim() ?? 'unknown'
-  return `${prefix}:${ip}`
+  return `${prefix}:${clientIp(req)}`
 }

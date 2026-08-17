@@ -1,8 +1,11 @@
+import type { NextResponse } from 'next/server'
 import { auth } from './auth'
+import { fail } from './api-response'
 
-export async function requireAdmin(): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+/** The refusal response when the caller is not an admin, or null when they are. */
+export async function requireAdmin(): Promise<NextResponse | null> {
   const session = await auth()
-  if (!session?.user?.id) return { ok: false, status: 401, message: 'Sign in required.' }
-  if (session.user.role !== 'admin') return { ok: false, status: 403, message: 'Admin only.' }
-  return { ok: true }
+  if (!session?.user?.id) return fail('UNAUTHENTICATED', 'Sign in required.', 401)
+  if (session.user.role !== 'admin') return fail('FORBIDDEN', 'Admin only.', 403)
+  return null
 }

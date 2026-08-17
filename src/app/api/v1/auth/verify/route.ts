@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
 import { createHash } from 'node:crypto'
 import { and, eq, gt } from 'drizzle-orm'
@@ -18,10 +19,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   const raw = await req.json().catch(() => null)
   const parsed = schema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid token.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid token.', 400)
   }
 
   const { email, token } = parsed.data
@@ -41,13 +39,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     .limit(1)
 
   if (!match) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: { code: 'NOT_FOUND', message: 'Token invalid or expired.', status: 404 },
-      },
-      { status: 404 },
-    )
+    return fail('NOT_FOUND', 'Token invalid or expired.', 404)
   }
 
   await db.update(users).set({ emailVerified: now }).where(eq(users.email, email))
@@ -60,5 +52,5 @@ export async function POST(req: Request): Promise<NextResponse> {
       ),
     )
 
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

@@ -8,8 +8,7 @@ import { useState } from 'react'
 import { Tile } from '../product/tile'
 import { cn } from '@/lib/utils'
 import { formatMmk } from '@/lib/money'
-import { getCategory } from '@/lib/products'
-import { PHOTO_BASE, type Product } from '@/lib/types'
+import { CATEGORY_NAME, PHOTO_BASE, type Product } from '@/lib/types'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -136,7 +135,6 @@ interface CaptionProps {
 
 /** Glass strip inside the frame - keeps the panel readable over any photo. */
 function Caption({ product, transition }: CaptionProps) {
-  const category = getCategory(product.category)
   return (
     <div className="pointer-events-none absolute inset-x-3 bottom-3 md:inset-x-4 md:bottom-4">
       <AnimatePresence initial={false} mode="wait">
@@ -149,7 +147,7 @@ function Caption({ product, transition }: CaptionProps) {
           className="flex items-end justify-between gap-3 rounded-[var(--radius)] bg-surface/85 px-4 py-3 ring-1 ring-ink/5 backdrop-blur-md"
         >
           <div className="min-w-0">
-            <div className="eyebrow">{category?.name ?? product.category}</div>
+            <div className="eyebrow">{CATEGORY_NAME[product.category]}</div>
             <div className="mt-0.5 truncate font-display text-[17px] leading-tight text-ink">
               {product.name}
             </div>

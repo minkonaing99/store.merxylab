@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok, rateLimited } from '@/lib/api-response'
 import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { orders } from '@/db/schema/orders'
@@ -9,20 +10,16 @@ import { OrderCancelled } from '@emails/order-cancelled'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function jsonError(code: string, message: string, status: number) {
-  return NextResponse.json({ data: null, error: { code, message, status } }, { status })
-}
-
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const session = await auth()
-  if (!session?.user?.id) return jsonError('UNAUTHENTICATED', 'Sign in required.', 401)
+  if (!session?.user?.id) return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   const userId = session.user.id
 
   const { id } = await params
-  if (!UUID_RE.test(id)) return jsonError('VALIDATION_ERROR', 'Invalid id.', 400)
+  if (!UUID_RE.test(id)) return fail('VALIDATION_ERROR', 'Invalid id.', 400)
 
   const limit = rateLimit({
     key: clientKey(req, `cancel:${userId}`),
@@ -30,10 +27,7 @@ export async function POST(
     windowMs: 60 * 60 * 1000,
   })
   if (!limit.allowed) {
-    return NextResponse.json(
-      { data: null, error: { code: 'RATE_LIMITED', message: 'Too many cancel attempts.', status: 429 } },
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
-    )
+    return rateLimited('Too many cancel attempts.', limit.retryAfterSeconds)
   }
 
   // Pending orders never held physical stock (committed only at `paid`/
@@ -52,9 +46,9 @@ export async function POST(
     return { kind: 'OK' as const, total: Number(order.totalMmk) }
   })
 
-  if (result.kind === 'NOT_FOUND') return jsonError('NOT_FOUND', 'Order not found.', 404)
+  if (result.kind === 'NOT_FOUND') return fail('NOT_FOUND', 'Order not found.', 404)
   if (result.kind === 'CONFLICT') {
-    return jsonError('CONFLICT', 'Only pending orders can be cancelled. Contact us via Telegram.', 409)
+    return fail('CONFLICT', 'Only pending orders can be cancelled. Contact us via Telegram.', 409)
   }
 
   await sendMail({
@@ -63,5 +57,5 @@ export async function POST(
     react: OrderCancelled({ orderId: id, reason: 'Customer cancelled.' }),
   }).catch(() => {})
 
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

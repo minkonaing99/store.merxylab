@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/admin-guard'
 import { setSetting } from '@/lib/site-settings'
@@ -19,38 +20,20 @@ const bodySchema = z.object({
 })
 
 export async function PATCH(req: Request): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) {
-    return NextResponse.json(
-      { data: null, error: { code: 'FORBIDDEN', message: guard.message, status: guard.status } },
-      { status: guard.status },
-    )
-  }
+  const denied = await requireAdmin()
+  if (denied) return denied
 
   const raw = await req.json().catch(() => null)
   const parsed = bodySchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Unknown setting.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Unknown setting.', 400)
   }
 
   const validated = WRITABLE[parsed.data.key].safeParse(parsed.data.value)
   if (!validated.success) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: `Value must be ${STALE_DAYS_MIN}-${STALE_DAYS_MAX}.`,
-          status: 400,
-        },
-      },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', `Value must be ${STALE_DAYS_MIN}-${STALE_DAYS_MAX}.`, 400)
   }
 
   await setSetting(parsed.data.key, String(validated.data))
-  return NextResponse.json({ data: { ok: true, value: validated.data }, error: null })
+  return ok({ ok: true, value: validated.data })
 }

@@ -49,6 +49,22 @@ describe('POST /api/v1/contact', () => {
     expect(arg?.text).toContain('buyer@example.com')
   })
 
+  it('refuses an order reference carrying header-control characters', async () => {
+    // The value lands in the mail Subject. Nodemailer encodes headers, so this
+    // is not injectable today - but the route should not be relying on a
+    // library's escaping for input it can simply refuse.
+    for (const orderId of ['3aa6\r\nBcc: victim@example.com', 'a\nb', 'id with spaces', 'a;b']) {
+      const res = await POST(request({ ...valid, orderId }))
+      expect(res.status).toBe(400)
+    }
+    expect(sendMail).not.toHaveBeenCalled()
+  })
+
+  it('still accepts a real order id', async () => {
+    const res = await POST(request({ ...valid, orderId: '3aa6e85b-1c2d-4e5f-8a9b-0c1d2e3f4a5b' }))
+    expect(res.status).toBe(200)
+  })
+
   it('rejects a message shorter than a sentence', async () => {
     const res = await POST(request({ ...valid, message: 'hi' }))
     expect(res.status).toBe(400)

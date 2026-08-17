@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatMmk } from '@/lib/money'
+import { api } from '@/lib/api-client'
 
 interface WalletMethod {
   name: string
@@ -52,14 +53,13 @@ export function WalletPanel({
     form.append('slip', file)
     if (txRef) form.append('txRef', txRef)
 
-    const res = await fetch(`/api/v1/orders/${orderId}/slip`, {
+    const res = await api(`/api/v1/orders/${orderId}/slip`, {
       method: 'POST',
       body: form,
     })
     setUploading(false)
-    const json = await res.json().catch(() => null)
     if (!res.ok) {
-      toast(json?.error?.message ?? 'Upload failed.')
+      toast(res.error?.message ?? 'Upload failed.')
       return
     }
     toast('Slip uploaded.')

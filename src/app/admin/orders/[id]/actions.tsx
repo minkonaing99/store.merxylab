@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { api } from '@/lib/api-client'
 
 type Status =
   | 'pending_payment'
@@ -97,9 +98,8 @@ export function AdminOrderActions({ orderId, status, methodKind, hasSlip }: Prop
     }
     setConfirmingCancel(false)
     setPending(target)
-    const res = await fetch(`/api/v1/admin/orders/${orderId}`, {
+    const res = await api(`/api/v1/admin/orders/${orderId}`, {
       method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status: target }),
     })
     setPending(null)
@@ -108,11 +108,8 @@ export function AdminOrderActions({ orderId, status, methodKind, hasSlip }: Prop
       router.refresh()
       return
     }
-    const body = (await res.json().catch(() => null)) as
-      | { error?: { code?: string; message?: string } }
-      | null
-    const code = body?.error?.code
-    const msg = body?.error?.message
+    const code = res.error?.code
+    const msg = res.error?.message
     if (code === 'OUT_OF_STOCK') {
       const sku = msg?.split(':')[1] ?? ''
       toast(`Out of stock: ${sku || 'one or more items'}. Restock before confirming.`)

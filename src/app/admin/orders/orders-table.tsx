@@ -8,6 +8,7 @@ import { formatMmk } from '@/lib/money'
 import { fullTimestamp, timeAgo } from '@/lib/relative-time'
 import { forwardOptions } from '@/lib/order-transitions'
 import type { OrderRow } from '@/lib/admin-orders'
+import { api } from '@/lib/api-client'
 
 type Status = OrderRow['status']
 
@@ -27,9 +28,8 @@ export function AdminOrdersTable({ initial }: { initial: OrderRow[] }) {
   async function setStatus(id: string, status: Status) {
     const prev = rows.find((r) => r.id === id)?.status
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)))
-    const res = await fetch(`/api/v1/admin/orders/${id}`, {
+    const res = await api(`/api/v1/admin/orders/${id}`, {
       method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status }),
     })
     if (res.ok) {
@@ -39,11 +39,8 @@ export function AdminOrdersTable({ initial }: { initial: OrderRow[] }) {
     if (prev !== undefined) {
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: prev } : r)))
     }
-    const body = (await res.json().catch(() => null)) as
-      | { error?: { code?: string; message?: string } }
-      | null
-    const code = body?.error?.code
-    const msg = body?.error?.message
+    const code = res.error?.code
+    const msg = res.error?.message
     if (code === 'OUT_OF_STOCK') {
       const sku = msg?.split(':')[1] ?? ''
       toast(`Out of stock: ${sku || 'one or more items'}. Restock before confirming.`)

@@ -155,7 +155,7 @@ npm run db:studio         # open Drizzle Studio admin UI (local only)
 npm run db:dump-seed      # regenerate seed sections of docs/db-bootstrap.sql
 
 # Operations
-npm run user:password     # set a user's password
+npm run user:password -- <email>   # set a user's password (prompts; never pass it as an argument)
 npm run cron:cancel-expired  # cancel unpaid orders past expires_at
 
 # Phase 6

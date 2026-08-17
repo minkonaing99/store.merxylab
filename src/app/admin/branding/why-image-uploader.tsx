@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { Trash2, Upload } from 'lucide-react'
+import { api } from '@/lib/api-client'
 
 interface Props {
   initialUrl: string | null
@@ -38,12 +39,14 @@ export function WhyImageUploader({ initialUrl }: Props) {
     setError('')
     const form = new FormData()
     form.append('image', pending)
-    const res = await fetch('/api/v1/admin/site/why-image', { method: 'POST', body: form })
-    const json = await res.json().catch(() => null)
+    const res = await api<{ url: string }>('/api/v1/admin/site/why-image', {
+      method: 'POST',
+      body: form,
+    })
     if (!res.ok) {
-      setError(json?.error?.message ?? `Upload failed (HTTP ${res.status}).`)
+      setError(res.error?.message ?? `Upload failed (HTTP ${res.status}).`)
     } else {
-      setUrl(json.data.url)
+      setUrl(res.data?.url ?? null)
       setPreview(null)
       setPending(null)
       if (inputRef.current) inputRef.current.value = ''
@@ -54,10 +57,9 @@ export function WhyImageUploader({ initialUrl }: Props) {
   async function remove() {
     setRemoving(true)
     setError('')
-    const res = await fetch('/api/v1/admin/site/why-image', { method: 'DELETE' })
+    const res = await api('/api/v1/admin/site/why-image', { method: 'DELETE' })
     if (!res.ok) {
-      const json = await res.json().catch(() => null)
-      setError(json?.error?.message ?? 'Remove failed.')
+      setError(res.error?.message ?? 'Remove failed.')
     } else {
       setUrl(null)
       setPreview(null)

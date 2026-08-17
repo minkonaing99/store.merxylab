@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { api } from '@/lib/api-client'
 
 export function CancelButton({ orderId }: { orderId: string }) {
   const router = useRouter()
@@ -11,11 +12,10 @@ export function CancelButton({ orderId }: { orderId: string }) {
   async function cancel() {
     if (!confirm('Cancel this order? Stock will be restored.')) return
     setPending(true)
-    const res = await fetch(`/api/v1/orders/${orderId}/cancel`, { method: 'POST' })
+    const res = await api(`/api/v1/orders/${orderId}/cancel`, { method: 'POST' })
     setPending(false)
-    const json = await res.json().catch(() => null)
     if (!res.ok) {
-      toast(json?.error?.message ?? 'Cancel failed.')
+      toast(res.error?.message ?? 'Cancel failed.')
       return
     }
     toast('Order cancelled.')

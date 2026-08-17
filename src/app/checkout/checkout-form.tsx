@@ -14,6 +14,7 @@ import {
   toE164Phone,
 } from '@/lib/validators'
 import type { CartLine } from '@/lib/cart-session'
+import { api } from '@/lib/api-client'
 
 const COD_CAP_MMK = 500_000
 
@@ -215,18 +216,16 @@ export function CheckoutForm({
       body.shippingAddressId = selectedAddressId
     }
 
-    const res = await fetch('/api/v1/orders', {
+    const res = await api<{ orderId: string }>('/api/v1/orders', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     })
     setLoading(false)
-    const json = await res.json().catch(() => null)
-    if (!res.ok || !json?.data?.orderId) {
-      toast(json?.error?.message ?? 'Order failed.')
+    if (!res.ok || !res.data?.orderId) {
+      toast(res.error?.message ?? 'Order failed.')
       return
     }
-    router.push(`/order/${json.data.orderId}`)
+    router.push(`/order/${res.data.orderId}`)
   }
 
   return (

@@ -1,9 +1,8 @@
 import Fuse from 'fuse.js'
-import { products } from './products'
 import { SEARCH_QUERY_MAX } from './types'
 import type { Product } from './types'
 
-const fuse = new Fuse(products as Product[], {
+const OPTIONS = {
   keys: [
     { name: 'name', weight: 0.5 },
     { name: 'tagline', weight: 0.2 },
@@ -14,10 +13,15 @@ const fuse = new Fuse(products as Product[], {
   threshold: 0.35,
   ignoreLocation: true,
   minMatchCharLength: 2,
-})
+}
 
-export function searchProducts(query: string): readonly Product[] {
+/** Built once per catalog load, not per keystroke. */
+export function buildSearchIndex(products: readonly Product[]): Fuse<Product> {
+  return new Fuse(products as Product[], OPTIONS)
+}
+
+export function searchProducts(index: Fuse<Product>, query: string): readonly Product[] {
   const trimmed = query.trim().slice(0, SEARCH_QUERY_MAX)
   if (trimmed.length < 2) return []
-  return fuse.search(trimmed).map((r) => r.item)
+  return index.search(trimmed).map((r) => r.item)
 }

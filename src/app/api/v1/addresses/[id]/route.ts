@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
@@ -34,31 +35,22 @@ export async function PATCH(
 ): Promise<NextResponse> {
   const userId = await requireSession()
   if (!userId) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const { id } = await params
   if (!UUID_RE.test(id)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
   const raw = await req.json().catch(() => null)
   const parsed = patchSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid body.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid body.', 400)
   }
   await db
     .update(addresses)
     .set(parsed.data)
     .where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }
 
 export async function DELETE(
@@ -67,18 +59,12 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const userId = await requireSession()
   if (!userId) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHENTICATED', message: 'Sign in required.', status: 401 } },
-      { status: 401 },
-    )
+    return fail('UNAUTHENTICATED', 'Sign in required.', 401)
   }
   const { id } = await params
   if (!UUID_RE.test(id)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
   await db.delete(addresses).where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

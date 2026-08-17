@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fail, ok } from '@/lib/api-response'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
@@ -37,27 +38,16 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) {
-    return NextResponse.json(
-      { data: null, error: { code: 'FORBIDDEN', message: guard.message, status: guard.status } },
-      { status: guard.status },
-    )
-  }
+  const denied = await requireAdmin()
+  if (denied) return denied
   const { id } = await params
   if (!SLUG_RE.test(id)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
   const raw = await req.json().catch(() => null)
   const parsed = patchSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid body.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid body.', 400)
   }
 
   const { specs, ...fields } = parsed.data
@@ -82,26 +72,18 @@ export async function PATCH(
   })
 
   revalidateTag('products')
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guard = await requireAdmin()
-  if (!guard.ok) {
-    return NextResponse.json(
-      { data: null, error: { code: 'FORBIDDEN', message: guard.message, status: guard.status } },
-      { status: guard.status },
-    )
-  }
+  const denied = await requireAdmin()
+  if (denied) return denied
   const { id } = await params
   if (!SLUG_RE.test(id)) {
-    return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Invalid id.', status: 400 } },
-      { status: 400 },
-    )
+    return fail('VALIDATION_ERROR', 'Invalid id.', 400)
   }
 
   const [row] = await db
@@ -110,10 +92,7 @@ export async function DELETE(
     .where(eq(products.id, id))
     .limit(1)
   if (!row) {
-    return NextResponse.json(
-      { data: null, error: { code: 'NOT_FOUND', message: 'Product not found.', status: 404 } },
-      { status: 404 },
-    )
+    return fail('NOT_FOUND', 'Product not found.', 404)
   }
 
   // Refuse hard-delete when any order references this product - orders
@@ -126,18 +105,7 @@ export async function DELETE(
     .where(eq(orderItems.productId, id))
     .limit(1)
   if (refOrder) {
-    return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: 'CONFLICT',
-          message:
-            'Product is referenced by existing orders. Toggle "Active" off to hide it instead.',
-          status: 409,
-        },
-      },
-      { status: 409 },
-    )
+    return fail('CONFLICT', 'Product is referenced by existing orders. Toggle "Active" off to hide it instead.', 409)
   }
 
   // Safe to hard-delete. FK cascades will clean product_specs, reviews,
@@ -155,5 +123,5 @@ export async function DELETE(
   )
 
   revalidateTag('products')
-  return NextResponse.json({ data: { ok: true }, error: null })
+  return ok({ ok: true })
 }

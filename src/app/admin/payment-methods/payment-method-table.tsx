@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { api } from '@/lib/api-client'
 
 interface Row {
   id: string
@@ -95,32 +96,29 @@ export function PaymentMethodTable({ initial }: { initial: Row[] }) {
       const form = new FormData()
       form.append('methodId', id)
       form.append('qr', draft.pendingFile)
-      const res = await fetch('/api/v1/admin/payment-methods/qr', {
+      const res = await api<{ qrImageUrl: string }>('/api/v1/admin/payment-methods/qr', {
         method: 'POST',
         body: form,
       })
-      const json = await res.json().catch(() => null)
-      if (!res.ok) {
-        const msg = json?.error?.message ?? `Upload failed (HTTP ${res.status}).`
+      if (!res.ok || !res.data) {
+        const msg = res.error?.message ?? `Upload failed (HTTP ${res.status}).`
         setUploadError((m) => ({ ...m, [id]: msg }))
         toast(msg)
         setSaving((m) => ({ ...m, [id]: false }))
         return
       }
-      nextQrUrl = json.data.qrImageUrl
+      nextQrUrl = res.data.qrImageUrl
     }
 
     // 2) Patch field diffs.
     const patch = diff(savedRow, draft)
     if (Object.keys(patch).length > 0) {
-      const res = await fetch(`/api/v1/admin/payment-methods/${id}`, {
+      const res = await api(`/api/v1/admin/payment-methods/${id}`, {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
         body: JSON.stringify(patch),
       })
       if (!res.ok) {
-        const json = await res.json().catch(() => null)
-        const msg = json?.error?.message ?? 'Save failed.'
+        const msg = res.error?.message ?? 'Save failed.'
         toast(msg)
         setSaving((m) => ({ ...m, [id]: false }))
         return

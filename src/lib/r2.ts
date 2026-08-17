@@ -5,7 +5,6 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
 } from '@aws-sdk/client-s3'
-import { Readable } from 'node:stream'
 
 const accountId = process.env.R2_ACCOUNT_ID
 const accessKeyId = process.env.R2_ACCESS_KEY_ID
@@ -14,56 +13,62 @@ const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
 const PUBLIC_BUCKET = process.env.R2_PUBLIC_BUCKET ?? ''
 const PRIVATE_BUCKET = process.env.R2_PRIVATE_BUCKET ?? ''
 
+let cached: S3Client | null = null
+
 function client(): S3Client {
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new Error('R2 credentials missing (R2_ACCOUNT_ID/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY)')
   }
-  return new S3Client({
+  cached ??= new S3Client({
     region: 'auto',
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
     forcePathStyle: true,
   })
+  return cached
 }
 
-export async function putPublic(key: string, body: Buffer, contentType: string): Promise<void> {
-  if (!PUBLIC_BUCKET) throw new Error('R2_PUBLIC_BUCKET not configured')
+async function put(
+  bucket: string,
+  cacheControl: string,
+  key: string,
+  body: Buffer,
+  contentType: string,
+): Promise<void> {
+  if (!bucket) throw new Error('R2 bucket not configured')
   await client().send(
     new PutObjectCommand({
-      Bucket: PUBLIC_BUCKET,
+      Bucket: bucket,
       Key: key,
       Body: body,
       ContentType: contentType,
-      CacheControl: 'public, max-age=31536000, immutable',
+      CacheControl: cacheControl,
     }),
   )
 }
 
-export async function putPrivate(key: string, body: Buffer, contentType: string): Promise<void> {
-  if (!PRIVATE_BUCKET) throw new Error('R2_PRIVATE_BUCKET not configured')
-  await client().send(
-    new PutObjectCommand({
-      Bucket: PRIVATE_BUCKET,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-      CacheControl: 'private, no-store',
-    }),
-  )
-}
-
-export async function deletePublic(key: string): Promise<void> {
-  if (!PUBLIC_BUCKET) return
+/** Best-effort: a missing object or a dead bucket must not fail the caller. */
+async function remove(bucket: string, key: string): Promise<void> {
+  if (!bucket) return
   await client()
-    .send(new DeleteObjectCommand({ Bucket: PUBLIC_BUCKET, Key: key }))
+    .send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
     .catch(() => {})
 }
 
-export async function deletePrivate(key: string): Promise<void> {
-  if (!PRIVATE_BUCKET) return
-  await client()
-    .send(new DeleteObjectCommand({ Bucket: PRIVATE_BUCKET, Key: key }))
-    .catch(() => {})
+export function putPublic(key: string, body: Buffer, contentType: string): Promise<void> {
+  return put(PUBLIC_BUCKET, 'public, max-age=31536000, immutable', key, body, contentType)
+}
+
+export function putPrivate(key: string, body: Buffer, contentType: string): Promise<void> {
+  return put(PRIVATE_BUCKET, 'private, no-store', key, body, contentType)
+}
+
+export function deletePublic(key: string): Promise<void> {
+  return remove(PUBLIC_BUCKET, key)
+}
+
+export function deletePrivate(key: string): Promise<void> {
+  return remove(PRIVATE_BUCKET, key)
 }
 
 export async function getPrivateBytes(key: string): Promise<Buffer | null> {
@@ -71,12 +76,7 @@ export async function getPrivateBytes(key: string): Promise<Buffer | null> {
   try {
     const res = await client().send(new GetObjectCommand({ Bucket: PRIVATE_BUCKET, Key: key }))
     if (!res.Body) return null
-    const stream = res.Body as Readable
-    const chunks: Buffer[] = []
-    for await (const chunk of stream) {
-      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : Buffer.from(chunk))
-    }
-    return Buffer.concat(chunks)
+    return Buffer.from(await res.Body.transformToByteArray())
   } catch {
     return null
   }

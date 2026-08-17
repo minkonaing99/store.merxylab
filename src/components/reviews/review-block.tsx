@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
 import { Stars } from './stars'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api-client'
 
 interface Review {
   id: string
@@ -105,9 +106,8 @@ function ReviewForm({ slug, onDone }: ReviewFormProps) {
       return
     }
     setSaving(true)
-    const res = await fetch(`/api/v1/products/${slug}/reviews`, {
+    const res = await api(`/api/v1/products/${slug}/reviews`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         rating,
         title: title || undefined,
@@ -115,9 +115,8 @@ function ReviewForm({ slug, onDone }: ReviewFormProps) {
       }),
     })
     setSaving(false)
-    const json = await res.json().catch(() => null)
     if (!res.ok) {
-      toast(json?.error?.message ?? 'Failed to submit review.')
+      toast(res.error?.message ?? 'Failed to submit review.')
       return
     }
     toast("Thanks - your review is awaiting moderation.")

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { Search, ShoppingBag, Menu, X, User } from 'lucide-react'
 import { useCart, useCartCount } from '@/lib/cart-store'
-import { categories } from '@/lib/products'
+import { CATEGORY_IDS, CATEGORY_NAME } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export function Nav() {
@@ -25,13 +25,13 @@ export function Nav() {
           <Link href="/shop" className="text-[14px] hover:text-accent">
             Shop
           </Link>
-          {categories.map((c) => (
+          {CATEGORY_IDS.map((id) => (
             <Link
-              key={c.id}
-              href={`/shop/${c.id}`}
+              key={id}
+              href={`/shop/${id}`}
               className="text-[14px] text-ink-soft hover:text-accent"
             >
-              {c.name}
+              {CATEGORY_NAME[id]}
             </Link>
           ))}
         </nav>
@@ -86,13 +86,13 @@ export function Nav() {
           <Link href="/shop" className="rounded px-2 py-2 text-[15px] hover:bg-line">
             Shop all
           </Link>
-          {categories.map((c) => (
+          {CATEGORY_IDS.map((id) => (
             <Link
-              key={c.id}
-              href={`/shop/${c.id}`}
+              key={id}
+              href={`/shop/${id}`}
               className="rounded px-2 py-2 text-[15px] text-ink-soft hover:bg-line"
             >
-              {c.name}
+              {CATEGORY_NAME[id]}
             </Link>
           ))}
         </nav>

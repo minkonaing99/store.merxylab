@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Trash2 } from 'lucide-react'
 import { PHOTO_BASE } from '@/lib/types'
+import { api } from '@/lib/api-client'
 
 const SLOTS = ['01', '02', '03', '04'] as const
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -69,14 +70,13 @@ export function ProductPhotoGrid({ productId, slug, swatch, onChange }: Props) {
     setSlot(slot, { busy: true })
     const form = new FormData()
     form.append('photo', file)
-    const res = await fetch(`/api/v1/admin/products/${productId}/photos/${slot}`, {
+    const res = await api(`/api/v1/admin/products/${productId}/photos/${slot}`, {
       method: 'POST',
       body: form,
     })
-    const json = await res.json().catch(() => null)
     setSlot(slot, { busy: false })
     if (!res.ok) {
-      const msg = json?.error?.message ?? `Upload failed (HTTP ${res.status}).`
+      const msg = res.error?.message ?? `Upload failed (HTTP ${res.status}).`
       setSlot(slot, { error: msg })
       toast(msg)
       return
@@ -89,13 +89,12 @@ export function ProductPhotoGrid({ productId, slug, swatch, onChange }: Props) {
   async function remove(slot: string) {
     if (!confirm(`Remove photo slot ${slot}?`)) return
     setSlot(slot, { busy: true, error: null })
-    const res = await fetch(`/api/v1/admin/products/${productId}/photos/${slot}`, {
+    const res = await api(`/api/v1/admin/products/${productId}/photos/${slot}`, {
       method: 'DELETE',
     })
-    const json = await res.json().catch(() => null)
     setSlot(slot, { busy: false })
     if (!res.ok) {
-      const msg = json?.error?.message ?? `Remove failed (HTTP ${res.status}).`
+      const msg = res.error?.message ?? `Remove failed (HTTP ${res.status}).`
       setSlot(slot, { error: msg })
       toast(msg)
       return

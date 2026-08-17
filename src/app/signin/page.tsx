@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -17,6 +17,7 @@ function SignInForm() {
   const router = useRouter()
   const params = useSearchParams()
   const callbackUrl = params.get('callbackUrl') ?? '/account'
+  const authError = params.get('error')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -25,6 +26,20 @@ function SignInForm() {
     password: false,
   })
   const [loading, setLoading] = useState(false)
+
+  // Auth.js redirects failures here with `?error=`. OAuthAccountNotLinked is the
+  // one a real customer hits: they registered with a password, then tried
+  // Google. Without a message the button just appears to do nothing.
+  useEffect(() => {
+    if (!authError) return
+    toast(
+      authError === 'OAuthAccountNotLinked'
+        ? 'This email already has an account. Sign in with your password, below.'
+        : authError === 'TooManyRequests'
+          ? 'Too many sign-in attempts. Wait a few minutes and try again.'
+          : 'Could not sign you in. Try again.',
+    )
+  }, [authError])
 
   function validate(): FieldErrors {
     const next: FieldErrors = {}
@@ -55,6 +70,10 @@ function SignInForm() {
       redirect: false,
     })
     setLoading(false)
+    if (res?.error === 'TooManyRequests') {
+      toast('Too many sign-in attempts. Wait a few minutes and try again.')
+      return
+    }
     if (res?.error) {
       toast('Invalid email or password, or email not verified.')
       return

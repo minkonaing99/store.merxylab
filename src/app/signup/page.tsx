@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { TextField } from '@/components/ui/field'
 import { checkPassword, isEmail, maxLen, required } from '@/lib/validators'
+import { api } from '@/lib/api-client'
 
 interface FieldErrors {
   name?: string
@@ -57,15 +58,13 @@ export default function SignupPage() {
     if (Object.keys(v).length > 0) return
 
     setLoading(true)
-    const res = await fetch('/api/v1/auth/signup', {
+    const res = await api('/api/v1/auth/signup', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email, password, name: name || undefined }),
     })
     setLoading(false)
-    const json = await res.json().catch(() => null)
     if (!res.ok) {
-      toast(json?.error?.message ?? 'Sign-up failed.')
+      toast(res.error?.message ?? 'Sign-up failed.')
       return
     }
     setSubmitted(true)

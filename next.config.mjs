@@ -3,13 +3,9 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const isProd = process.env.NODE_ENV === 'production'
-
-// 'unsafe-eval' required by Next dev (HMR/React Refresh). Drop in prod.
-const scriptSrc = isProd
-  ? "script-src 'self' 'unsafe-inline'"
-  : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-
+// Content-Security-Policy is NOT here: it carries a per-request nonce and is
+// set in src/middleware.ts. Two CSP headers would be intersected by the
+// browser, so it must live in exactly one place.
 const SECURITY_HEADERS = [
   // Force HTTPS for two years across all subdomains.
   {
@@ -26,23 +22,6 @@ const SECURITY_HEADERS = [
   {
     key: 'Permissions-Policy',
     value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
-  },
-  // CSP — prod drops 'unsafe-eval'. 'unsafe-inline' (scripts/styles) remains
-  // until nonce middleware is wired (deferred — see docs/TECH.md).
-  {
-    key: 'Content-Security-Policy',
-    value: [
-      "default-src 'self'",
-      scriptSrc,
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data: blob: https:",
-      "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://api.telegram.org",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'",
-    ].join('; '),
   },
 ]
 
