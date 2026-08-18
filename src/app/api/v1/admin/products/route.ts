@@ -7,6 +7,7 @@ import { revalidateTag } from 'next/cache'
 import { db } from '@/db'
 import { products, productSpecs } from '@/db/schema/products'
 import { requireAdmin } from '@/lib/admin-guard'
+import { isValidSalePrice, salePriceMessage } from '@/lib/pricing'
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/
 
@@ -23,6 +24,7 @@ const bodySchema = z.object({
   // unknown id, which would render a product no shop page can list.
   categoryId: z.string().refine(isCategoryId, 'Unknown category.'),
   priceMmk: z.number().int().min(0).max(999_999_999),
+  salePriceMmk: z.number().int().min(0).max(999_999_999).nullable().optional().default(null),
   tagline: z.string().min(1).max(200),
   description: z.string().min(1).max(8000),
   swatch: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
@@ -44,6 +46,13 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
   const b = parsed.data
 
+  // Cross-field, so it cannot live in the field schema. Checked here rather
+  // than in a `.superRefine` so both product routes share one rule and one
+  // message - the PATCH route flattens zod issues into 'Invalid body.'.
+  if (!isValidSalePrice(b.priceMmk, b.salePriceMmk)) {
+    return fail('VALIDATION_ERROR', salePriceMessage(b.priceMmk, b.salePriceMmk), 400)
+  }
+
   // Slug uniqueness check (id = slug).
   const existing = await db.select({ id: products.id }).from(products).where(eq(products.id, b.slug)).limit(1)
   if (existing.length > 0) {
@@ -57,6 +66,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       name: b.name,
       categoryId: b.categoryId,
       priceMmk: b.priceMmk,
+      salePriceMmk: b.salePriceMmk,
       tagline: b.tagline,
       description: b.description,
       swatch: b.swatch,

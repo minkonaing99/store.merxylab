@@ -14,6 +14,7 @@ import { getCartLines, clearCart } from '@/lib/cart-session'
 import { sendMail } from '@/lib/mail'
 import { maskEmail } from '@/lib/mask'
 import { formatMmk } from '@/lib/money'
+import { cartSubtotal, effectiveUnitPrice, isOnSale } from '@/lib/pricing'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { sendTelegram } from '@/lib/telegram'
 import { NewOrderAlert } from '@emails/new-order-alert'
@@ -167,7 +168,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     return fail('VALIDATION_ERROR', 'Cart is empty.', 400)
   }
 
-  const subtotal = lines.reduce((sum, l) => sum + l.product.priceMmk * l.qty, 0)
+  const subtotal = cartSubtotal(lines)
   const deliveryFee = division.deliveryFeeMmk
   const total = subtotal + deliveryFee
 
@@ -226,7 +227,10 @@ export async function POST(req: Request): Promise<NextResponse> {
         orderId,
         productId: l.productId,
         qty: l.qty,
-        unitPriceMmkSnapshot: l.product.priceMmk,
+        unitPriceMmkSnapshot: effectiveUnitPrice(l.product.priceMmk, l.product.salePriceMmk),
+        listPriceMmkSnapshot: isOnSale(l.product.priceMmk, l.product.salePriceMmk)
+          ? l.product.priceMmk
+          : null,
         nameSnapshot: l.product.name,
       })),
     )

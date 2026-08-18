@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatMmk } from '@/lib/money'
+import { Price } from '@/components/product/price'
 import { PhoneField, SelectField, TextField, TextAreaField } from '@/components/ui/field'
 import {
   MAPS_URL_HINT,
@@ -56,6 +57,7 @@ interface CheckoutFormProps {
   methods: PaymentMethodLite[]
   lines: CartLine[]
   subtotal: number
+  savings: number
 }
 
 interface AddressDraft {
@@ -132,6 +134,7 @@ export function CheckoutForm({
   methods,
   lines,
   subtotal,
+  savings,
 }: CheckoutFormProps) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('delivery')
@@ -341,7 +344,13 @@ export function CheckoutForm({
               <span className="text-ink-soft">
                 {l.qty} × {l.product.name}
               </span>
-              <span className="price text-ink">{formatMmk(l.product.priceMmk * l.qty)}</span>
+              <Price
+                priceMmk={l.product.priceMmk * l.qty}
+                salePriceMmk={
+                  l.product.salePriceMmk === null ? null : l.product.salePriceMmk * l.qty
+                }
+                size="text-[13px]"
+              />
             </li>
           ))}
         </ul>
@@ -349,6 +358,12 @@ export function CheckoutForm({
           <span className="text-ink-soft">Subtotal</span>
           <span className="price text-ink">{formatMmk(subtotal)}</span>
         </div>
+        {savings > 0 && (
+          <div className="mt-1 flex items-center justify-between text-[13px]">
+            <span className="text-ink-soft">You save</span>
+            <span className="price text-[var(--color-accent)]">-{formatMmk(savings)}</span>
+          </div>
+        )}
         <div className="mt-1 flex items-center justify-between text-[13px]">
           <span className="text-ink-soft">
             Delivery{division ? ` · ${division.name}` : ''}

@@ -21,6 +21,7 @@ export interface CartLine {
     name: string
     tagline: string
     priceMmk: number
+    salePriceMmk: number | null
     swatch: string
     hasPhotos: boolean
     stockQty: number
@@ -80,6 +81,7 @@ export async function getCartLines(): Promise<CartLine[]> {
       name: products.name,
       tagline: products.tagline,
       priceMmk: products.priceMmk,
+      salePriceMmk: products.salePriceMmk,
       swatch: products.swatch,
       hasPhotos: products.hasPhotos,
       stockQty: products.stockQty,
@@ -97,6 +99,7 @@ export async function getCartLines(): Promise<CartLine[]> {
       name: r.name,
       tagline: r.tagline,
       priceMmk: Number(r.priceMmk),
+      salePriceMmk: r.salePriceMmk === null ? null : Number(r.salePriceMmk),
       swatch: r.swatch,
       hasPhotos: Boolean(r.hasPhotos),
       stockQty: r.stockQty,

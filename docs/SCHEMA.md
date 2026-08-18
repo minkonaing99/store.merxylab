@@ -42,6 +42,7 @@ table plus a union plus a join.
 | name | VARCHAR(120) | NOT NULL | |
 | category_id | VARCHAR(32) | NOT NULL | One of `CATEGORIES` in `src/lib/categories.ts`. No FK: there is no categories table. Validated by `isCategoryId` in the admin write routes. |
 | price_mmk | BIGINT | NOT NULL, ≥ 0 | whole MMK units |
+| sale_price_mmk | BIGINT | NULL | NULL = not on sale. When set: ≥ 0 and strictly < `price_mmk`, enforced in the admin write routes |
 | tagline | VARCHAR(200) | NOT NULL | |
 | description | TEXT | NOT NULL | |
 | swatch | CHAR(7) | NOT NULL | `^#[0-9A-Fa-f]{6}$` |
@@ -209,7 +210,8 @@ Removed: `billing_address_id` (single-address checkout is sufficient at retail v
 | order_id | CHAR(36) | NOT NULL, FK → orders.id ON DELETE CASCADE | |
 | product_id | VARCHAR(64) | NOT NULL, FK → products.id ON DELETE RESTRICT | |
 | qty | INT | NOT NULL, ≥ 1 | |
-| unit_price_mmk_snapshot | BIGINT | NOT NULL | price at time of order |
+| unit_price_mmk_snapshot | BIGINT | NOT NULL | what the customer actually paid, sale price included |
+| list_price_mmk_snapshot | BIGINT | NULL | the normal price this line was discounted from; NULL when it was not on sale |
 | name_snapshot | VARCHAR(120) | NOT NULL | product name at time of order |
 
 Snapshots preserve order history if product price/name changes later.
@@ -284,6 +286,30 @@ const SESSION_DAYS = 30
 - `addressPostal`: 3-20 chars, alnum + dash + space
 - `reviewRating`: int, 1-5
 - `reviewBody`: trimmed, 10-2000 chars, HTML stripped
+
+## Schema changes on a live database
+
+This repo keeps no migration history - `src/db/migrations` does not exist, and
+`docs/db-bootstrap.sql` only runs on a fresh install. A schema change therefore
+lands in three places: the Drizzle schema under `src/db/schema/`, the bootstrap
+file, and a statement run by hand against the live database.
+
+Run the statement **before** deploying the code that depends on it. Both columns
+below are additive and nullable, so an existing row is untouched and the old
+code keeps working against the new schema.
+
+```sql
+-- Sale price feature
+ALTER TABLE `products`
+  ADD COLUMN `sale_price_mmk` BIGINT NULL AFTER `price_mmk`;
+
+ALTER TABLE `order_items`
+  ADD COLUMN `list_price_mmk_snapshot` BIGINT NULL AFTER `unit_price_mmk_snapshot`;
+```
+
+Verified by loading the previous bootstrap into a scratch database, applying the
+statements above, and diffing `SHOW COLUMNS` against a fresh install of the
+current bootstrap: identical for both tables.
 
 ## Soft delete strategy
 - Products: `is_active = false` to hide; do not hard-delete (order_items reference).
@@ -448,7 +474,7 @@ methods and non-blocked divisions straight from the DB; `/shipping` uses
 **Admin (Phase 8 — `users.role = 'admin'` required)**
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| POST | `/api/v1/admin/products` | Create new product. Body: `{slug, name, categoryId, priceMmk, tagline, description, swatch, stockQty, lowStockThreshold, featured, isActive, specs[]}`. Slug regex `^[a-z0-9-]+$`, uniqueness checked server-side. `id = slug`. Inserts product + spec rows in a transaction. Revalidates `products` cache tag. | Admin |
+| POST | `/api/v1/admin/products` | Create new product. Body: `{slug, name, categoryId, priceMmk, salePriceMmk?, tagline, description, swatch, stockQty, lowStockThreshold, featured, isActive, specs[]}`. Slug regex `^[a-z0-9-]+$`, uniqueness checked server-side. `id = slug`. Inserts product + spec rows in a transaction. Revalidates `products` cache tag. | Admin |
 | PATCH | `/api/v1/admin/products/[id]` | Full or partial update of product columns and specs. Same body shape as POST minus id. Revalidates cache. | Admin |
 | POST | `/api/v1/admin/products/[id]/photos/[slot]` | Multipart upload of slot ∈ {01, 02, 03, 04}. JPG/PNG/WEBP ≤ 10 MB. `sharp` produces two buffers: `products/<slug>/0X.webp` (1600×1600 max, EXIF stripped) and `products/<slug>/0X-thumb.webp` (600×600 max). Both `PutObject`'d to R2 public bucket in parallel; on partial failure the route deletes both and 502s. Flips `products.has_photos = true` on slot-01 success. Replaces any existing pair via overwrite. Rate-limit 30/hr/admin. Returns full CDN URLs in the response. | Admin |
 | DELETE | `/api/v1/admin/products/[id]/photos/[slot]` | Removes the hero + thumb pair for one slot. If the slot deleted was 01 and no other slots remain, sets `has_photos = false`. | Admin |
@@ -469,6 +495,7 @@ methods and non-blocked divisions straight from the DB; `/shipping` uses
     "name": "MXK-65 Walnut",
     "category": "keyboards",
     "priceMmk": 520000,
+    "salePriceMmk": null,
     "tagline": "65 percent hot-swap with a walnut top case.",
     "description": "…",
     "specs": [{ "label": "Layout", "value": "65 percent" }],

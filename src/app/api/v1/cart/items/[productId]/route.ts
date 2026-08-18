@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { fail, ok, rateLimited } from '@/lib/api-response'
 import { z } from 'zod'
 import { getCartLines, removeCartItem, setCartItemQty } from '@/lib/cart-session'
+import { cartSubtotal } from '@/lib/pricing'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 
 const SLUG_RE = /^[a-z0-9-]+$/
@@ -37,7 +38,7 @@ export async function PATCH(
 
   await setCartItemQty(productId, parsed.data.qty)
   const lines = await getCartLines()
-  const subtotal = lines.reduce((sum, l) => sum + l.product.priceMmk * l.qty, 0)
+  const subtotal = cartSubtotal(lines)
   return ok({ items: lines, subtotal })
 }
 
@@ -56,6 +57,6 @@ export async function DELETE(
   }
   await removeCartItem(productId)
   const lines = await getCartLines()
-  const subtotal = lines.reduce((sum, l) => sum + l.product.priceMmk * l.qty, 0)
+  const subtotal = cartSubtotal(lines)
   return ok({ items: lines, subtotal })
 }

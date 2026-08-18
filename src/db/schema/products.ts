@@ -24,6 +24,8 @@ export const products = mysqlTable(
      */
     categoryId: varchar('category_id', { length: 32 }).notNull(),
     priceMmk: bigint('price_mmk', { mode: 'number' }).notNull(),
+    /** NULL means no sale. When set, must be >= 0 and strictly below `price_mmk`. */
+    salePriceMmk: bigint('sale_price_mmk', { mode: 'number' }),
     tagline: varchar('tagline', { length: 200 }).notNull(),
     description: text('description').notNull(),
     swatch: char('swatch', { length: 7 }).notNull(),

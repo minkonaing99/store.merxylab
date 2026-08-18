@@ -10,6 +10,8 @@ export interface ProductFormValues {
   slug: string
   categoryId: string
   priceMmk: string
+  /** Blank means no sale. */
+  salePriceMmk: string
   tagline: string
   description: string
   swatch: string
@@ -107,6 +109,13 @@ export function ProductDetailsForm({ values, onChange, mode }: Props) {
         type="number"
         value={values.priceMmk}
         onChange={(v) => set('priceMmk', v)}
+      />
+
+      <Field
+        label="Sale price (MMK) - blank for no sale"
+        type="number"
+        value={values.salePriceMmk}
+        onChange={(v) => set('salePriceMmk', v)}
       />
 
       <Field

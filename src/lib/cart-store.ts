@@ -11,6 +11,7 @@ export interface CartLine {
     name: string
     tagline: string
     priceMmk: number
+    salePriceMmk: number | null
     swatch: string
     hasPhotos: boolean
     stockQty: number

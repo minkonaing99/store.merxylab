@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { useCart, useCartSubtotal } from '@/lib/cart-store'
 import { formatMmk } from '@/lib/money'
+import { cartSavings } from '@/lib/pricing'
+import { Price } from '@/components/product/price'
 import { PHOTO_BASE } from '@/lib/types'
 
 export default function CartPage() {
@@ -12,6 +14,7 @@ export default function CartPage() {
   const setQty = useCart((s) => s.setQty)
   const remove = useCart((s) => s.remove)
   const subtotal = useCartSubtotal()
+  const savings = cartSavings(items)
 
   return (
     <section className="container-prose py-16 md:py-20">
@@ -62,7 +65,11 @@ export default function CartPage() {
                       >
                         {p.name}
                       </Link>
-                      <span className="price text-[16px]">{formatMmk(p.priceMmk * item.qty)}</span>
+                      <Price
+                        priceMmk={p.priceMmk * item.qty}
+                        salePriceMmk={p.salePriceMmk === null ? null : p.salePriceMmk * item.qty}
+                        size="text-[16px]"
+                      />
                     </div>
                     <p className="mt-1 text-[13px] text-muted">{p.tagline}</p>
 
@@ -107,6 +114,12 @@ export default function CartPage() {
                 <dt className="text-muted">Subtotal</dt>
                 <dd className="price text-ink">{formatMmk(subtotal)}</dd>
               </div>
+              {savings > 0 && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted">You save</dt>
+                  <dd className="price text-[var(--color-accent)]">-{formatMmk(savings)}</dd>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <dt className="text-muted">Shipping</dt>
                 <dd className="text-muted">Coordinated after confirmation</dd>

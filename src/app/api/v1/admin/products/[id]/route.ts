@@ -7,6 +7,7 @@ import { db } from '@/db'
 import { products, productSpecs } from '@/db/schema/products'
 import { orderItems } from '@/db/schema/orders'
 import { requireAdmin } from '@/lib/admin-guard'
+import { isValidSalePrice, salePriceMessage } from '@/lib/pricing'
 import { deletePublic } from '@/lib/r2'
 import { revalidateTag } from 'next/cache'
 
@@ -27,6 +28,7 @@ const patchSchema = z
     // unknown id, which would render a product no shop page can list.
     categoryId: z.string().refine(isCategoryId, 'Unknown category.'),
     priceMmk: z.number().int().min(0).max(999_999_999),
+    salePriceMmk: z.number().int().min(0).max(999_999_999).nullable(),
     swatch: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
     stockQty: z.number().int().min(0).max(100_000),
     lowStockThreshold: z.number().int().min(0).max(100),
@@ -55,6 +57,33 @@ export async function PATCH(
   }
 
   const { specs, ...fields } = parsed.data
+
+  // Either price field can invalidate the pair, so a write touching one has to
+  // be checked against the stored value of the other. Read outside the
+  // transaction, and only when a price is actually in play - a stock or photo
+  // toggle must not pay for an extra query.
+  if ('priceMmk' in fields || 'salePriceMmk' in fields) {
+    const [row] = await db
+      .select({ priceMmk: products.priceMmk, salePriceMmk: products.salePriceMmk })
+      .from(products)
+      .where(eq(products.id, id))
+      .limit(1)
+    if (!row) return fail('NOT_FOUND', 'Product not found.', 404)
+
+    const nextPrice = fields.priceMmk ?? Number(row.priceMmk)
+    // `??` would be wrong here: an explicit null is the admin clearing the
+    // sale, and `??` would fall through to the stored price and refuse it.
+    const nextSale =
+      'salePriceMmk' in fields
+        ? fields.salePriceMmk ?? null
+        : row.salePriceMmk === null
+          ? null
+          : Number(row.salePriceMmk)
+
+    if (!isValidSalePrice(nextPrice, nextSale)) {
+      return fail('VALIDATION_ERROR', salePriceMessage(nextPrice, nextSale), 400)
+    }
+  }
 
   await db.transaction(async (tx) => {
     if (Object.keys(fields).length > 0) {

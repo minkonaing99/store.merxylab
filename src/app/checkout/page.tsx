@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { asc, eq } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { getCartLines } from '@/lib/cart-session'
+import { cartSavings, cartSubtotal } from '@/lib/pricing'
 import { db } from '@/db'
 import { addresses } from '@/db/schema/addresses'
 import { divisions } from '@/db/schema/divisions'
@@ -36,7 +37,8 @@ export default async function CheckoutPage() {
     )
   }
 
-  const subtotal = lines.reduce((sum, l) => sum + l.product.priceMmk * l.qty, 0)
+  const subtotal = cartSubtotal(lines)
+  const savings = cartSavings(lines)
 
   const methods = methodRows.filter((m) => {
     if (m.kind === 'cod') return true
@@ -72,6 +74,7 @@ export default async function CheckoutPage() {
         methods={methods.map((m) => ({ id: m.id, name: m.name, kind: m.kind }))}
         lines={lines}
         subtotal={subtotal}
+        savings={savings}
       />
     </section>
   )

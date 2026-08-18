@@ -6,6 +6,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { X, Minus, Plus, Trash2 } from 'lucide-react'
 import { useCart, useCartSubtotal } from '@/lib/cart-store'
 import { formatMmk } from '@/lib/money'
+import { cartSavings } from '@/lib/pricing'
+import { Price } from '@/components/product/price'
 import { useEffect } from 'react'
 import { PHOTO_BASE } from '@/lib/types'
 
@@ -16,6 +18,7 @@ export function CartDrawer() {
   const setQty = useCart((s) => s.setQty)
   const remove = useCart((s) => s.remove)
   const subtotal = useCartSubtotal()
+  const savings = cartSavings(items)
 
   useEffect(() => {
     if (!isOpen) return
@@ -138,9 +141,13 @@ export function CartDrawer() {
                                 <Plus size={12} />
                               </button>
                             </div>
-                            <span className="price text-[14px]">
-                              {formatMmk(p.priceMmk * item.qty)}
-                            </span>
+                            <Price
+                              priceMmk={p.priceMmk * item.qty}
+                              salePriceMmk={
+                                p.salePriceMmk === null ? null : p.salePriceMmk * item.qty
+                              }
+                              size="text-[14px]"
+                            />
                           </div>
                         </div>
                       </li>
@@ -156,6 +163,12 @@ export function CartDrawer() {
                   <span className="text-muted">Subtotal</span>
                   <span className="price text-[18px]">{formatMmk(subtotal)}</span>
                 </div>
+                {savings > 0 && (
+                  <div className="mt-1 flex items-center justify-between text-[13px]">
+                    <span className="text-muted">You save</span>
+                    <span className="price text-[var(--color-accent)]">-{formatMmk(savings)}</span>
+                  </div>
+                )}
                 <p className="mt-1 text-[12px] text-muted">
                   Shipping coordinated after order confirmation.
                 </p>

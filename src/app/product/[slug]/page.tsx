@@ -5,6 +5,8 @@ import { Gallery } from '@/components/product/gallery'
 import { ProductCard } from '@/components/product/card'
 import { AddToCartButton } from '@/components/product/add-to-cart-button'
 import { StockBadge } from '@/components/product/stock-badge'
+import { SaleBadge } from '@/components/product/sale-badge'
+import { Price } from '@/components/product/price'
 import { HeartButton } from '@/components/wishlist/heart-button'
 import { ReviewBlock } from '@/components/reviews/review-block'
 import {
@@ -12,7 +14,6 @@ import {
   getProductBySlug,
   getRelatedProducts,
 } from '@/lib/catalog'
-import { formatMmk } from '@/lib/money'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,9 +60,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <p className="mt-3 text-[16px] text-ink-soft">{product.tagline}</p>
 
           <div className="mt-6 flex flex-wrap items-center gap-4 border-y border-line py-5">
-            <span className="price font-display text-[28px] text-ink">
-              {formatMmk(product.price)}
-            </span>
+            <Price
+              priceMmk={product.price}
+              salePriceMmk={product.salePrice}
+              size="font-display text-[28px]"
+            />
+            <SaleBadge priceMmk={product.price} salePriceMmk={product.salePrice} />
             <StockBadge
               stockQty={product.stockQty ?? (product.inStock ? 10 : 0)}
               lowStockThreshold={product.lowStockThreshold ?? 3}

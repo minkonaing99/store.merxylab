@@ -14,6 +14,13 @@ export interface Product {
   readonly category: CategoryId
   /** Whole MMK units (no subunit). */
   readonly price: number
+  /**
+   * Sale price, or null when the product is not discounted. Required rather
+   * than optional on purpose: every hand-built `Product` has to declare it, so
+   * the compiler finds a mapping site that forgot instead of silently pricing
+   * that surface at full price.
+   */
+  readonly salePrice: number | null
   readonly tagline: string
   readonly description: string
   readonly specs: readonly Spec[]

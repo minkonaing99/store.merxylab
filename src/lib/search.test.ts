@@ -7,6 +7,7 @@ function product(over: Partial<Product> & Pick<Product, 'id' | 'name'>): Product
     slug: over.id,
     category: 'keyboards',
     price: 100_000,
+    salePrice: null,
     tagline: '',
     description: '',
     specs: [],

@@ -23,6 +23,7 @@ export default async function WishlistPage() {
     name: r.product.name,
     category: r.product.categoryId as CategoryId,
     price: Number(r.product.priceMmk),
+    salePrice: r.product.salePriceMmk === null ? null : Number(r.product.salePriceMmk),
     tagline: r.product.tagline,
     description: r.product.description,
     specs: [],

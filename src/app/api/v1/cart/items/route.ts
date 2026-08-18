@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { products } from '@/db/schema/products'
 import { addCartItem, getCartLines } from '@/lib/cart-session'
+import { cartSubtotal } from '@/lib/pricing'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 
 const bodySchema = z.object({
@@ -39,6 +40,6 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   await addCartItem(parsed.data.productId, parsed.data.qty)
   const lines = await getCartLines()
-  const subtotal = lines.reduce((sum, l) => sum + l.product.priceMmk * l.qty, 0)
+  const subtotal = cartSubtotal(lines)
   return ok({ items: lines, subtotal })
 }

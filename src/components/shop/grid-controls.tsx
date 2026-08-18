@@ -6,8 +6,13 @@ import { ProductCard } from '../product/card'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/lib/types'
 import { CATEGORIES } from '@/lib/categories'
+import { effectiveUnitPrice } from '@/lib/pricing'
 
 type Sort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc'
+
+function paid(p: Product): number {
+  return effectiveUnitPrice(p.price, p.salePrice)
+}
 
 interface GridControlsProps {
   all: readonly Product[]
@@ -20,10 +25,12 @@ export function GridControls({ all, activeCategory }: GridControlsProps) {
   const sorted = useMemo(() => {
     const arr = [...all]
     switch (sort) {
+      // Sorts on what the card shows, so a discounted product does not sit in
+      // the position its pre-sale price would give it.
       case 'price-asc':
-        return arr.sort((a, b) => a.price - b.price)
+        return arr.sort((a, b) => paid(a) - paid(b))
       case 'price-desc':
-        return arr.sort((a, b) => b.price - a.price)
+        return arr.sort((a, b) => paid(b) - paid(a))
       case 'name-asc':
         return arr.sort((a, b) => a.name.localeCompare(b.name))
       default:

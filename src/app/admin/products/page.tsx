@@ -30,6 +30,7 @@ export default async function AdminProductsPage() {
           slug: r.slug,
           categoryId: r.categoryId,
           priceMmk: Number(r.priceMmk),
+          salePriceMmk: r.salePriceMmk === null ? null : Number(r.salePriceMmk),
           tagline: r.tagline,
           description: r.description,
           swatch: r.swatch,

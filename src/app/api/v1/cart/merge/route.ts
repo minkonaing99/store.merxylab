@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fail, ok } from '@/lib/api-response'
 import { mergeGuestCartToUser, getCartLines } from '@/lib/cart-session'
+import { cartSubtotal } from '@/lib/pricing'
 import { auth } from '@/lib/auth'
 
 export async function POST(): Promise<NextResponse> {
@@ -11,6 +12,6 @@ export async function POST(): Promise<NextResponse> {
 
   await mergeGuestCartToUser()
   const lines = await getCartLines()
-  const subtotal = lines.reduce((sum, l) => sum + l.product.priceMmk * l.qty, 0)
+  const subtotal = cartSubtotal(lines)
   return ok({ items: lines, subtotal })
 }

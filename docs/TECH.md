@@ -485,3 +485,56 @@ Telegram alert is a nudge to go look, not the record.
 
 **Still outstanding:** `reportError()` sends stack traces, which contain internal
 file paths, to the same Telegram chat. Owner-only diagnostics, left as-is.
+
+### [2026-08-18] Sale prices are absolute, manual, and computed in one place
+
+**Context:** discounting a product touched the one thing the codebase had been
+getting away with by luck. `lines.reduce((sum, l) => sum + l.product.priceMmk *
+l.qty, 0)` was copy-pasted across five cart routes, the checkout page and the
+order writer. Seven copies of the same expression over the same field are
+harmless while there is only one price per product. Introduce a second price and
+a single stale copy means the cart quotes a number the order does not charge -
+and six of the seven surfaces would still agree, so the bug reads as correct.
+
+**Decision:** one `src/lib/pricing.ts` owns every price calculation, and no
+money path computes its own. It takes primitive pairs rather than a `Product`
+because the codebase carries two naming conventions (`Product.price` and
+`CartLine.product.priceMmk`) and a primitive signature serves both with no
+adapter.
+
+`isOnSale(price, sale)` is the single predicate: `sale !== null && sale < price`.
+Display and charge both derive from it, so a row that somehow holds a sale price
+above the list price is shown as not-on-sale *and* charged the list price. The
+two can never disagree, which is the property worth having - not the specific
+handling of a bad row.
+
+**Absolute, not percentage:** MMK has no subunit. A percentage reintroduces a
+rounding decision into a currency that has none, and stops the admin choosing a
+clean shelf price like 490,000. The badge percent is derived and floored, so it
+never advertises a bigger discount than was given.
+
+**Manual, not scheduled:** no `sale_ends_at`. That single omission removes
+Myanmar's UTC+06:30 offset, a 60-second window where the cached catalog serves an
+expired sale, and the question of what happens to a sale that ends while an item
+sits in a cart. A shop with one admin can turn a sale off by hand.
+
+**`list_price_mmk_snapshot` is nullable** because NULL is the honest encoding of
+"there was no list price distinct from what they paid". It exists so sale
+performance is answerable later in SQL - with no analytics on the site, an order
+that records only the discounted figure makes a past sale unmeasurable forever.
+
+**Consequences:** cash on delivery now gates on the discounted total
+(`orders/route.ts`), so a sale can bring an order under the 500,000 cap that
+would otherwise have been refused. Intended: COD risk is the cash the courier
+collects. Pinned by a test rather than left to be rediscovered.
+
+Two guards protect the consolidation. `subtotal-parity.test.ts` drives one
+mixed cart through all six money paths and asserts they agree with what the
+order charges; alongside it a source-text assertion fails if any of those files
+regrows a hand-rolled subtotal. The second is a lint rule wearing a test
+costume - kept because the compiler cannot reject `l.product.priceMmk * l.qty`,
+which stays a perfectly valid number expression.
+
+**Not done:** the invoice email does not show a saving, and past orders render
+what was paid with no discount framing. The snapshot data supports both if
+wanted later.

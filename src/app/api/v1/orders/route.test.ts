@@ -22,7 +22,7 @@ const sendTelegram = vi.fn<(text: string) => Promise<void>>(async () => {})
 interface CartLine {
   productId: string
   qty: number
-  product: { name: string; priceMmk: number; stockQty: number }
+  product: { name: string; priceMmk: number; salePriceMmk: number | null; stockQty: number }
 }
 
 vi.mock('@/lib/auth', () => ({ auth: async () => session }))
@@ -104,7 +104,7 @@ function line(over: Partial<CartLine['product']> & { qty?: number } = {}): CartL
   return {
     productId: 'p1',
     qty,
-    product: { name: 'Signet', priceMmk: 15_000, stockQty: 10, ...product },
+    product: { name: 'Signet', priceMmk: 15_000, salePriceMmk: null, stockQty: 10, ...product },
   }
 }
 
@@ -172,6 +172,80 @@ describe('POST /api/v1/orders', () => {
     expect(items).toHaveLength(1)
     expect(items[0]?.unitPriceMmkSnapshot).toBe(15_000)
     expect(items[0]?.nameSnapshot).toBe('Signet')
+  })
+
+  it('prices a discounted line at the sale price, not the list price', async () => {
+    cartLines = [line({ priceMmk: 15_000, salePriceMmk: 10_000, qty: 2 })]
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    const order = inserted(orders) as Record<string, number>
+    expect(order.subtotalMmk).toBe(20_000)
+    expect(order.totalMmk).toBe(23_000)
+  })
+
+  it('snapshots what was paid and the list price it was discounted from', async () => {
+    cartLines = [line({ priceMmk: 15_000, salePriceMmk: 10_000, qty: 2 })]
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    const items = inserted(orderItems) as {
+      unitPriceMmkSnapshot: number
+      listPriceMmkSnapshot: number | null
+    }[]
+    expect(items[0]?.unitPriceMmkSnapshot).toBe(10_000)
+    expect(items[0]?.listPriceMmkSnapshot).toBe(15_000)
+  })
+
+  it('leaves the list-price snapshot null when the line was not discounted', async () => {
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    const items = inserted(orderItems) as { listPriceMmkSnapshot: number | null }[]
+    expect(items[0]?.listPriceMmkSnapshot).toBeNull()
+  })
+
+  it('always stores a subtotal equal to the sum of its own line snapshots', async () => {
+    // The subtotal and the per-line snapshot are computed by separate
+    // expressions. If they ever disagree, an order stops adding up to itself
+    // and no invoice can be trusted afterwards.
+    cartLines = [
+      line({ priceMmk: 15_000, salePriceMmk: 10_000, qty: 2 }),
+      line({ priceMmk: 40_000, qty: 3 }),
+    ]
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    const order = inserted(orders) as Record<string, number>
+    const items = inserted(orderItems) as { unitPriceMmkSnapshot: number; qty: number }[]
+    const fromItems = items.reduce((s, i) => s + i.unitPriceMmkSnapshot * i.qty, 0)
+    expect(fromItems).toBe(order.subtotalMmk)
+    expect(order.subtotalMmk).toBe(140_000)
+  })
+
+  it('lets a sale bring an order under the cash-on-delivery cap', async () => {
+    // Mirror of the over-cap test above: COD risk is the cash the courier
+    // collects, so the discounted total is the right thing to gate on.
+    cartLines = [line({ priceMmk: 300_000, salePriceMmk: 200_000, qty: 2 })]
+    selects = [[SAVED_ADDRESS], [YANGON], [COD]]
+    const res = await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'cod' }))
+
+    expect(res.status).toBe(200)
+    const order = inserted(orders) as Record<string, number>
+    expect(order.totalMmk).toBe(403_000)
+  })
+
+  it('charges the list price when the stored sale price is not below it', async () => {
+    // The admin routes reject this, but a row that slipped through must never
+    // charge more than the price the customer was shown.
+    cartLines = [line({ priceMmk: 15_000, salePriceMmk: 20_000, qty: 2 })]
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    const order = inserted(orders) as Record<string, number>
+    const items = inserted(orderItems) as { listPriceMmkSnapshot: number | null }[]
+    expect(order.subtotalMmk).toBe(30_000)
+    expect(items[0]?.listPriceMmkSnapshot).toBeNull()
   })
 
   it('copies the shipping fields onto the order rather than relying on the address row', async () => {

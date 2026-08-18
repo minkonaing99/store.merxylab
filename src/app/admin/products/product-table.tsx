@@ -10,6 +10,7 @@ import { ProductDetailsForm, type ProductFormValues } from './product-details-fo
 import { CATEGORIES } from '@/lib/categories'
 import { ProductPhotoGrid } from './product-photo-grid'
 import { api } from '@/lib/api-client'
+import { isValidSalePrice, salePriceMessage } from '@/lib/pricing'
 
 export interface Row {
   id: string
@@ -17,6 +18,7 @@ export interface Row {
   slug: string
   categoryId: string
   priceMmk: number
+  salePriceMmk: number | null
   tagline: string
   description: string
   swatch: string
@@ -41,6 +43,7 @@ function rowToForm(r: Row): ProductFormValues {
     slug: r.slug,
     categoryId: r.categoryId,
     priceMmk: String(r.priceMmk),
+    salePriceMmk: r.salePriceMmk === null ? '' : String(r.salePriceMmk),
     tagline: r.tagline,
     description: r.description,
     swatch: r.swatch,
@@ -59,6 +62,7 @@ function emptyForm(catId: string): ProductFormValues {
     slug: '',
     categoryId: catId,
     priceMmk: '0',
+    salePriceMmk: '',
     tagline: '',
     description: '',
     swatch: '#7A4F36',
@@ -126,6 +130,7 @@ export function AdminProductTable({ initial }: Props) {
       name: newDraft.name.trim(),
       categoryId: newDraft.categoryId,
       priceMmk: Number(newDraft.priceMmk) || 0,
+      salePriceMmk: newDraft.salePriceMmk.trim() === '' ? null : Number(newDraft.salePriceMmk),
       tagline: newDraft.tagline.trim(),
       description: newDraft.description.trim(),
       swatch: newDraft.swatch,
@@ -170,6 +175,7 @@ export function AdminProductTable({ initial }: Props) {
       name: draft.name.trim(),
       categoryId: draft.categoryId,
       priceMmk: Number(draft.priceMmk) || 0,
+      salePriceMmk: draft.salePriceMmk.trim() === '' ? null : Number(draft.salePriceMmk),
       tagline: draft.tagline.trim(),
       description: draft.description.trim(),
       swatch: draft.swatch,
@@ -321,7 +327,8 @@ export function AdminProductTable({ initial }: Props) {
                     )}
                   </div>
                   <div className="mt-0.5 text-[12px] text-muted">
-                    {r.slug} · {r.categoryId} · {formatMmk(r.priceMmk)} · stock {r.stockQty}
+                    {r.slug} · {r.categoryId} · {formatMmk(r.priceMmk)}
+                    {r.salePriceMmk !== null && ` · sale ${formatMmk(r.salePriceMmk)}`} · stock {r.stockQty}
                   </div>
                 </div>
                 <div className="flex gap-2 text-[12px]">
@@ -415,6 +422,14 @@ function validateForm(v: ProductFormValues, isCreate: boolean, existingSlugs: Se
   if (isCreate && existingSlugs.has(v.slug)) errs.push('Slug already in use.')
   if (!v.categoryId) errs.push('Pick a category.')
   if (Number(v.priceMmk) < 0 || Number.isNaN(Number(v.priceMmk))) errs.push('Price must be a non-negative number.')
+  if (v.salePriceMmk.trim() !== '') {
+    const sale = Number(v.salePriceMmk)
+    if (Number.isNaN(sale)) {
+      errs.push('Sale price must be a number, or blank for no sale.')
+    } else if (!isValidSalePrice(Number(v.priceMmk), sale)) {
+      errs.push(salePriceMessage(Number(v.priceMmk), sale))
+    }
+  }
   if (!v.tagline.trim()) errs.push('Tagline is required.')
   if (!v.description.trim()) errs.push('Description is required.')
   if (!/^#[0-9A-Fa-f]{6}$/.test(v.swatch)) errs.push('Swatch must be a 6-digit hex.')
@@ -435,6 +450,7 @@ function formToBody(v: ProductFormValues) {
     name: v.name.trim(),
     categoryId: v.categoryId,
     priceMmk: Number(v.priceMmk) || 0,
+    salePriceMmk: v.salePriceMmk.trim() === '' ? null : Number(v.salePriceMmk),
     tagline: v.tagline.trim(),
     description: v.description.trim(),
     swatch: v.swatch,
@@ -453,6 +469,7 @@ function formIsDirty(a: ProductFormValues, b: ProductFormValues): boolean {
     a.slug !== b.slug ||
     a.categoryId !== b.categoryId ||
     a.priceMmk !== b.priceMmk ||
+    a.salePriceMmk !== b.salePriceMmk ||
     a.tagline !== b.tagline ||
     a.description !== b.description ||
     a.swatch !== b.swatch ||

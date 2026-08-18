@@ -6,7 +6,8 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Tile } from './tile'
 import { StockBadge } from './stock-badge'
-import { formatMmk } from '@/lib/money'
+import { SaleBadge } from './sale-badge'
+import { Price } from './price'
 import { useCart } from '@/lib/cart-store'
 import type { Product } from '@/lib/types'
 import { CATEGORY_NAME } from '@/lib/categories'
@@ -54,7 +55,8 @@ export function ProductCard({ product }: ProductCardProps) {
             <p className="mt-1 text-[13px] text-muted line-clamp-1">{product.tagline}</p>
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <span className="price text-[15px] text-ink">{formatMmk(product.price)}</span>
+            <SaleBadge priceMmk={product.price} salePriceMmk={product.salePrice} size="sm" />
+            <Price priceMmk={product.price} salePriceMmk={product.salePrice} />
             <button
               onClick={handleAdd}
               disabled={isOut}

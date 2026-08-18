@@ -141,6 +141,7 @@ CREATE TABLE `products` (
 	`name` varchar(120) NOT NULL,
 	`category_id` varchar(32) NOT NULL,
 	`price_mmk` bigint NOT NULL,
+	`sale_price_mmk` bigint,
 	`tagline` varchar(200) NOT NULL,
 	`description` text NOT NULL,
 	`swatch` char(7) NOT NULL,
@@ -177,6 +178,7 @@ CREATE TABLE `order_items` (
 	`product_id` varchar(64) NOT NULL,
 	`qty` int NOT NULL,
 	`unit_price_mmk_snapshot` bigint NOT NULL,
+	`list_price_mmk_snapshot` bigint,
 	`name_snapshot` varchar(120) NOT NULL,
 	CONSTRAINT `order_items_id` PRIMARY KEY(`id`)
 );

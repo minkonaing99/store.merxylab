@@ -7,7 +7,8 @@ import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Tile } from '../product/tile'
 import { cn } from '@/lib/utils'
-import { formatMmk } from '@/lib/money'
+import { SaleBadge } from '@/components/product/sale-badge'
+import { Price } from '@/components/product/price'
 import { PHOTO_BASE, type Product } from '@/lib/types'
 import { CATEGORY_NAME } from '@/lib/categories'
 
@@ -153,7 +154,10 @@ function Caption({ product, transition }: CaptionProps) {
               {product.name}
             </div>
           </div>
-          <span className="price shrink-0 text-[15px] text-ink">{formatMmk(product.price)}</span>
+          <span className="flex shrink-0 flex-col items-end gap-1">
+            <SaleBadge priceMmk={product.price} salePriceMmk={product.salePrice} size="sm" />
+            <Price priceMmk={product.price} salePriceMmk={product.salePrice} />
+          </span>
         </motion.div>
       </AnimatePresence>
     </div>

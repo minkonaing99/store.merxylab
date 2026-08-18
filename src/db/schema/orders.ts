@@ -85,6 +85,8 @@ export const orderItems = mysqlTable('order_items', {
     .references(() => products.id),
   qty: int('qty').notNull(),
   unitPriceMmkSnapshot: bigint('unit_price_mmk_snapshot', { mode: 'number' }).notNull(),
+  /** The normal price when this line was discounted; NULL when it was not. */
+  listPriceMmkSnapshot: bigint('list_price_mmk_snapshot', { mode: 'number' }),
   nameSnapshot: varchar('name_snapshot', { length: 120 }).notNull(),
 })
 

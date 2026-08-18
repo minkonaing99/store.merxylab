@@ -12,6 +12,7 @@ interface ProductRow {
   name: string
   categoryId: string
   priceMmk: number
+  salePriceMmk: number | null
   tagline: string
   description: string
   swatch: string
@@ -39,6 +40,7 @@ function rowToProduct(row: ProductRow, specs: readonly Spec[]): Product {
     name: row.name,
     category: row.categoryId as CategoryId,
     price: Number(row.priceMmk),
+    salePrice: row.salePriceMmk === null ? null : Number(row.salePriceMmk),
     tagline: row.tagline,
     description: row.description,
     specs,
