@@ -308,38 +308,93 @@ INSERT INTO `payment_methods` (`id`, `name`, `kind`, `account_name`, `account_ph
 -- 4. Products
 -- =================================================================
 INSERT INTO `products` (`id`, `slug`, `name`, `category_id`, `price_mmk`, `tagline`, `description`, `swatch`, `stock_qty`, `low_stock_threshold`, `has_photos`, `is_active`, `featured`, `sort_order`) VALUES
+('7hz-x-crinacle-zero-2-in-ear-monitor', '7hz-x-crinacle-zero-2-in-ear-monitor', '7Hz x Crinacle Zero:2 In-Ear Monitor', 'audio', 120000, '10mm dynamic driver IEM with deeper bass and clean tone', 'Wired in-ear monitor from 7Hz, tuned together with Crinacle. Metal shell, 10mm dual-cavity dynamic driver, and a detachable 0.78mm 2-pin cable. Good for music listening and gaming.
+
+Key points
++ New 10mm dynamic driver with PU and metal composite diaphragm, faster response and cleaner notes
++ Bass lifted 3dB over the original Zero, more punch and deeper extension
++ Slightly warmer lower mids, fuller vocals and instruments, still clean
++ Wide 10Hz to 20kHz frequency range
++ 32 ohm impedance, easy to drive from a phone or laptop
++ Detachable 0.78mm 2-pin cable, OFC wire
++ Works with phone, PC, laptop and other 3.5mm sources
+
+Note
+No microphone. No inline volume or button controls.', '#7A4F36', 3, 3, 1, 1, 1, 4),
+('arzopa-z1fc-portable-monitor', 'arzopa-z1fc-portable-monitor', 'ARZOPA Z1FC Portable Monitor', 'monitors', 600000, '16.1" FHD 144Hz portable screen for gaming, work and movies', 'Portable 16.1" FHD (1920x1080) monitor with 144Hz refresh rate and 106% sRGB colour. Sharp, smooth picture for gaming, work and watching movies.
+
+Key points
++ 16.1" FHD panel, 106% sRGB, bright and accurate colour
++ 144Hz refresh rate, smooth motion for gamers
++ HDR support, deeper blacks and clearer detail
++ Works with laptop, PC, Mac, Nintendo Switch, PlayStation, Xbox, Steam Deck
++ Thin and light, easy to carry
++ Plug and play over USB-C or Mini HDMI
++ 2 year warranty
+
+In the box
+1x ARZOPA 16.1" portable monitor
+2x USB-C cable
+1x Mini HDMI cable
+1x User manual
+(Grey version only) 1x Carry case
+
+Colour options
+Black: monitor + 2 year warranty
+Grey: monitor + 2 year warranty + free carry case', '#7A4F36', 2, 3, 1, 1, 1, 7),
+('elite-monitor-arm', 'elite-monitor-arm', 'Elite Monitor Arm', 'accessories', 80000, 'Float your screen anywhere. 360 degree gas spring arm.', 'A single-monitor arm that clamps to your desk and lifts the screen off it 
+completely. The gas spring holds any position you set, so you can pull the 
+screen closer, push it back, or swing it aside with one hand.
+
+Fits 17 to 27 inch monitors up to 9 kg. Tilts down 50 degrees and up 35 
+degrees, rotates a full 360, and flips between landscape and portrait. 
+Built-in cable channel keeps the wires out of sight.
+
+Aluminium alloy build. Mounts by desk clamp or grommet hole, manual in the 
+box. Works with any brand of monitor with standard VESA holes.', '#7A4F36', 10, 2, 1, 1, 0, 6),
+('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 3, 1, 1, 1, 1, 2),
+('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#897e70', 4, 2, 0, 1, 0, 19),
+('logitech-mx-master-4', 'logitech-mx-master-4', 'Logitech Mx Master 4', 'mice', 568000, 'mouse', 'Meet the MX Master 4 that brings immersive control and precision you can feel with customizable haptic feedback on specific actions. Save up to 33% of your time with Actions Ring shortcuts and MX Master 4, by accessing tools and filters at your cursor. Additional features: 2x better connectivity, ultra fast scrolling with the MagSpeed scroll wheel, 8k DPI any surface tracking, including glass & Logi Options+ for customization.', '#b0a39b', 1, 3, 1, 1, 1, 5),
+('premium-deskmat', 'premium-deskmat', 'Nubwo Premium DeskMat', 'accessories', 60000, '900x400, 4mm cloth, washable, mouse pad', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 9, 2, 1, 1, 0, 3),
 ('vxe-dragonfly-r1-se', 'vxe-dragonfly-r1-se', 'VXE Dragonfly R1 SE+', 'mice', 150000, '55g wireless esports mouse, PAW3395 SE, 70hr battery', 'Ultralight wireless gaming mouse built for esports and long work sessions. The PAW3395 SE optical sensor tracks up to 18,000 DPI at 400 IPS, so aim stays accurate on fast flicks. The symmetrical shell works for palm, claw, and fingertip grips, and the low weight keeps your hand fresh after hours of play.
 Connect three ways: 2.4GHz wireless, Bluetooth, or USB-C wired. SmartSpeed X keeps wireless latency low enough for competitive shooters. One charge lasts around 70 hours at 1000Hz, so you charge it once a week, not every night.
 
-Huano micro switches give a crisp click. PTFE feet glide smooth out of the box. Settings adjust through the web driver, no software install needed.', '#858585', 17, 3, 1, 1, 1, 1),
-('logitech-mx-master-4', 'logitech-mx-master-4', 'Logitech Mx Master 4', 'mice', 568000, 'mouse', 'Meet the MX Master 4 that brings immersive control and precision you can feel with customizable haptic feedback on specific actions. Save up to 33% of your time with Actions Ring shortcuts and MX Master 4, by accessing tools and filters at your cursor. Additional features: 2x better connectivity, ultra fast scrolling with the MagSpeed scroll wheel, 8k DPI any surface tracking, including glass & Logi Options+ for customization.', '#b0a39b', 5, 2, 1, 1, 1, 2),
-('keychron-k2-pro', 'keychron-k2-pro', 'Keychron K2 Pro', 'keyboards', 545000, '75% hot-swap with tri-mode wireless.', 'Keychron''s flagship 75% in tri-mode. Hot-swap PCB, gasket structure, and QMK/VIA support. Bluetooth, 2.4G, USB-C wired.', '#3D342A', 9, 3, 1, 1, 1, 10),
-('nuphy-halo65', 'nuphy-halo65', 'Nuphy Halo65', 'keyboards', 515000, '65% gasket with halo side light.', 'A 65% with a soft gasket structure and a signature halo side light. Tri-mode wireless, hot-swap PCB, Night Breeze or Rose Glacier switches.', '#eae1d7', 5, 2, 1, 1, 1, 20),
-('logitech-g-pro-x-superlight-2', 'logitech-g-pro-x-superlight-2', 'Logitech G PRO X Superlight 2', 'mice', 650000, 'Sub-60g flagship. The pro pick.', 'HERO 2 sensor, LIGHTSPEED wireless, and a sub-60-gram shell. The benchmark for high-performance wireless mice.', '#897e70', 4, 2, 1, 1, 1, 30),
-('edifier-m230-retro-brown', 'edifier-m230-retro-brown', 'Edifier M230 Retro Brown', 'audio', 320000, '20W desk speaker with BT 5.0.', 'A retro-styled desk speaker with 20 watts, BT 5.0, AUX, USB-C, and TF input. Ten-hour battery for desk-to-shelf moves.', '#7A4F36', 6, 2, 0, 1, 0, 70),
-('premium-deskmat', 'premium-deskmat', 'Premium DeskMat', 'accessories', 60600, '900x400, 4mm cloth, washable.', 'A 900x400 mm cloth deskmat with non-slip backing and stitched edges. Washable, four millimetres thick.', '#4A3E33', 16, 4, 0, 1, 0, 80);
+Huano micro switches give a crisp click. PTFE feet glide smooth out of the box. Settings adjust through the web driver, no software install needed.', '#858585', 6, 2, 1, 1, 1, 1);
 
 
 -- =================================================================
 -- 5. Product specs
 -- =================================================================
 INSERT INTO `product_specs` (`product_id`, `label`, `value`, `sort_order`) VALUES
-('edifier-m230-retro-brown', 'Output', '20 W', 0),
-('edifier-m230-retro-brown', 'Connectivity', 'BT 5.0 / AUX / USB-C / TF', 1),
-('edifier-m230-retro-brown', 'Battery', '10 hours', 2),
-('edifier-m230-retro-brown', 'Finish', 'Retro Brown', 3),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Brand', '7HZ', 0),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Model', '7Hz x Crinacle Zero:2', 1),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Type', 'In-ear monitor, wired', 2),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Diaphragm', 'PU + metal composite', 3),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Sensitivity', '108dB/V at 1kHz', 4),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Frequency response', '10Hz - 20,000Hz', 5),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Connector', '0.78mm 2-pin detachable', 6),
+('7hz-x-crinacle-zero-2-in-ear-monitor', 'Plug', '3.5mm headphone jack', 7),
+('arzopa-z1fc-portable-monitor', 'Brand', 'ARZOPA', 0),
+('arzopa-z1fc-portable-monitor', 'Screen size', '16.1 inches', 1),
+('arzopa-z1fc-portable-monitor', 'Resolution', '1920 x 1080 (FHD)', 2),
+('arzopa-z1fc-portable-monitor', 'Refresh rate', '144Hz', 3),
+('arzopa-z1fc-portable-monitor', 'Panel type', 'IPS', 4),
+('arzopa-z1fc-portable-monitor', 'Colour gamut', '106% sRGB', 5),
+('arzopa-z1fc-portable-monitor', 'Weight', '780g', 6),
+('arzopa-z1fc-portable-monitor', 'Dimensions', '365 x 275 x 88 mm', 7),
+('elite-monitor-arm', 'Material', 'Aluminium alloy, gas spring', 0),
+('elite-monitor-arm', 'Monitors supported', '1', 1),
+('elite-monitor-arm', 'Screen size', '17 to 27 inch', 2),
+('elite-monitor-arm', 'VESA pattern', '75x75 mm, 100x100 mm', 3),
+('elite-monitor-arm', 'Mounting', 'Desk clamp or grommet hole', 4),
 ('keychron-k2-pro', 'Layout', '75% (84 keys)', 0),
-('keychron-k2-pro', 'Switches', 'Hot-swap, Brown or Red', 1),
+('keychron-k2-pro', 'Switches', 'Hot-swap, Red Switches', 1),
 ('keychron-k2-pro', 'Connection', 'BT 5.1 + 2.4G + USB-C', 2),
 ('keychron-k2-pro', 'Firmware', 'QMK / VIA', 3),
 ('logitech-g-pro-x-superlight-2', 'Sensor', 'HERO 2, 32000 DPI', 0),
 ('logitech-g-pro-x-superlight-2', 'Weight', '< 60 g', 1),
 ('logitech-g-pro-x-superlight-2', 'Connection', 'LIGHTSPEED 2.4G + USB-C', 2),
 ('logitech-g-pro-x-superlight-2', 'Battery', '95 hours', 3),
-('nuphy-halo65', 'Layout', '65% (68 keys)', 0),
-('nuphy-halo65', 'Mount', 'Gasket', 1),
-('nuphy-halo65', 'Switches', 'Hot-swap, Night Breeze / Rose Glacier', 2),
-('nuphy-halo65', 'Connection', 'BT + 2.4G + USB-C', 3),
 ('premium-deskmat', 'Size', '900 × 400 mm', 0),
 ('premium-deskmat', 'Thickness', '4 mm', 1),
 ('premium-deskmat', 'Surface', 'Cloth, non-slip rubber base', 2),
