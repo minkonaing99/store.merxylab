@@ -134,3 +134,4 @@ Deleting a product: toggle **Active** off — this removes it from `/shop` witho
 - `docs/SCHEMA.md` — DB schema (`orders.status` enum, `site_settings` keys)
 - `docs/CONTENT-PAGES.md` — customer-facing static pages + Burmese locales
 - `docs/TESTING.md` — test setup, what is covered, what is not
+- `docs/order-workflow.html` — interactive diagram of the whole order lifecycle (open in a browser)

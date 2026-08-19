@@ -51,6 +51,8 @@ If BeeExpress opens coverage in a blocked division: unblock at `/admin/divisions
 
 ## Order status machine
 
+`docs/order-workflow.html` draws this same path end to end (cart through delivery, both payment kinds, the cron sweep) as a clickable diagram. Open it in a browser when you want the shape rather than the detail.
+
 **Wallet path**
 ```
 pending_payment ──(customer uploads slip)──▶ payment_submitted ──(admin verifies)──▶ confirmed ──▶ delivered
