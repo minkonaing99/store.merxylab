@@ -16,7 +16,14 @@ let selects: unknown[][] = []
 let inserts: [unknown, unknown][] = []
 let cartLines: CartLine[] = []
 const clearCart = vi.fn(async () => {})
-const sendMail = vi.fn(async () => ({ delivered: true }))
+const sendMail = vi.fn<(params: { to: string; subject: string }) => Promise<{ delivered: boolean }>>(
+  async () => ({ delivered: true }),
+)
+
+/** Recipients of every mail the route sent, in order. */
+function recipients(): string[] {
+  return sendMail.mock.calls.map(([params]) => params.to)
+}
 const sendTelegram = vi.fn<(text: string) => Promise<void>>(async () => {})
 
 interface CartLine {
@@ -30,9 +37,10 @@ vi.mock('@/lib/cart-session', () => ({
   getCartLines: async () => cartLines,
   clearCart: () => clearCart(),
 }))
-vi.mock('@/lib/mail', () => ({ sendMail: () => sendMail() }))
+vi.mock('@/lib/mail', () => ({ sendMail: (p: { to: string; subject: string }) => sendMail(p) }))
 vi.mock('@/lib/telegram', () => ({ sendTelegram: (text: string) => sendTelegram(text) }))
 vi.mock('@emails/new-order-alert', () => ({ NewOrderAlert: () => null }))
+vi.mock('@emails/order-placed', () => ({ OrderPlaced: () => null }))
 
 vi.mock('@/db', () => {
   // Drizzle's builder is both chainable and awaitable, so every step returns the
@@ -390,13 +398,26 @@ describe('POST /api/v1/orders', () => {
     expect(res.status).toBe(400)
   })
 
-  it('empties the cart and alerts the owner once the order is written', async () => {
+  it('empties the cart, then mails the buyer before the owner', async () => {
+    // The buyer's copy carries the payment details, so it goes out first: if
+    // SMTP dies halfway, the customer-facing one is the one that got through.
     selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
     await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
 
     expect(clearCart).toHaveBeenCalledOnce()
-    expect(sendMail).toHaveBeenCalledOnce()
+    expect(recipients()[0]).toBe('buyer@example.com')
+    expect(recipients()).toHaveLength(2)
     expect(sendTelegram).toHaveBeenCalledOnce()
+  })
+
+  it('still writes the order when the buyer has no address on file to mail', async () => {
+    // A session without an email must not cost the customer their order.
+    session = { user: { id: 'u1' } }
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    const res = await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    expect(res.status).toBe(200)
+    expect(recipients()).toEqual([expect.not.stringContaining('buyer@example.com')])
   })
 
   it('keeps the customer address and raw email out of the Telegram alert', async () => {

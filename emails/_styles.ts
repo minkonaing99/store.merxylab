@@ -46,6 +46,16 @@ export const code = {
 const serif = "'Fraunces', Georgia, 'Times New Roman', serif"
 const mono = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 
+/**
+ * Palette, named. The rail picks its colours per step at render time, so those
+ * values cannot live in a static style object.
+ */
+export const INK = '#1c1b19'
+export const INK_SOFT = '#3a3833'
+export const MUTED = '#8a8275'
+export const ACCENT = '#c2613a'
+export const LINE = '#e6dfd2'
+
 /** Card shell with no padding so the dark footer can run edge-to-edge. */
 export const shell = {
   background: '#faf6ef',
@@ -54,12 +64,6 @@ export const shell = {
   margin: '0 auto',
   maxWidth: '560px',
   overflow: 'hidden' as const,
-}
-export const accentBar = {
-  height: '3px',
-  lineHeight: '3px',
-  fontSize: 0,
-  background: '#c2613a',
 }
 export const content = { padding: '40px 40px 34px' }
 export const eyebrow = {
@@ -80,6 +84,100 @@ export const display = {
   color: '#1c1b19',
 }
 export const lead = { fontSize: '15px', lineHeight: '24px', color: '#3a3833', margin: '10px 0' }
+
+/* ── Header meta row: `ORDER 1C34B3B6 · paid via KBZ Pay` ── */
+
+export const metaRow = { margin: 0, fontSize: '12px', lineHeight: '18px', color: '#8a8275' }
+export const metaKey = {
+  fontSize: '11px',
+  fontWeight: 600 as const,
+  letterSpacing: '0.14em',
+  textTransform: 'uppercase' as const,
+  color: '#8a8275',
+}
+/** The customer-facing order reference: same 8 chars the page and subject use. */
+export const metaId = {
+  fontFamily: mono,
+  fontSize: '13px',
+  fontWeight: 600 as const,
+  letterSpacing: '0.04em',
+  color: '#1c1b19',
+}
+
+/* ── Progress rail (table-based: grid and media queries die in Outlook) ── */
+
+export const rail = { width: '100%', margin: '2px 0 0' }
+/** Each step owns one fixed-width column; the rail never restacks. */
+export const railStep = { verticalAlign: 'top' as const, padding: 0 }
+export const railTrack = { width: '100%' }
+/** Holds the 9px dot. Font-size 0 stops mail clients adding a text baseline. */
+export const railDotCell = {
+  width: '14px',
+  padding: 0,
+  fontSize: '1px',
+  lineHeight: '9px',
+}
+export const railLineCell = { padding: 0, fontSize: '1px', lineHeight: '1px' }
+export const railLabel = { margin: '12px 0 0', fontSize: '12px', lineHeight: '16px' }
+export const railDate = {
+  margin: '3px 0 0',
+  fontSize: '11px',
+  lineHeight: '15px',
+  color: '#8a8275',
+  fontVariantNumeric: 'tabular-nums' as const,
+}
+
+/* ── Buttons. Radius squares off in Outlook desktop; the fill survives. ── */
+
+export const buttonPrimary = {
+  background: '#c2613a',
+  color: '#faf6ef',
+  borderRadius: '12px',
+  padding: '13px 26px',
+  fontSize: '14px',
+  fontWeight: 600 as const,
+  letterSpacing: '0.01em',
+  textDecoration: 'none',
+  display: 'inline-block',
+}
+export const buttonGhost = {
+  ...buttonPrimary,
+  background: '#faf6ef',
+  color: '#1c1b19',
+  border: '1px solid #d9d0c0',
+  padding: '12px 25px',
+}
+export const buttonRow = { margin: '26px 0 4px' }
+export const buttonGap = { width: '10px', fontSize: '1px', lineHeight: '1px' }
+
+/* ── Owner-alert fact rows: label left, value right ── */
+
+export const factLabel = {
+  fontSize: '12px',
+  lineHeight: '20px',
+  color: '#8a8275',
+  padding: '7px 12px 7px 0',
+  verticalAlign: 'top' as const,
+  width: '96px',
+}
+export const factValue = {
+  fontSize: '14px',
+  lineHeight: '20px',
+  color: '#1c1b19',
+  padding: '7px 0',
+  verticalAlign: 'top' as const,
+}
+export const factLink = { color: '#c2613a', textDecoration: 'none', fontWeight: 600 as const }
+
+/** The one number an owner scans for first. */
+export const amount = {
+  margin: '2px 0 0',
+  fontFamily: serif,
+  fontSize: '32px',
+  lineHeight: '38px',
+  color: '#1c1b19',
+  fontVariantNumeric: 'tabular-nums' as const,
+}
 
 /** Terracotta-tinted order-id chip. */
 export const chip = {
@@ -134,12 +232,36 @@ export const totalValCell = {
 export const noteBox = {
   background: '#f5efe6',
   border: '1px solid #e6dfd2',
-  borderLeft: '3px solid #c2613a',
   borderRadius: '8px',
-  padding: '14px 16px',
-  margin: '18px 0',
+  padding: '16px 18px',
+  margin: '20px 0',
+}
+export const noteLabel = {
+  margin: '0 0 6px',
+  fontSize: '11px',
+  fontWeight: 600 as const,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase' as const,
+  color: '#8a8275',
 }
 export const noteText = { margin: 0, fontSize: '14px', lineHeight: '22px', color: '#3a3833' }
+
+/** Account details in the placed email. Selectable text, never an image. */
+export const payLine = {
+  margin: 0,
+  fontSize: '15px',
+  lineHeight: '23px',
+  color: '#1c1b19',
+  fontWeight: 600 as const,
+}
+export const payAmount = {
+  margin: '10px 0 0',
+  fontSize: '20px',
+  lineHeight: '26px',
+  color: '#c2613a',
+  fontWeight: 700 as const,
+  fontVariantNumeric: 'tabular-nums' as const,
+}
 
 export const badge = {
   display: 'inline-block',

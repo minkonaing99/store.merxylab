@@ -1,29 +1,78 @@
-import { Body, Container, Head, Heading, Html, Preview, Section, Text } from '@react-email/components'
+import {
+  Body,
+  Button,
+  Container,
+  Heading,
+  Hr,
+  Html,
+  Preview,
+  Section,
+  Text,
+} from '@react-email/components'
+import { telHref } from '@/lib/links'
 import * as s from './_styles'
+import { BrandHead } from './_head'
+import { OrderMeta } from './_meta'
+import { FactList, type Fact } from './_facts'
 
 interface SlipSubmittedAlertProps {
   orderId: string
+  adminUrl: string
   total: string
   method: string
+  recipient: string
+  phone: string | null
+  txRef: string | null
 }
 
-export function SlipSubmittedAlert({ orderId, total, method }: SlipSubmittedAlertProps) {
+/**
+ * The money claim is unverified until the owner looks at their bank app, so
+ * this email never says "paid". It carries the exact figure to match against.
+ */
+export function SlipSubmittedAlert({
+  orderId,
+  adminUrl,
+  total,
+  method,
+  recipient,
+  phone,
+  txRef,
+}: SlipSubmittedAlertProps) {
+  const facts: Fact[] = [
+    { label: 'Method', value: method },
+    { label: 'Amount', value: total },
+    ...(txRef ? [{ label: 'Reference', value: txRef }] : []),
+    { label: 'Recipient', value: recipient },
+    ...(phone ? [{ label: 'Phone', value: phone, href: telHref(phone) }] : []),
+  ]
+
   return (
     <Html>
-      <Head />
-      <Preview>Slip submitted — verify against bank app</Preview>
+      <BrandHead />
+      <Preview>Slip submitted - verify against your bank app</Preview>
       <Body style={s.body}>
-        <Container style={s.container}>
-          <Section style={s.brand}>
-            <Text style={s.mark}>merxylab · owner alert</Text>
+        <Container style={s.shell}>
+          <Section style={s.content}>
+            <OrderMeta orderId={orderId} note="owner alert" />
+            <Heading style={s.display}>Slip submitted.</Heading>
+            <Text style={s.amount}>{total}</Text>
+
+            <Section style={s.noteBox}>
+              <Text style={s.noteText}>
+                Nothing is confirmed yet. Match this figure against your bank app before you flip
+                the order to confirmed, and the customer is told their payment went through.
+              </Text>
+            </Section>
+
+            <Hr style={s.hr} />
+            <FactList facts={facts} />
+
+            <Section style={s.buttonRow}>
+              <Button href={adminUrl} style={s.buttonPrimary}>
+                Review the slip
+              </Button>
+            </Section>
           </Section>
-          <Heading style={s.h1}>Slip submitted.</Heading>
-          <Text style={s.p}>
-            Reference <code style={s.code}>{orderId}</code>
-          </Text>
-          <Text style={s.p}>Total: {total}</Text>
-          <Text style={s.p}>Method: {method}</Text>
-          <Text style={s.p}>Cross-check the slip image against your bank app, then flip the order to paid.</Text>
         </Container>
       </Body>
     </Html>
@@ -32,8 +81,12 @@ export function SlipSubmittedAlert({ orderId, total, method }: SlipSubmittedAler
 
 SlipSubmittedAlert.PreviewProps = {
   orderId: '1c34b3b6-1234-5678-9abc-def012345678',
+  adminUrl: 'https://store.merxylab.com/admin/orders/1c34b3b6-1234-5678-9abc-def012345678',
   total: 'Ks 555,000',
   method: 'KBZ Pay',
+  recipient: 'Ko Aung',
+  phone: '09 765 432 100',
+  txRef: 'KBZ2608190041',
 } satisfies SlipSubmittedAlertProps
 
 export default SlipSubmittedAlert

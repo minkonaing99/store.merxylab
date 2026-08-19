@@ -21,7 +21,14 @@ const putPrivate = vi.fn<(key: string, body: Buffer, type: string) => Promise<vo
   async () => {},
 )
 const deletePrivate = vi.fn<(key: string) => Promise<void>>(async () => {})
-const sendMail = vi.fn(async () => ({ delivered: true }))
+const sendMail = vi.fn<(params: { to: string; subject: string }) => Promise<{ delivered: boolean }>>(
+  async () => ({ delivered: true }),
+)
+
+/** Recipients of every mail the route sent, in order. */
+function recipients(): string[] {
+  return sendMail.mock.calls.map(([params]) => params.to)
+}
 const sendTelegram = vi.fn(async () => {})
 
 vi.mock('@/lib/auth', () => ({ auth: async () => session }))
@@ -70,9 +77,10 @@ vi.mock('@/lib/r2', () => ({
   getPrivateBytes: async () => privateBytes,
 }))
 
-vi.mock('@/lib/mail', () => ({ sendMail: () => sendMail() }))
+vi.mock('@/lib/mail', () => ({ sendMail: (p: { to: string; subject: string }) => sendMail(p) }))
 vi.mock('@/lib/telegram', () => ({ sendTelegram: () => sendTelegram() }))
 vi.mock('@emails/slip-submitted-alert', () => ({ SlipSubmittedAlert: () => null }))
+vi.mock('@emails/slip-received', () => ({ SlipReceived: () => null }))
 
 const { GET, POST } = await import('./route')
 
@@ -83,6 +91,7 @@ interface OrderRow {
   paymentMethodId: string
   paymentProofUrl: string | null
   totalMmk: string
+  placedAt: Date
 }
 
 function order(overrides: Partial<OrderRow> = {}): OrderRow {
@@ -93,6 +102,7 @@ function order(overrides: Partial<OrderRow> = {}): OrderRow {
     paymentMethodId: 'kbz',
     paymentProofUrl: null,
     totalMmk: '25000',
+    placedAt: new Date('2026-08-19T03:35:00.000Z'),
     ...overrides,
   }
 }
@@ -275,7 +285,7 @@ describe('POST /api/v1/orders/[id]/slip', () => {
     expect(setSpy).not.toHaveBeenCalled()
   })
 
-  it('stores the slip under the order, advances the status, and alerts the owner', async () => {
+  it('stores the slip under the order, advances the status, and mails both sides', async () => {
     selects = [[order()], [WALLET]]
     const res = await POST(upload(png()), ctx())
 
@@ -290,7 +300,9 @@ describe('POST /api/v1/orders/[id]/slip', () => {
     const patch = setSpy.mock.calls[0]?.[0] as { status: string; paymentProofUrl: string }
     expect(patch.status).toBe('payment_submitted')
     expect(patch.paymentProofUrl).toMatch(/^[0-9a-f-]{36}\.webp$/i)
-    expect(sendMail).toHaveBeenCalledOnce()
+    // The buyer is told their slip landed before the owner is told to check it.
+    expect(recipients()[0]).toBe('buyer@example.com')
+    expect(recipients()).toHaveLength(2)
     expect(sendTelegram).toHaveBeenCalledOnce()
   })
 

@@ -6,6 +6,8 @@ import { orders } from '@/db/schema/orders'
 import { auth } from '@/lib/auth'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { sendMail } from '@/lib/mail'
+import { orderUrl, shopUrl } from '@/lib/links'
+import { shortOrderId } from '@/lib/order-status'
 import { OrderCancelled } from '@emails/order-cancelled'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -53,8 +55,13 @@ export async function POST(
 
   await sendMail({
     to: session.user.email ?? '',
-    subject: `Order ${id.slice(0, 8)} cancelled`,
-    react: OrderCancelled({ orderId: id, reason: 'Customer cancelled.' }),
+    subject: `Order ${shortOrderId(id)} - cancelled`,
+    react: OrderCancelled({
+      orderId: id,
+      orderUrl: orderUrl(id),
+      shopUrl: shopUrl(),
+      reason: 'Customer cancelled.',
+    }),
   }).catch(() => {})
 
   return ok({ ok: true })

@@ -25,6 +25,63 @@ export function customerStatusLabel(status: OrderStatus, kind: MethodKind): stri
   }
 }
 
+/**
+ * The customer-facing order reference. Order ids are UUIDs, which wrap on a
+ * phone and read as debug output; these 8 characters are what the order page,
+ * every subject line and every email body show.
+ */
+export function shortOrderId(id: string): string {
+  return id.slice(0, 8).toUpperCase()
+}
+
+export type ProgressState = 'done' | 'current' | 'todo'
+
+export interface ProgressStep {
+  /** The order status this step represents - also drives progress position. */
+  status: OrderStatus
+  label: string
+  state: ProgressState
+}
+
+/**
+ * Wallet orders carry an extra slip-verification step. COD orders skip
+ * straight from placed to confirmed, because the shop confirms by phone.
+ */
+const WALLET_RAIL: readonly Omit<ProgressStep, 'state'>[] = [
+  { status: 'pending_payment', label: 'Order placed' },
+  { status: 'payment_submitted', label: 'Payment sent' },
+  { status: 'confirmed', label: 'Confirmed' },
+  { status: 'delivered', label: 'Delivered' },
+]
+
+const COD_RAIL: readonly Omit<ProgressStep, 'state'>[] = [
+  { status: 'pending_payment', label: 'Order placed' },
+  { status: 'confirmed', label: 'Confirmed' },
+  { status: 'delivered', label: 'Delivered' },
+]
+
+/**
+ * The order rail, shared by the order page and the customer emails so the two
+ * can never drift. Cancelled returns no steps: it is progress stopping, not a
+ * stage of it, and a rail would tell the customer the order is still moving.
+ */
+export function progressSteps(status: OrderStatus, kind: MethodKind): ProgressStep[] {
+  if (status === 'cancelled') return []
+
+  const rail = kind === 'cod' ? COD_RAIL : WALLET_RAIL
+  // A wallet-only status on a COD order is a bad row, not a later stage. Fall
+  // back to the first step rather than marking the whole rail done.
+  const current = Math.max(
+    0,
+    rail.findIndex((s) => s.status === status),
+  )
+
+  return rail.map((step, i) => ({
+    ...step,
+    state: i < current ? 'done' : i === current ? 'current' : 'todo',
+  }))
+}
+
 /** One line of "what happens next", or null when nothing is expected of anyone. */
 export function customerStatusHint(status: OrderStatus, kind: MethodKind): string | null {
   if (status === 'pending_payment') {

@@ -30,6 +30,15 @@ const ORDER_FORMAT = new Intl.DateTimeFormat('en-GB', {
   hour12: false,
 })
 
+const SHORT_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: SHOP_TIME_ZONE,
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
 const FULL_FORMAT = new Intl.DateTimeFormat('en-GB', {
   timeZone: SHOP_TIME_ZONE,
   dateStyle: 'full',
@@ -39,6 +48,14 @@ const FULL_FORMAT = new Intl.DateTimeFormat('en-GB', {
 /** Reading date for an order: `17 Aug 2026, 20:52`. No seconds. */
 export function orderTimestamp(iso: string): string {
   return ORDER_FORMAT.format(new Date(iso))
+}
+
+/**
+ * Yearless order date: `17 Aug, 20:52`. For narrow columns - the email progress
+ * rail gives each step about 120px, which the year pushes onto a second line.
+ */
+export function shortTimestamp(iso: string): string {
+  return SHORT_FORMAT.format(new Date(iso))
 }
 
 /** Full timestamp for the `title` tooltip behind a relative label. */

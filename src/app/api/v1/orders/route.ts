@@ -14,10 +14,13 @@ import { getCartLines, clearCart } from '@/lib/cart-session'
 import { sendMail } from '@/lib/mail'
 import { maskEmail } from '@/lib/mask'
 import { formatMmk } from '@/lib/money'
+import { adminOrderUrl, orderUrl } from '@/lib/links'
+import { shortOrderId } from '@/lib/order-status'
 import { cartSubtotal, effectiveUnitPrice, isOnSale } from '@/lib/pricing'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { sendTelegram } from '@/lib/telegram'
 import { NewOrderAlert } from '@emails/new-order-alert'
+import { OrderPlaced } from '@emails/order-placed'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COD_CAP_MMK = 500_000
@@ -238,17 +241,61 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   await clearCart()
 
-  // No customer email on placement - invoice is sent at payment confirmation
-  // (admin → paid / confirmed) instead, to avoid spamming the buyer.
+  // The buyer hears nothing else until we confirm, so this carries what they
+  // need in the meantime: what they bought, and for a wallet order, where to
+  // send the money. Failures are swallowed - a dead SMTP must never lose an
+  // order that is already committed.
+  if (session.user.email) {
+    await sendMail({
+      to: session.user.email,
+      subject:
+        method.kind === 'wallet'
+          ? `Order ${shortOrderId(orderId)} - placed, transfer to complete`
+          : `Order ${shortOrderId(orderId)} - placed, we will call to confirm`,
+      react: OrderPlaced({
+        orderId,
+        orderUrl: orderUrl(orderId),
+        method: method.name,
+        kind: method.kind,
+        accountName: method.accountName,
+        accountPhone: method.accountPhone,
+        total: formatMmk(total),
+        subtotal: formatMmk(subtotal),
+        deliveryFee: formatMmk(deliveryFee),
+        placedAt: new Date().toISOString(),
+        items: lines.map((l) => ({
+          qty: l.qty,
+          name: l.product.name,
+          lineTotal: formatMmk(effectiveUnitPrice(l.product.priceMmk, l.product.salePriceMmk) * l.qty),
+        })),
+      }),
+    }).catch(() => {})
+  }
+
   const ownerEmail = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? 'admin@localhost'
   await sendMail({
     to: ownerEmail,
-    subject: `New order ${orderId.slice(0, 8)} - ${formatMmk(total)}`,
+    subject:
+      method.kind === 'cod'
+        ? `COD order ${shortOrderId(orderId)} - call to confirm, ${formatMmk(total)}`
+        : `New order ${shortOrderId(orderId)} - ${formatMmk(total)}`,
     react: NewOrderAlert({
       orderId,
+      adminUrl: adminOrderUrl(orderId),
       total: formatMmk(total),
+      subtotal: formatMmk(subtotal),
+      deliveryFee: formatMmk(deliveryFee),
       method: method.name,
+      kind: method.kind,
       customer: session.user.email ?? userId,
+      recipient: ship.recipient,
+      phone: ship.phone,
+      destination: [ship.township, ship.city, division.name].filter(Boolean).join(', '),
+      items: lines.map((l) => ({
+        qty: l.qty,
+        name: l.product.name,
+        lineTotal: formatMmk(effectiveUnitPrice(l.product.priceMmk, l.product.salePriceMmk) * l.qty),
+      })),
     }),
   }).catch(() => {})
 

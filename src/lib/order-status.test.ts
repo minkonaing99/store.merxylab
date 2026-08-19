@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { ORDER_STATUSES } from '@/db/schema/orders'
-import { customerStatusHint, customerStatusLabel, type MethodKind } from './order-status'
+import {
+  customerStatusHint,
+  customerStatusLabel,
+  progressSteps,
+  shortOrderId,
+  type MethodKind,
+} from './order-status'
 
 const KINDS: MethodKind[] = ['wallet', 'cod']
 
@@ -37,6 +43,74 @@ describe('customerStatusLabel', () => {
   it('reads the same for both kinds once the order closes', () => {
     for (const status of ['delivered', 'cancelled'] as const) {
       expect(customerStatusLabel(status, 'cod')).toBe(customerStatusLabel(status, 'wallet'))
+    }
+  })
+})
+
+describe('shortOrderId', () => {
+  it('takes the first 8 characters, uppercased', () => {
+    expect(shortOrderId('1c34b3b6-1234-5678-9abc-def012345678')).toBe('1C34B3B6')
+  })
+
+  it('stops before the first dash, so the reference never reads as truncated', () => {
+    expect(shortOrderId('1c34b3b6-1234-5678-9abc-def012345678')).not.toContain('-')
+  })
+
+  it('survives an id shorter than 8 characters', () => {
+    expect(shortOrderId('abc')).toBe('ABC')
+  })
+})
+
+describe('progressSteps', () => {
+  it('gives a COD order no slip step - there is no slip to send', () => {
+    const labels = progressSteps('confirmed', 'cod').map((s) => s.label)
+    expect(labels).toEqual(['Order placed', 'Confirmed', 'Delivered'])
+  })
+
+  it('gives a wallet order the slip step', () => {
+    const labels = progressSteps('confirmed', 'wallet').map((s) => s.label)
+    expect(labels).toEqual(['Order placed', 'Payment sent', 'Confirmed', 'Delivered'])
+  })
+
+  it('marks exactly one step current, everything before it done', () => {
+    const steps = progressSteps('confirmed', 'wallet')
+    expect(steps.map((s) => s.state)).toEqual(['done', 'done', 'current', 'todo'])
+  })
+
+  it('lands on the first step for a brand new order', () => {
+    const steps = progressSteps('pending_payment', 'wallet')
+    expect(steps[0]?.state).toBe('current')
+    expect(steps.slice(1).every((s) => s.state === 'todo')).toBe(true)
+  })
+
+  it('has no pending step left once delivered', () => {
+    for (const kind of KINDS) {
+      const steps = progressSteps('delivered', kind)
+      expect(steps.at(-1)?.state, kind).toBe('current')
+      expect(steps.some((s) => s.state === 'todo'), kind).toBe(false)
+    }
+  })
+
+  it('returns nothing for a cancelled order - it stopped, it did not progress', () => {
+    for (const kind of KINDS) {
+      expect(progressSteps('cancelled', kind), kind).toEqual([])
+    }
+  })
+
+  it('never places a wallet-only status on a COD rail', () => {
+    // payment_submitted cannot happen on COD, but a bad row must not crash or
+    // silently mark every step done. It falls back to the first step.
+    const steps = progressSteps('payment_submitted', 'cod')
+    expect(steps[0]?.state).toBe('current')
+  })
+
+  it('marks exactly one step current for every live status', () => {
+    for (const kind of KINDS) {
+      for (const status of ORDER_STATUSES) {
+        if (status === 'cancelled') continue
+        const current = progressSteps(status, kind).filter((s) => s.state === 'current')
+        expect(current, `${kind}/${status}`).toHaveLength(1)
+      }
     }
   })
 })

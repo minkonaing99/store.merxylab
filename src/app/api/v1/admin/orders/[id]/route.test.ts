@@ -72,6 +72,7 @@ const ORDER = {
   subtotalMmk: '30000',
   deliveryFeeMmk: '3000',
   totalMmk: '33000',
+  placedAt: new Date('2026-08-19T03:35:00.000Z'),
 }
 const WALLET = { id: 'kbz', name: 'KBZPay', kind: 'wallet' }
 const CUSTOMER = { id: 'u1', email: 'buyer@example.com' }
@@ -207,7 +208,7 @@ describe('PATCH /api/v1/admin/orders/[id]', () => {
     commitSelects()
     await PATCH(request({ status: 'confirmed' }), ctx())
 
-    expect(subjects().some((s) => s.includes('invoice'))).toBe(true)
+    expect(subjects().some((s) => s.includes('payment confirmed'))).toBe(true)
   })
 
   it('notifies the customer on delivery', async () => {

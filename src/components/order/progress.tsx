@@ -1,31 +1,8 @@
 import type { CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
 import { fullTimestamp, timeAgo } from '@/lib/relative-time'
-import type { MethodKind } from '@/lib/order-status'
+import { progressSteps, type MethodKind } from '@/lib/order-status'
 import type { OrderStatus } from '@/db/schema/orders'
-
-interface Step {
-  /** The order status this step represents - also drives progress position. */
-  status: OrderStatus
-  label: string
-}
-
-/**
- * Wallet orders carry an extra slip-verification step. COD orders skip
- * straight from placed to confirmed, because the shop confirms by phone.
- */
-const WALLET_STEPS: readonly Step[] = [
-  { status: 'pending_payment', label: 'Order placed' },
-  { status: 'payment_submitted', label: 'Payment sent' },
-  { status: 'confirmed', label: 'Confirmed' },
-  { status: 'delivered', label: 'Delivered' },
-]
-
-const COD_STEPS: readonly Step[] = [
-  { status: 'pending_payment', label: 'Order placed' },
-  { status: 'confirmed', label: 'Confirmed' },
-  { status: 'delivered', label: 'Delivered' },
-]
 
 interface OrderProgressProps {
   status: OrderStatus
@@ -53,11 +30,7 @@ export function OrderProgress({
     )
   }
 
-  const steps = kind === 'cod' ? COD_STEPS : WALLET_STEPS
-  const current = Math.max(
-    0,
-    steps.findIndex((s) => s.status === status),
-  )
+  const steps = progressSteps(status, kind)
 
   return (
     <ol
@@ -65,8 +38,8 @@ export function OrderProgress({
       style={{ '--steps': steps.length } as CSSProperties}
     >
       {steps.map((step, i) => {
-        const done = i < current
-        const isCurrent = i === current
+        const done = step.state === 'done'
+        const isCurrent = step.state === 'current'
         // Only two timestamps exist on an order, so only the first and the
         // live step can be dated. Middle steps show no time.
         const stamp = i === 0 ? placedAt : isCurrent && i > 0 ? updatedAt : null

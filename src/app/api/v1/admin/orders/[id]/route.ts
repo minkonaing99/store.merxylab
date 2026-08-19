@@ -10,8 +10,10 @@ import { products } from '@/db/schema/products'
 import { users } from '@/db/schema/auth'
 import { requireAdmin } from '@/lib/admin-guard'
 import { canTransition } from '@/lib/order-transitions'
+import { shortOrderId } from '@/lib/order-status'
 import { sendMail } from '@/lib/mail'
 import { formatMmk } from '@/lib/money'
+import { adminProductsUrl, orderUrl, shopUrl } from '@/lib/links'
 import { OrderInvoice } from '@emails/order-invoice'
 import { OrderDelivered } from '@emails/order-delivered'
 import { OrderCancelled } from '@emails/order-cancelled'
@@ -137,6 +139,10 @@ export async function PATCH(
   const [user] = await db.select().from(users).where(eq(users.id, order.userId)).limit(1)
   const customerEmail = user?.email
   const total = formatMmk(Number(order.totalMmk))
+  const placedAt = order.placedAt.toISOString()
+  // `order` was read before the update, so its `updatedAt` still holds the
+  // previous transition. The one this request just made is now.
+  const movedAt = new Date().toISOString()
 
   // Customer-facing emails: invoice at payment confirmation (paid OR
   // confirmed), delivered note at delivered, cancellation at cancelled.
@@ -151,20 +157,19 @@ export async function PATCH(
         })
         .from(orderItems)
         .where(eq(orderItems.orderId, id))
-      const [methodRow] = await db
-        .select({ name: paymentMethods.name })
-        .from(paymentMethods)
-        .where(eq(paymentMethods.id, order.paymentMethodId))
-        .limit(1)
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} - invoice`,
+        subject: `Order ${shortOrderId(id)} - payment confirmed`,
         react: OrderInvoice({
           orderId: id,
+          orderUrl: orderUrl(id),
           total,
           subtotal: formatMmk(Number(order.subtotalMmk)),
           deliveryFee: formatMmk(Number(order.deliveryFeeMmk)),
-          method: methodRow?.name ?? order.paymentMethodId,
+          method: method?.name ?? order.paymentMethodId,
+          kind,
+          placedAt,
+          updatedAt: movedAt,
           items: itemRows.map((it) => ({
             qty: it.qty,
             name: it.name,
@@ -175,14 +180,25 @@ export async function PATCH(
     } else if (next === 'delivered') {
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} - delivered`,
-        react: OrderDelivered({ orderId: id }),
+        subject: `Order ${shortOrderId(id)} - delivered`,
+        react: OrderDelivered({
+          orderId: id,
+          orderUrl: orderUrl(id),
+          kind,
+          placedAt,
+          updatedAt: movedAt,
+        }),
       }).catch(() => {})
     } else if (next === 'cancelled') {
       await sendMail({
         to: customerEmail,
-        subject: `Order ${id.slice(0, 8)} - cancelled`,
-        react: OrderCancelled({ orderId: id, reason: patch.notes ?? 'Cancelled by merxylab.' }),
+        subject: `Order ${shortOrderId(id)} - cancelled`,
+        react: OrderCancelled({
+          orderId: id,
+          orderUrl: orderUrl(id),
+          shopUrl: shopUrl(),
+          reason: patch.notes ?? 'Cancelled by merxylab.',
+        }),
       }).catch(() => {})
     }
   }
@@ -192,8 +208,12 @@ export async function PATCH(
     for (const b of lowStockBreaches) {
       await sendMail({
         to: ownerEmail,
-        subject: `Low stock: ${b.name}`,
-        react: LowStockAlert({ productName: b.name, remaining: b.remaining }),
+        subject: b.remaining <= 0 ? `Sold out: ${b.name}` : `Low stock: ${b.name}`,
+        react: LowStockAlert({
+          productName: b.name,
+          remaining: b.remaining,
+          adminUrl: adminProductsUrl(),
+        }),
       }).catch(() => {})
     }
   }

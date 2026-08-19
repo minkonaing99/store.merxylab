@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { orderTimestamp } from './relative-time'
+import { orderTimestamp, shortTimestamp } from './relative-time'
 
 describe('orderTimestamp', () => {
   it('renders in shop time, not whatever timezone the host runs in', () => {
@@ -19,5 +19,19 @@ describe('orderTimestamp', () => {
   it('never renders an ambiguous all-numeric date', () => {
     // 8/17/2026 vs 17/8/2026 reads differently either side of the Pacific.
     expect(orderTimestamp('2026-08-17T14:22:17.000Z')).toMatch(/[A-Za-z]{3}/)
+  })
+})
+
+describe('shortTimestamp', () => {
+  it('drops the year - a progress rail column is too narrow to carry it', () => {
+    expect(shortTimestamp('2026-08-17T14:22:17.000Z')).toBe('17 Aug, 20:52')
+  })
+
+  it('stays on shop time like every other order date', () => {
+    expect(shortTimestamp('2026-01-04T20:00:00.000Z')).toBe('5 Jan, 02:30')
+  })
+
+  it('keeps the month as letters so the date never reads ambiguously', () => {
+    expect(shortTimestamp('2026-08-17T14:22:17.000Z')).toMatch(/[A-Za-z]{3}/)
   })
 })

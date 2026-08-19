@@ -16,6 +16,8 @@ import { db } from '../src/db'
 import { orders } from '../src/db/schema/orders'
 import { users } from '../src/db/schema/auth'
 import { sendMail } from '../src/lib/mail'
+import { orderUrl, shopUrl } from '../src/lib/links'
+import { shortOrderId } from '../src/lib/order-status'
 import { OrderCancelled } from '../emails/order-cancelled'
 
 async function main(): Promise<void> {
@@ -44,9 +46,11 @@ async function main(): Promise<void> {
     if (user?.email) {
       await sendMail({
         to: user.email,
-        subject: `Order ${id.slice(0, 8)} cancelled — payment not received`,
+        subject: `Order ${shortOrderId(id)} - cancelled, payment not received`,
         react: OrderCancelled({
           orderId: id,
+          orderUrl: orderUrl(id),
+          shopUrl: shopUrl(),
           reason: 'Payment was not received within 24 hours.',
         }),
       }).catch(() => {})

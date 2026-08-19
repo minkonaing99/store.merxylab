@@ -1,34 +1,47 @@
 import {
   Body,
+  Button,
   Container,
-  Head,
   Heading,
   Html,
   Preview,
   Section,
   Text,
 } from '@react-email/components'
+import * as s from './_styles'
+import { BrandHead } from './_head'
 
 interface LowStockProps {
   productName: string
   remaining: number
+  adminUrl: string
 }
 
-export function LowStockAlert({ productName, remaining }: LowStockProps) {
+export function LowStockAlert({ productName, remaining, adminUrl }: LowStockProps) {
+  const soldOut = remaining <= 0
+
   return (
     <Html>
-      <Head />
-      <Preview>Low stock: {productName}</Preview>
-      <Body style={body}>
-        <Container style={container}>
-          <Section>
-            <Text style={mark}>merxylab · admin</Text>
+      <BrandHead />
+      <Preview>{soldOut ? `Sold out: ${productName}` : `Low stock: ${productName}`}</Preview>
+      <Body style={s.body}>
+        <Container style={s.shell}>
+          <Section style={s.content}>
+            <Text style={s.metaKey}>merxylab · owner alert</Text>
+            <Heading style={s.display}>{soldOut ? 'Sold out.' : 'Running low.'}</Heading>
+            <Text style={s.lead}>
+              <strong>{productName}</strong>
+              {soldOut
+                ? ' has no units left after the latest order. It is now unbuyable in the shop.'
+                : ` has ${remaining} left after the latest order.`}
+            </Text>
+
+            <Section style={s.buttonRow}>
+              <Button href={adminUrl} style={s.buttonPrimary}>
+                Update stock
+              </Button>
+            </Section>
           </Section>
-          <Heading style={h1}>Low stock alert.</Heading>
-          <Text style={p}>
-            <strong>{productName}</strong> has <strong>{remaining}</strong> units left after the
-            latest order. Time to restock.
-          </Text>
         </Container>
       </Body>
     </Html>
@@ -38,30 +51,7 @@ export function LowStockAlert({ productName, remaining }: LowStockProps) {
 LowStockAlert.PreviewProps = {
   productName: 'MXK-65 Walnut',
   remaining: 2,
+  adminUrl: 'https://store.merxylab.com/admin/products',
 } satisfies LowStockProps
 
 export default LowStockAlert
-
-const body = {
-  background: '#f5efe6',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  padding: '32px 16px',
-  color: '#1c1b19',
-}
-const container = {
-  background: '#faf6ef',
-  border: '1px solid #e6dfd2',
-  borderRadius: '12px',
-  margin: '0 auto',
-  maxWidth: '480px',
-  padding: '32px',
-}
-const mark = {
-  margin: 0,
-  fontSize: '12px',
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase' as const,
-  color: '#b07a2e',
-}
-const h1 = { fontSize: '24px', margin: '8px 0', fontWeight: 500 as const }
-const p = { fontSize: '15px', lineHeight: '24px', color: '#3a3833' }

@@ -13,7 +13,10 @@ import { sendTelegram } from '@/lib/telegram'
 import { formatMmk } from '@/lib/money'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { deletePrivate, getPrivateBytes, putPrivate } from '@/lib/r2'
+import { adminOrderUrl, orderUrl } from '@/lib/links'
+import { shortOrderId } from '@/lib/order-status'
 import { SlipSubmittedAlert } from '@emails/slip-submitted-alert'
+import { SlipReceived } from '@emails/slip-received'
 
 function slipBasename(stored: string | null | undefined): string | null {
   if (!stored) return null
@@ -115,16 +118,35 @@ export async function POST(
     })
     .where(eq(orders.id, id))
 
-  // No customer email on slip upload - owner verifies, then the confirm
-  // step at admin → paid triggers the customer invoice email.
+  // The money has already left the customer's account and the page state is
+  // gone the moment they close the tab. This is the receipt for that wait.
+  if (session.user.email) {
+    await sendMail({
+      to: session.user.email,
+      subject: `Order ${shortOrderId(id)} - slip received`,
+      react: SlipReceived({
+        orderId: id,
+        orderUrl: orderUrl(id),
+        total: formatMmk(Number(order.totalMmk)),
+        method: method?.name ?? order.paymentMethodId,
+        placedAt: order.placedAt.toISOString(),
+        submittedAt: new Date().toISOString(),
+      }),
+    }).catch(() => {})
+  }
+
   const ownerEmail = process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? 'admin@localhost'
   await sendMail({
     to: ownerEmail,
-    subject: `Slip submitted: ${id.slice(0, 8)}`,
+    subject: `Slip submitted ${shortOrderId(id)} - verify ${formatMmk(Number(order.totalMmk))}`,
     react: SlipSubmittedAlert({
       orderId: id,
+      adminUrl: adminOrderUrl(id),
       total: formatMmk(Number(order.totalMmk)),
       method: method?.name ?? order.paymentMethodId,
+      recipient: order.shipRecipient ?? 'Not given',
+      phone: order.shipPhone,
+      txRef: typeof txRef === 'string' && txRef ? txRef.slice(0, 120) : null,
     }),
   }).catch(() => {})
 

@@ -69,6 +69,7 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/mail', () => ({ sendMail: async () => ({ delivered: true }) }))
 vi.mock('@/lib/telegram', () => ({ sendTelegram: async () => {} }))
 vi.mock('@emails/new-order-alert', () => ({ NewOrderAlert: () => null }))
+vi.mock('@emails/order-placed', () => ({ OrderPlaced: () => null }))
 
 const SAVED_ADDRESS = {
   id: ADDRESS_ID,
