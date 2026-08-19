@@ -2,56 +2,16 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, Trash2 } from 'lucide-react'
+import { MapPin, Pencil, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { PhoneField, SelectField, TextField } from '@/components/ui/field'
 import { api } from '@/lib/api-client'
-import {
-  MAPS_URL_HINT,
-  PHONE_HINT,
-  PHONE_PREFIX,
-  TELEGRAM_HINT,
-  isGoogleMapsUrl,
-  isPhoneLocal,
-  isTelegramUsername,
-  normalizePhoneLocal,
-  normalizeTelegramUsername,
-  required,
-  toE164Phone,
-} from '@/lib/validators'
-
-interface AddressForm {
-  id?: string
-  label: string
-  recipient: string
-  phone: string
-  divisionId: string
-  city: string
-  township: string
-  street: string
-  landmark: string
-  telegramUsername: string
-  mapsUrl: string
-  isDefault: boolean
-}
+import { isGoogleMapsUrl } from '@/lib/validators'
+import { AddressFields } from './address-form'
+import { EMPTY, toPayload, type AddressForm } from './address-form-values'
 
 interface DivisionLite {
   id: string
   name: string
-}
-
-const EMPTY: AddressForm = {
-  label: 'Home',
-  recipient: '',
-  phone: '',
-  divisionId: '',
-  city: '',
-  township: '',
-  street: '',
-  landmark: '',
-  telegramUsername: '',
-  mapsUrl: '',
-  isDefault: false,
 }
 
 interface ManagerProps {
@@ -59,96 +19,18 @@ interface ManagerProps {
   divisions: DivisionLite[]
 }
 
-type FieldKey =
-  | 'label'
-  | 'recipient'
-  | 'phone'
-  | 'divisionId'
-  | 'city'
-  | 'township'
-  | 'street'
-  | 'telegramUsername'
-  | 'mapsUrl'
-type Errors = Partial<Record<FieldKey, string>>
-type Touched = Partial<Record<FieldKey, boolean>>
-
 export function AddressManager({ initial, divisions }: ManagerProps) {
   const router = useRouter()
-  const [form, setForm] = useState<AddressForm>(EMPTY)
-  const [errors, setErrors] = useState<Errors>({})
-  const [touched, setTouched] = useState<Touched>({})
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  /** Remounts the add form on success, which is how it gets cleared. */
+  const [addKey, setAddKey] = useState(0)
 
-  function set<K extends keyof AddressForm>(key: K, val: AddressForm[K]) {
-    setForm((f) => ({ ...f, [key]: val }))
-  }
-
-  function validate(values: AddressForm): Errors {
-    const next: Errors = {}
-    const label = required(values.label, 'Label')
-    if (label) next.label = label
-    const recipient = required(values.recipient, 'Recipient name')
-    if (recipient) next.recipient = recipient
-    const phone = required(values.phone, 'Phone')
-    if (phone) next.phone = phone
-    else if (!isPhoneLocal(values.phone)) next.phone = PHONE_HINT
-    const division = required(values.divisionId, 'Division')
-    if (division) next.divisionId = 'Choose a division.'
-    const city = required(values.city, 'City')
-    if (city) next.city = city
-    const township = required(values.township, 'Township')
-    if (township) next.township = township
-    const street = required(values.street, 'Street')
-    if (street) next.street = street
-    // Both optional: only judged once something has been typed.
-    if (values.telegramUsername.trim() && !isTelegramUsername(values.telegramUsername)) {
-      next.telegramUsername = '5-32 letters, digits or underscores, starting with a letter.'
-    }
-    if (values.mapsUrl.trim() && !isGoogleMapsUrl(values.mapsUrl)) {
-      next.mapsUrl = 'Must be a Google Maps link.'
-    }
-    return next
-  }
-
-  function markTouched(field: FieldKey) {
-    setTouched((t) => ({ ...t, [field]: true }))
-    setErrors(validate(form))
-  }
-
-  function liveError(field: FieldKey): string | null {
-    if (!touched[field]) return null
-    return errors[field] ?? null
-  }
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
-    const v = validate(form)
-    setErrors(v)
-    setTouched({
-      label: true,
-      recipient: true,
-      phone: true,
-      divisionId: true,
-      city: true,
-      township: true,
-      street: true,
-      telegramUsername: true,
-      mapsUrl: true,
-    })
-    if (Object.keys(v).length > 0) {
-      toast('Fix the highlighted fields.')
-      return
-    }
+  async function create(values: AddressForm) {
     setSaving(true)
     const res = await api('/api/v1/addresses', {
       method: 'POST',
-      body: JSON.stringify({
-        ...form,
-        phone: toE164Phone(form.phone),
-        landmark: form.landmark || null,
-        telegramUsername: normalizeTelegramUsername(form.telegramUsername) || null,
-        mapsUrl: form.mapsUrl.trim() || null,
-      }),
+      body: JSON.stringify(toPayload(values)),
     })
     setSaving(false)
     if (!res.ok) {
@@ -156,9 +38,24 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
       return
     }
     toast('Address saved.')
-    setForm(EMPTY)
-    setErrors({})
-    setTouched({})
+    setAddKey((k) => k + 1)
+    router.refresh()
+  }
+
+  async function update(id: string, values: AddressForm) {
+    setSaving(true)
+    const res = await api(`/api/v1/addresses/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(toPayload(values)),
+    })
+    setSaving(false)
+    if (!res.ok) {
+      // 409 carries the reason an address is frozen mid-delivery, same as delete.
+      toast(res.error?.message ?? 'Failed to update address.')
+      return
+    }
+    toast('Address updated.')
+    setEditingId(null)
     router.refresh()
   }
 
@@ -180,47 +77,83 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
           <ul className="divide-y divide-line border-y border-line">
             {initial.map((a) => {
               const div = divisions.find((d) => d.id === a.divisionId)
+              const editing = editingId === a.id
               return (
-                <li key={a.id} className="flex items-start justify-between gap-4 py-5">
-                  <div className="min-w-0">
-                    <div className="font-display text-[16px]">
-                      {a.label}{' '}
-                      {a.isDefault && (
-                        <span className="ml-1 rounded-[var(--radius-pill)] bg-sand px-2 py-0.5 text-[11px] text-ink">
-                          default
-                        </span>
+                <li key={a.id} className="py-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-display text-[16px]">
+                        {a.label}{' '}
+                        {a.isDefault && (
+                          <span className="ml-1 rounded-[var(--radius-pill)] bg-sand px-2 py-0.5 text-[11px] text-ink">
+                            default
+                          </span>
+                        )}
+                      </div>
+                      {!editing && (
+                        <>
+                          <div className="mt-1 text-[13px] text-ink-soft">
+                            {a.recipient} · {a.street}, {a.township}, {a.city}
+                            {div ? `, ${div.name}` : ''}
+                          </div>
+                          {a.landmark && (
+                            <div className="text-[12px] text-muted">{a.landmark}</div>
+                          )}
+                          <div className="mt-0.5 text-[12px] text-muted">
+                            {a.phone}
+                            {a.telegramUsername ? ` · Telegram @${a.telegramUsername}` : ''}
+                          </div>
+                          {a.mapsUrl && isGoogleMapsUrl(a.mapsUrl) && (
+                            <a
+                              href={a.mapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="mt-1 inline-flex items-center gap-1 text-[12px] text-ink underline underline-offset-4 hover:text-accent"
+                            >
+                              <MapPin className="h-3 w-3" strokeWidth={1.5} aria-hidden />
+                              Map pin
+                            </a>
+                          )}
+                        </>
                       )}
                     </div>
-                    <div className="mt-1 text-[13px] text-ink-soft">
-                      {a.recipient} · {a.street}, {a.township}, {a.city}
-                      {div ? `, ${div.name}` : ''}
-                    </div>
-                    {a.landmark && (
-                      <div className="text-[12px] text-muted">{a.landmark}</div>
-                    )}
-                    <div className="mt-0.5 text-[12px] text-muted">
-                      {a.phone}
-                      {a.telegramUsername ? ` · Telegram @${a.telegramUsername}` : ''}
-                    </div>
-                    {a.mapsUrl && isGoogleMapsUrl(a.mapsUrl) && (
-                      <a
-                        href={a.mapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
-                        className="mt-1 inline-flex items-center gap-1 text-[12px] text-ink underline underline-offset-4 hover:text-accent"
+                    {editing ? (
+                      <button
+                        onClick={() => setEditingId(null)}
+                        aria-label={`Stop editing ${a.label}`}
+                        className="text-muted hover:text-ink"
                       >
-                        <MapPin className="h-3 w-3" strokeWidth={1.5} aria-hidden />
-                        Map pin
-                      </a>
+                        <X size={16} strokeWidth={1.5} />
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => a.id && setEditingId(a.id)}
+                          aria-label={`Edit ${a.label}`}
+                          className="text-muted hover:text-ink"
+                        >
+                          <Pencil size={16} strokeWidth={1.5} />
+                        </button>
+                        <button
+                          onClick={() => a.id && remove(a.id)}
+                          aria-label={`Delete ${a.label}`}
+                          className="text-muted hover:text-error"
+                        >
+                          <Trash2 size={16} strokeWidth={1.5} />
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => a.id && remove(a.id)}
-                    aria-label={`Delete ${a.label}`}
-                    className="text-muted hover:text-error"
-                  >
-                    <Trash2 size={16} strokeWidth={1.5} />
-                  </button>
+                  {editing && a.id && (
+                    <AddressFields
+                      initial={a}
+                      divisions={divisions}
+                      submitLabel="Save changes"
+                      saving={saving}
+                      onSubmit={(values) => update(a.id as string, values)}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  )}
                 </li>
               )
             })}
@@ -230,153 +163,14 @@ export function AddressManager({ initial, divisions }: ManagerProps) {
 
       <section>
         <h3 className="font-display text-[20px]">Add address</h3>
-        <form onSubmit={save} noValidate className="mt-4 grid gap-3 md:grid-cols-2">
-          <TextField
-            label="Label"
-            required
-            value={form.label}
-            onChange={(v) => {
-              set('label', v)
-              if (touched.label) setErrors(validate({ ...form, label: v }))
-            }}
-            onBlur={() => markTouched('label')}
-            error={liveError('label')}
-          />
-          <TextField
-            label="Recipient name"
-            required
-            autoComplete="name"
-            value={form.recipient}
-            onChange={(v) => {
-              set('recipient', v)
-              if (touched.recipient) setErrors(validate({ ...form, recipient: v }))
-            }}
-            onBlur={() => markTouched('recipient')}
-            error={liveError('recipient')}
-          />
-          <PhoneField
-            label="Phone"
-            required
-            prefix={PHONE_PREFIX}
-            helper={PHONE_HINT}
-            value={form.phone}
-            onChange={(v) => {
-              const local = normalizePhoneLocal(v)
-              set('phone', local)
-              if (touched.phone) setErrors(validate({ ...form, phone: local }))
-            }}
-            onBlur={() => markTouched('phone')}
-            error={liveError('phone')}
-          />
-          <SelectField
-            label="Division"
-            required
-            value={form.divisionId}
-            onChange={(v) => {
-              set('divisionId', v)
-              if (touched.divisionId) setErrors(validate({ ...form, divisionId: v }))
-            }}
-            onBlur={() => markTouched('divisionId')}
-            error={liveError('divisionId')}
-          >
-            <option value="">Choose a division</option>
-            {divisions.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </SelectField>
-          <TextField
-            label="City"
-            required
-            autoComplete="address-level2"
-            value={form.city}
-            onChange={(v) => {
-              set('city', v)
-              if (touched.city) setErrors(validate({ ...form, city: v }))
-            }}
-            onBlur={() => markTouched('city')}
-            error={liveError('city')}
-          />
-          <TextField
-            label="Township"
-            required
-            value={form.township}
-            onChange={(v) => {
-              set('township', v)
-              if (touched.township) setErrors(validate({ ...form, township: v }))
-            }}
-            onBlur={() => markTouched('township')}
-            error={liveError('township')}
-          />
-          <TextField
-            className="md:col-span-2"
-            label="Street + house no."
-            required
-            autoComplete="street-address"
-            value={form.street}
-            onChange={(v) => {
-              set('street', v)
-              if (touched.street) setErrors(validate({ ...form, street: v }))
-            }}
-            onBlur={() => markTouched('street')}
-            error={liveError('street')}
-          />
-          <TextField
-            className="md:col-span-2"
-            label="Landmark (optional)"
-            value={form.landmark}
-            onChange={(v) => set('landmark', v)}
-          />
-          <TextField
-            label="Telegram (optional)"
-            inputMode="text"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="username"
-            helper={TELEGRAM_HINT}
-            value={form.telegramUsername}
-            onChange={(v) => {
-              set('telegramUsername', v)
-              if (touched.telegramUsername) setErrors(validate({ ...form, telegramUsername: v }))
-            }}
-            onBlur={() => markTouched('telegramUsername')}
-            error={liveError('telegramUsername')}
-          />
-          <TextField
-            label="Map pin (optional)"
-            type="url"
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="https://maps.app.goo.gl/..."
-            helper={MAPS_URL_HINT}
-            value={form.mapsUrl}
-            onChange={(v) => {
-              set('mapsUrl', v)
-              if (touched.mapsUrl) setErrors(validate({ ...form, mapsUrl: v }))
-            }}
-            onBlur={() => markTouched('mapsUrl')}
-            error={liveError('mapsUrl')}
-          />
-          <label className="md:col-span-2 inline-flex items-center gap-2 text-[14px] text-ink-soft">
-            <input
-              type="checkbox"
-              checked={form.isDefault}
-              onChange={(e) => set('isDefault', e.target.checked)}
-            />
-            Set as default
-          </label>
-          <button
-            type="submit"
-            disabled={saving}
-            className="md:col-span-2 inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink py-3 text-[14px] font-medium text-cream transition-colors hover:bg-accent disabled:opacity-60"
-          >
-            {saving ? 'Saving…' : 'Save address'}
-          </button>
-        </form>
+        <AddressFields
+          key={addKey}
+          initial={EMPTY}
+          divisions={divisions}
+          submitLabel="Save address"
+          saving={saving}
+          onSubmit={create}
+        />
       </section>
     </div>
   )
