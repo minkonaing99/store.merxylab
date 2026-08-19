@@ -4,21 +4,28 @@
  * Neither is a place for a customer's address in full.
  */
 
-/** Fixed width, so the mask does not disclose how long the address was. */
-const MASK = '****'
+/** Fixed width, so the mask does not disclose how long the local part was. */
+const MASK = '***'
 
 /**
- * `minkonaing@gmail.com` -> `mi****om`.
+ * `minkonaing@gmail.com` -> `mink***@gmail.com`.
  *
  * Enough for the owner to recognise an address they already know, or to tell
- * two customers apart across alerts; not enough for a reader to learn one. The
- * domain goes entirely, since it is the part that makes a guess cheap.
+ * two customers apart across alerts. The domain is kept because the owner reads
+ * it as provider context; the local part - the guessable half - is cut to four
+ * characters behind a fixed-width mask.
  *
- * Addresses too short to keep four characters from are replaced outright rather
- * than half-revealed.
+ * Local parts too short to keep four characters from are replaced outright
+ * rather than half-revealed. A value with no local part and domain is replaced
+ * entirely.
  */
 export function maskEmail(email: string): string {
   const trimmed = email.trim()
-  if (trimmed.length <= 5) return MASK
-  return `${trimmed.slice(0, 2)}${MASK}${trimmed.slice(-2)}`
+  const at = trimmed.lastIndexOf('@')
+  if (at <= 0 || at === trimmed.length - 1) return '****'
+
+  const local = trimmed.slice(0, at)
+  const domain = trimmed.slice(at)
+  if (local.length <= 4) return `${MASK}${domain}`
+  return `${local.slice(0, 4)}${MASK}${domain}`
 }

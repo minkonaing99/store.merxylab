@@ -56,7 +56,7 @@ describe('sendMail with SMTP unconfigured', () => {
     await sendMail({ to: 'buyer@example.com', subject: 'Hello', text: 'body' })
 
     expect(logged()).not.toContain('buyer@example.com')
-    expect(logged()).toContain('bu****om')
+    expect(logged()).toContain('buye***@example.com')
   })
 
   it('still records enough to diagnose the outage', async () => {
