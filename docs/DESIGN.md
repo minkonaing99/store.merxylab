@@ -25,17 +25,19 @@ We are explicitly avoiding the standard peripheral-shop visual language (RGB gra
 ### Brand
 | Token | Hex | Use |
 |-------|-----|-----|
-| `--cream` | `#F5EFE6` | Page background |
-| `--surface` | `#FAF6EF` | Cards, hero panel |
-| `--sand` | `#E6D9C2` | Subtle elevation, swatch tile |
+| `--cream` | `#F7F6F3` | Page background |
+| `--surface` | `#FBFBF9` | Cards, hero panel |
+| `--sand` | `#E7E2D9` | Subtle elevation, swatch tile |
 | `--ink` | `#1C1B19` | Body text, headlines |
 | `--ink-soft` | `#3A3833` | Secondary text |
 | `--muted` | `#8A8275` | Captions, meta |
 | `--accent` | `#C2613A` | Terracotta — buttons, links, focus ring |
 | `--accent-soft` | `#D88565` | Accent hover |
-| `--line` | `#E6DFD2` | Dividers, card borders |
+| `--line` | `#E8E6E1` | Dividers, card borders |
 | `--dark-bg` | `#161513` | CTA banner + footer bg |
-| `--dark-ink` | `#F5EFE6` | Text on dark bg |
+| `--dark-ink` | `#F7F6F3` | Text on dark bg |
+
+**Softened 2026-08.** The background family was warm beige (`cream` at OKLCH chroma 0.0136) and read too strong. Chroma dropped ~74% across `cream` / `surface` / `sand` / `line`; the palette is now a warm near-neutral. Lightness of `sand` and `line` was pulled down to compensate, so elevation and border separation against the page hold at their previous ratios (line/cream 1.15, sand/cream 1.19). Ink, accent and the dark banner are unchanged.
 
 ### Semantic
 | Token | Hex | Use |
@@ -173,7 +175,8 @@ Restrained, warm-tinted (no blue shadow).
 
 ## Accessibility requirements
 - **WCAG 2.1 AA** baseline.
-- Color contrast: body text ≥ 4.5:1 (ink on cream = 13:1 ✓; muted on cream = 4.6:1 ✓).
+- Color contrast: body text ≥ 4.5:1 (ink on cream = 15.9:1 ✓).
+- **Known AA failures, not yet fixed.** The 4.6:1 figure previously recorded for `muted` was wrong. Measured against the current cream: `muted` `#8A8275` = 3.51:1 and `accent` `#C2613A` = 3.84:1, both under the 4.5:1 body-text floor (`text-muted` appears ~177 times, `text-accent` ~45). Both clear 3:1, so they pass for large text and non-text UI, but not for captions and meta at body size. Fix when scope allows: `muted` → `#756E61`, and a darker `accent-text` token → `#B4542D` for inline links, keeping `#C2613A` as a button surface.
 - Keyboard navigation: all interactive elements reachable + activatable via Tab + Enter/Space.
 - Screen reader: semantic HTML (`<nav>`, `<main>`, `<section>`, `<article>`, `<button>`); aria-labels on icon-only buttons.
 - Skip link to main content.
@@ -193,7 +196,7 @@ Restrained, warm-tinted (no blue shadow).
 - Files: `public/products/{slug}/{01-04}.webp`. Slot 01 = hero, 02 = detail, 03 = angle, 04 = in-context.
 - Aspect: 1:1 grid tiles, 4:5 hero tile. Match swatch aspect so layout is image-stable on swap.
 - Style guide for photography:
-  - Backdrop: cream `#F5EFE6` or matte sand `#E6D9C2` — never pure white, never glossy.
+  - Backdrop: cream `#F7F6F3` or matte sand `#E7E2D9` — never pure white, never glossy.
   - Lighting: soft, single direction. No hard rim light. Subtle shadow grounded in floor.
   - Subject: occupies 60-75 percent of frame. No floating products.
   - Crop margin: 8 percent breathing room on all edges.

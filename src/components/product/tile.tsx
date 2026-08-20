@@ -44,8 +44,8 @@ export function Tile({
 }: TileProps) {
   const photoFile = useThumb ? `${slot}-thumb.webp` : `${slot}.webp`
   const dark = isDark(product.swatch)
-  const ink = dark ? '#F5EFE6' : '#1C1B19'
-  const muted = dark ? 'rgba(245, 239, 230, 0.6)' : 'rgba(28, 27, 25, 0.5)'
+  const ink = dark ? '#F7F6F3' : '#1C1B19'
+  const muted = dark ? 'rgba(247, 246, 243, 0.6)' : 'rgba(28, 27, 25, 0.5)'
 
   // `hasPhotos` is a hint from the DB. If the actual file is missing
   // (orphan from a prior deploy, mid-upload race, etc.) the optimizer
