@@ -4,6 +4,7 @@ import { ProductGrid } from '@/components/home/product-grid'
 import { Why } from '@/components/home/why'
 import { CTABanner } from '@/components/home/cta-banner'
 import { getAllProducts, getFeaturedProducts } from '@/lib/catalog'
+import { rankForShowcase } from '@/lib/merchandising'
 import { getSetting } from '@/lib/site-settings'
 import { r2PublicUrl } from '@/lib/r2'
 import type { Product } from '@/lib/types'
@@ -45,14 +46,14 @@ export default async function HomePage() {
   const ctaProduct = pickRotating(pool)
   const showcase = pickRotating(pool, ctaProduct)
 
-  const gridProducts = [...featured, ...all.filter((p) => !p.featured)].slice(0, 6)
+  const gridProducts = rankForShowcase(all).slice(0, 6)
   const whyImageUrl = whyImageKey ? r2PublicUrl(whyImageKey) : null
 
   return (
     <div className="flex h-full flex-col">
       <Hero featured={inStockFeatured.length > 0 ? inStockFeatured : featured} />
       <Stats />
-      <ProductGrid products={gridProducts} />
+      {gridProducts.length > 0 && <ProductGrid products={gridProducts} />}
       <Why showcase={showcase} imageUrl={whyImageUrl} />
       <CTABanner product={ctaProduct} />
     </div>

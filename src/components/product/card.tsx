@@ -9,6 +9,7 @@ import { StockBadge } from './stock-badge'
 import { SaleBadge } from './sale-badge'
 import { Price } from './price'
 import { useCart } from '@/lib/cart-store'
+import { isLowStock } from '@/lib/merchandising'
 import type { Product } from '@/lib/types'
 import { CATEGORY_NAME } from '@/lib/categories'
 
@@ -43,7 +44,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className="eyebrow">{CATEGORY_NAME[product.category]}</div>
-              {stockQty > 0 && stockQty <= (product.lowStockThreshold ?? 3) && (
+              {isLowStock(product) && (
                 <StockBadge
                   stockQty={stockQty}
                   lowStockThreshold={product.lowStockThreshold}
