@@ -169,7 +169,7 @@ PK: `(cart_id, product_id)`.
 | product_id | VARCHAR(64) | NOT NULL, FK → products.id ON DELETE CASCADE | |
 | added_at | TIMESTAMP | NOT NULL DEFAULT now() | |
 
-PK: `(user_id, product_id)`. Guests use localStorage only; merge on login.
+PK: `(user_id, product_id)`. Guests use localStorage only; merged on login by the browser, since no server can read local storage. The merge is one batched insert relying on that PK to absorb anything already saved, and the local copy is cleared on sign-out so it cannot follow the next person into their account.
 
 ### `orders`
 | Column | Type | Constraints | Notes |
@@ -417,7 +417,7 @@ DB query in `unstable_cache` with a 60s revalidate and the `products` /
 | POST | `/api/v1/cart/items` | Add item `{productId, qty}` | No |
 | PATCH | `/api/v1/cart/items/[productId]` | Set qty `{qty}` | No |
 | DELETE | `/api/v1/cart/items/[productId]` | Remove item | No |
-| POST | `/api/v1/cart/merge` | Merge guest cart into user cart (called post-login) | Yes |
+| POST | `/api/v1/cart/merge` | Merge guest cart into user cart. Not on the sign-in path — the NextAuth `signIn` event does that server-side for every provider. Kept as an idempotent manual retry. | Yes |
 
 **Wishlist**
 | Method | Path | Description | Auth |

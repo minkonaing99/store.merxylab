@@ -48,8 +48,13 @@ Tests sit **beside the code**, `src/lib/validators.test.ts` next to `src/lib/val
 | `lib/cart-store.test.ts` | **Add-to-cart honesty.** `add()` reports 409/404/429/network back to the caller instead of swallowing it, and never opens the drawer. Plus `fetch`/`setQty`/`remove`/`merge` resyncing from the server rather than keeping a stale cart after a failed mutation. |
 | `components/product/add-to-cart-button.test.tsx` | A failed add raises `toast.error` and never the confirmation; the drawer opens only when the toast action is taken; a burst of clicks collapses to one `add`; an out-of-stock button calls nothing. |
 | `components/product/card.test.tsx` | The same four for the grid quick-add, which is the surface where a shopper adds several things in a row. |
+| `lib/cart-session.test.ts` | **The guest-cart merge.** Promote when the account has no cart, otherwise one batched upsert that sends the guest quantity and leaves the addition to the database. Locks the guest cart row. Every write on the transaction handle, never straight at `db`, and a failed write escapes so drizzle can roll back. |
+| `components/cart-hydrator.test.tsx` | Rereads the cart whenever the session changes, including a cold load that resolves straight to signed in — the shape of a Google sign-in landing back on the site, and the one the original bug hid in. |
+| `components/wishlist/wishlist-hydrator.test.tsx` | The same cold-load case for the wishlist, which merges rather than reads because its guest data is in local storage and no server can see it. |
+| `lib/wishlist-store.test.ts` | The local list survives a refused merge (`fetch` resolves for a 500 as happily as for a 200), survives a request that never lands, and is cleared on sign-out so it cannot follow the next person into their account. |
+| `api/v1/wishlist/merge/route.test.ts` | Ids attach to the session user and never to a `userId` in the body, the whole list goes in one statement, non-slug ids and over-cap lists are refused, and a genuine write failure is no longer answered with `ok`. |
 
-Three of these were written after the bug they describe shipped — the COD status label, the `getStaleDays` default, and the add button that confirmed a sold-out product as "Added". That is the point of them.
+Five of these were written after the bug they describe shipped — the COD status label, the `getStaleDays` default, the add button that confirmed a sold-out product as "Added", the Google sign-in that emptied the basket, and the wishlist merge that cleared local storage whether or not the server took the items. That is the point of them.
 
 ## What is deliberately not covered
 
@@ -63,7 +68,7 @@ The bar for adding another: the component branches on something, or it guards ag
 
 ## Coverage
 
-The global number is ~57%, and the shape matters more than the figure: the report includes every DB and IO module, much of which is not unit-testable without integration setup. The routes where a silent regression costs money or leaks data are the ones carried high — checkout 91%, admin order status 97%, signup 100%, verify 100%, slip 97%, addresses 100%, `admin-guard` 100%, `rate-limit` 100%, and both add buttons at 93-94%.
+The global number is ~61%, and the shape matters more than the figure: the report includes every DB and IO module, much of which is not unit-testable without integration setup. The routes where a silent regression costs money or leaks data are the ones carried high — checkout 91%, admin order status 97%, signup 100%, verify 100%, slip 97%, addresses 100%, `admin-guard` 100%, `rate-limit` 100%, and both add buttons at 93-94%.
 
 The report covers `src/lib/**`, `src/app/api/**`, and `src/components/product/**`. That last one is scoped to a directory rather than all of `src/components` on purpose: including forty untested components would drop the figure by ten points overnight and say nothing true about the risk. Widen it a directory at a time, as tests arrive.
 
@@ -103,3 +108,9 @@ For a component, add `// @vitest-environment jsdom` as the first line and name t
 
 - Mock the store and `sonner` rather than driving the real ones. `useCart` is used with a selector, so the fake is `useCart: (select) => select({ add, open })`, built with `vi.hoisted` because `vi.mock` factories are hoisted above the file.
 - Anything using `whileInView` reaches for an `IntersectionObserver` the moment it mounts, and jsdom has none. `ProductCard` does. Stub it inert; see `card.test.tsx`.
+- jsdom under Vitest 4 ships no `localStorage` either, despite `window` being present. `wishlist-store.test.ts` stubs a four-method in-memory stand-in rather than pulling in `happy-dom` for one file.
+
+Two more that cost time here:
+
+- A `Response` body can only be read once, so a shared `const OK = jsonResponse(...)` breaks the moment a test answers two requests. Make it a factory.
+- `vi.fn(async () => x)` gives `mock.calls` the type `[]`, and destructuring an argument out of it fails `tsc` even while the test passes. Type the mock — `vi.fn<(path: string) => Promise<Response>>(...)` — rather than adding a parameter you do not use.

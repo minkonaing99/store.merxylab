@@ -584,3 +584,65 @@ cheap, but adding to a cart is not destructive and the drawer already reverses
 it. Also unchanged: the toast's "View cart" opens the drawer while the drawer
 footer's "View cart" navigates to `/cart` - same label, two destinations, left
 as a copy decision rather than folded into this change.
+
+### [2026-08-21] Guest carts and wishlists join the account at the sign-in event
+
+**Context:** adding to the cart while signed out and then signing in with
+Google emptied the basket. The merge was a line sitting after `await signIn()`
+in the password form, and the Google button leaves the page entirely, so that
+line never ran. Nothing was lost - the `mxl_session` cookie is `sameSite: lax`
+and rides the OAuth redirect back - the rows were simply never claimed.
+
+Watching the client for an unauthenticated-to-authenticated transition does not
+fix it. The redirect reloads the page, so the store is fresh and the session
+resolves straight to authenticated; there is no signed-out render left to notice
+a change against. That is the shape of the whole bug, and it is why the
+wishlist had it too.
+
+**Decision:** the cart merges in the NextAuth `signIn` event, which fires for
+every provider. `mergeGuestCartToUser` takes the id from the event payload
+rather than calling `auth()`, which answers null there - the JWT cookie does not
+exist until after the event returns.
+
+Nothing in that event may throw, including the error reporting. `@auth/core`
+awaits it before attaching the session cookie, so an escaped exception does not
+merely skip the merge: it sends a correct password to
+`/signin?error=Configuration` with no cookie set at all.
+
+The wishlist cannot follow. Its guest data is in local storage, which no server
+can read, so it stays on the client - the hydrator merges on a cold load that
+arrives already signed in, and `mergeOnLogin` only clears local storage when the
+server took the items. `fetch` resolves for a 500 as happily as for a 200, and
+clearing unconditionally left the list held by nobody.
+
+Signing out drops both halves of the guest identity: the cart cookie in the
+NextAuth `signOut` event, the wishlist from the sign-out button.
+
+**Consequences:** `POST /api/v1/cart/merge` is off the sign-in path and kept as
+an idempotent manual retry. `CartHydrator` rereads on session change, which
+costs a round trip on every page load, because `SessionProvider` is handed no
+initial session and so every load starts at `loading`; seeding it would fix
+that, in `AuthProvider`.
+
+A guest cart still belongs to whoever is holding the browser. That is what a
+cookie cart is, and the shopper can already see it on screen before signing in.
+Clearing on sign-out narrows it to that.
+
+**Also settled here, because moving the merge onto the auth path made all three
+matter:** the guest cart row is selected `for update`, so two sign-ins on one
+cookie serialise instead of racing to insert the same product and having the
+loser's items swallowed by the event's catch. The per-product write loop became
+one statement - unbounded work in a blocking auth callback against a
+ten-connection pool, and nothing caps how many products a cart holds - with the
+addition done in SQL, `least(qty + values(qty), 99)`, which also removes the
+read-then-write race. Four queries plus two per product, down to five. The
+wishlist merge route lost a bare `catch {}` meant for duplicates that swallowed
+stale ids and database blips just as quietly while still answering `ok`.
+
+`values()` is deprecated from MySQL 8.0.20. It still works, and MariaDB has no
+alias form, so it stays until the deploy target rules MariaDB out.
+
+**Not done:** row locks on the account cart. Two merges from *different*
+cookies into one account still race, but the upsert makes that a wrong total
+rather than a lost error, and it needs two browsers signing into one account
+within the same moment.
