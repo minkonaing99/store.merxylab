@@ -35,6 +35,7 @@ interface WishlistStore {
   remove: (productId: string) => Promise<void>
   has: (productId: string) => boolean
   mergeOnLogin: () => Promise<void>
+  resetToGuest: () => void
 }
 
 export const useWishlist = create<WishlistStore>((set, get) => ({
@@ -90,17 +91,39 @@ export const useWishlist = create<WishlistStore>((set, get) => ({
     return get().ids.has(productId)
   },
 
+  /**
+   * Clearing is conditional on the server having taken them. `fetch` resolves
+   * just as happily for a 500 as for a 200, so clearing unconditionally means
+   * a refused merge leaves the list held by nobody - not the account, not the
+   * browser. A failure here keeps what was saved and reads the account list
+   * anyway, so a bad merge costs a stale view rather than the list itself.
+   */
   async mergeOnLogin() {
     const local = loadLocal()
     if (local.length > 0) {
-      await fetch('/api/v1/wishlist/merge', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ productIds: local }),
-        credentials: 'same-origin',
-      })
-      saveLocal([])
+      try {
+        const res = await fetch('/api/v1/wishlist/merge', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ productIds: local }),
+          credentials: 'same-origin',
+        })
+        if (res.ok) saveLocal([])
+      } catch {
+        // Keep the local list; the next sign-in tries again.
+      }
     }
     await get().fetch(true)
+  },
+
+  /**
+   * Signing out has to take the local list with it. It is keyed to the browser,
+   * not to anyone, so anything left here is merged into whichever account signs
+   * in next - the departing user's saved items would follow the next person
+   * into their wishlist.
+   */
+  resetToGuest() {
+    saveLocal([])
+    set({ ids: new Set(), authed: false, hydrated: false })
   },
 }))
