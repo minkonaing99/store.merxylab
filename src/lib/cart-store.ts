@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { api } from './api-client'
 
 export interface CartLine {
   productId: string
@@ -18,13 +19,19 @@ export interface CartLine {
   }
 }
 
+/**
+ * What `add` tells the caller. The button turns this straight into a toast, so
+ * a failed add reads as a failure instead of a confirmation the cart contradicts.
+ */
+export type AddResult = { ok: true } | { ok: false; message: string }
+
 interface CartStore {
   items: CartLine[]
   subtotal: number
   isOpen: boolean
   hydrated: boolean
   fetch: () => Promise<void>
-  add: (productId: string, qty?: number) => Promise<void>
+  add: (productId: string, qty?: number) => Promise<AddResult>
   setQty: (productId: string, qty: number) => Promise<void>
   remove: (productId: string) => Promise<void>
   merge: () => Promise<void>
@@ -33,27 +40,20 @@ interface CartStore {
   toggle: () => void
 }
 
-async function call(
+interface CartPayload {
+  items: CartLine[]
+  subtotal: number
+}
+
+function call(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
-): Promise<{ items: CartLine[]; subtotal: number } | null> {
-  try {
-    const res = await fetch(path, {
-      method,
-      headers: body ? { 'content-type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-      credentials: 'same-origin',
-    })
-    if (!res.ok) return null
-    const json = (await res.json()) as {
-      data: { items: CartLine[]; subtotal: number } | null
-      error: unknown
-    }
-    return json.data
-  } catch {
-    return null
-  }
+) {
+  return api<CartPayload>(path, {
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
 }
 
 export const useCart = create<CartStore>((set, get) => ({
@@ -63,34 +63,41 @@ export const useCart = create<CartStore>((set, get) => ({
   hydrated: false,
 
   async fetch() {
-    const data = await call('GET', '/api/v1/cart')
-    if (data) set({ items: data.items, subtotal: data.subtotal, hydrated: true })
+    const res = await call('GET', '/api/v1/cart')
+    if (res.data) set({ items: res.data.items, subtotal: res.data.subtotal, hydrated: true })
     else set({ hydrated: true })
   },
 
+  /**
+   * The catalog is cached but the route reads stock live, so a product can be
+   * sold out between render and click. Report that rather than swallowing it -
+   * the caller is the only thing standing between a 409 and a false "Added".
+   */
   async add(productId, qty = 1) {
-    // optimistic open
-    set({ isOpen: true })
-    const data = await call('POST', '/api/v1/cart/items', { productId, qty })
-    if (data) set({ items: data.items, subtotal: data.subtotal })
-    else await get().fetch()
+    const res = await call('POST', '/api/v1/cart/items', { productId, qty })
+    if (res.data) {
+      set({ items: res.data.items, subtotal: res.data.subtotal })
+      return { ok: true }
+    }
+    await get().fetch()
+    return { ok: false, message: res.error?.message ?? 'Could not add that. Try again.' }
   },
 
   async setQty(productId, qty) {
-    const data = await call('PATCH', `/api/v1/cart/items/${encodeURIComponent(productId)}`, { qty })
-    if (data) set({ items: data.items, subtotal: data.subtotal })
+    const res = await call('PATCH', `/api/v1/cart/items/${encodeURIComponent(productId)}`, { qty })
+    if (res.data) set({ items: res.data.items, subtotal: res.data.subtotal })
     else await get().fetch()
   },
 
   async remove(productId) {
-    const data = await call('DELETE', `/api/v1/cart/items/${encodeURIComponent(productId)}`)
-    if (data) set({ items: data.items, subtotal: data.subtotal })
+    const res = await call('DELETE', `/api/v1/cart/items/${encodeURIComponent(productId)}`)
+    if (res.data) set({ items: res.data.items, subtotal: res.data.subtotal })
     else await get().fetch()
   },
 
   async merge() {
-    const data = await call('POST', '/api/v1/cart/merge')
-    if (data) set({ items: data.items, subtotal: data.subtotal })
+    const res = await call('POST', '/api/v1/cart/merge')
+    if (res.data) set({ items: res.data.items, subtotal: res.data.subtotal })
     else await get().fetch()
   },
 

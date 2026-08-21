@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -9,6 +10,7 @@ import { StockBadge } from './stock-badge'
 import { SaleBadge } from './sale-badge'
 import { Price } from './price'
 import { useCart } from '@/lib/cart-store'
+import { cn } from '@/lib/utils'
 import { isLowStock } from '@/lib/merchandising'
 import type { Product } from '@/lib/types'
 import { CATEGORY_NAME } from '@/lib/categories'
@@ -19,14 +21,24 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const add = useCart((s) => s.add)
+  const openCart = useCart((s) => s.open)
+  const [pending, setPending] = useState(false)
   const stockQty = product.stockQty ?? (product.inStock ? 10 : 0)
   const isOut = stockQty <= 0
 
-  function handleAdd(e: React.MouseEvent) {
+  async function handleAdd(e: React.MouseEvent) {
     e.preventDefault()
-    if (isOut) return
-    add(product.id, 1)
-    toast(`Added - ${product.name}`)
+    if (isOut || pending) return
+    setPending(true)
+    const result = await add(product.id, 1)
+    setPending(false)
+    if (result.ok) {
+      toast(`Added - ${product.name}`, {
+        action: { label: 'View cart', onClick: openCart },
+      })
+    } else {
+      toast.error(result.message)
+    }
   }
 
   return (
@@ -60,13 +72,15 @@ export function ProductCard({ product }: ProductCardProps) {
             <Price priceMmk={product.price} salePriceMmk={product.salePrice} />
             <button
               onClick={handleAdd}
-              disabled={isOut}
+              disabled={isOut || pending}
+              aria-busy={pending}
               aria-label={isOut ? `${product.name} out of stock` : `Add ${product.name} to cart`}
-              className={
+              className={cn(
                 isOut
                   ? 'inline-flex h-9 w-9 items-center justify-center rounded-full bg-line text-muted cursor-not-allowed'
-                  : 'inline-flex h-9 w-9 items-center justify-center rounded-full bg-ink text-cream transition-colors hover:bg-accent'
-              }
+                  : 'inline-flex h-9 w-9 items-center justify-center rounded-full bg-ink text-cream transition-colors hover:bg-accent',
+                pending && !isOut && 'cursor-wait opacity-70',
+              )}
             >
               <Plus size={16} strokeWidth={1.75} />
             </button>

@@ -103,8 +103,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <WishlistHydrator />
           </MotionProvider>
         </AuthProvider>
+        {/*
+          Top-center, docked under the 64px sticky nav, near the cart button the
+          toast is talking about. The bottom-right corner is where the cart
+          drawer parks its own "View cart" footer, so a toast landing there
+          covers the control it is pointing at.
+
+          5s rather than the 4s default: these toasts carry an action now, and
+          the reader has to notice it, aim, and click.
+        */}
         <Toaster
-          position="bottom-right"
+          position="top-center"
+          offset={{ top: 76 }}
+          mobileOffset={{ top: 76 }}
+          duration={5000}
           toastOptions={{
             style: {
               background: 'var(--color-surface)',

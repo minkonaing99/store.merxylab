@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Search, ShoppingBag, Menu, X, User } from 'lucide-react'
 import { useCart, useCartCount } from '@/lib/cart-store'
 import { CATEGORIES } from '@/lib/categories'
@@ -58,14 +59,32 @@ export function Nav() {
           >
             <ShoppingBag size={18} strokeWidth={1.5} />
             {count > 0 && (
-              <span
+              /*
+               * Keyed on the count so each change remounts and replays the pop -
+               * this is the cue that says *where* the item went. Announcing is
+               * left to the live region below, which survives the remount.
+               */
+              <motion.span
+                key={count}
+                initial={{ scale: 0.6 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
                 className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-cream"
-                aria-live="polite"
+                aria-hidden
               >
                 {count}
-              </span>
+              </motion.span>
             )}
           </button>
+          {/*
+            Every cart mutation lands here, including the drawer's own qty and
+            remove buttons, which raise no toast. Rendered unconditionally - a
+            live region that appears at the same moment as its text is usually
+            not announced at all.
+          */}
+          <span className="sr-only" aria-live="polite">
+            {count === 0 ? 'Cart empty' : `${count} ${count === 1 ? 'item' : 'items'} in cart`}
+          </span>
           <button
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Toggle menu"
