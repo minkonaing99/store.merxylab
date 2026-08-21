@@ -9,7 +9,7 @@
 - **TypeScript (strict + noUncheckedIndexedAccess)** — catches catalog/cart type drift; Drizzle schema is the single source of truth.
 - **Tailwind CSS v4** — design tokens via CSS vars (CSS-first `@theme`), zero runtime cost.
 - **Framer Motion** — restrained scroll fades + hover micro-interactions; `MotionConfig reducedMotion="user"` honors a11y system pref.
-- **Zustand** — cart store for client UI state (drawer open/close, optimistic updates). DB cart syncs via cookie session.
+- **Zustand** — cart store for client UI state (drawer open/close, server-confirmed updates). DB cart syncs via cookie session. Mutations go through the shared `api()` client and report failure back to the caller rather than swallowing it; `add()` returns a result the button turns into a toast.
 - **Fuse.js** — client-side fuzzy search; ~10KB; the `/search` server component passes the live catalog down and the client indexes it in memory.
 - **Fonts:** Fraunces (display, opsz+SOFT axes) + Inter (body), `next/font/google` for zero CLS.
 
@@ -330,6 +330,8 @@ merxylab-store/
 **Decision:** Vitest, node environment, no jsdom. Tests colocated next to source as `*.test.ts`. `vitest.config.mts` aliases `@/` and stubs the `server-only` package so server modules import cleanly. Transition tables moved to `src/lib/order-transitions.ts` (`canTransition`, `forwardOptions`) and imported by both consumers, so the test enforces what the comment used to ask for. First six suites cover transitions, validators, status labels, admin-orders input guards, money/time, and the contact route.
 **Consequences:** No thresholds enforced until integration tests exist, or unrelated new files would fail the build. Writing the contact-route suite exposed dead code — the honeypot's "silently accept" branch was unreachable because zod already rejected a filled field — which was deleted.
 
+**Updated 2026-08-21:** "no jsdom" no longer holds, narrowly. The add-to-cart work moved two real decisions into components — whether to confirm or report a failure, and whether a second click during an in-flight request becomes a second add — and neither was reachable from a node test. React Testing Library and jsdom are now dev dependencies, opted into per file with a `// @vitest-environment jsdom` docblock so the node suite is unaffected, and `vitest.config.mts` names the JSX runtime under `oxc` (Vitest 4 transforms with rolldown; the `esbuild` setting is ignored). Coverage reporting widened to `src/components/product/**` only, a directory at a time, because including all of `src/components` would drop the global figure ten points while saying nothing true about risk. The bar for a new component test is that the component branches or guards, not that it exists. Suite is now 39 files / 444 tests, coverage ~57%.
+
 **Updated 2026-08-17 (v0.17.0):** the suite has since grown from six files to 28 (280 tests) and global coverage from ~9% to ~42%. The route handlers where a regression costs money or leaks data are now covered directly — checkout pricing, admin stock movement, signup token handling, slip authorisation, the address lock — each verified by mutation rather than by the number going up. Stock commit/release logic *is* covered with the driver mocked, including the `affectedRows === 0` refusal; what remains untested is the SQL itself under real concurrency, which still wants a seeded database. The wishlist, reviews, and admin CRUD routes are deliberately left alone: thin zod-then-write handlers behind a tested `requireAdmin()`, where a bug costs a 500, not money.
 
 ### [2026-08-16] Payment-kind-aware customer status labels
@@ -538,3 +540,47 @@ which stays a perfectly valid number expression.
 **Not done:** the invoice email does not show a saving, and past orders render
 what was paid with no discount framing. The snapshot data supports both if
 wanted later.
+
+### [2026-08-21] Add-to-cart confirms after the server answers, and stops opening the drawer
+
+**Context:** the add button never waited. It called `add()`, then fired
+a toast naming the product on the next line, while the store swallowed every
+failure the API handed back. That was survivable only for as long as adding to
+cart could not fail. It can. `POST /api/v1/cart/items` reads stock live -
+deliberately, because the catalog behind the product page is cached - and
+answers 409 when the last unit sold in between. It also answers 404 for a
+deactivated product and 429 at the 60/min cart budget, and the request can
+simply not land. On all four the shopper read "Added - VXE Dragonfly R1 SE+"
+over a cart that did not contain it.
+
+Separately, `add()` opened the cart drawer on every call. That put a second
+confirmation on screen for something the toast had already said, and dragged the
+drawer's own "View cart" footer directly under the toast in the bottom-right
+corner, which is how the whole thing got noticed.
+
+**Decision:** `add()` returns `AddResult` (`{ ok: true } | { ok: false; message }`)
+and the two callers await it. Success names the product and offers a "View cart"
+action; failure shows the server's own message, which is safe to render because
+every `fail()` in the cart routes passes a string literal and none interpolate
+request data. The optimistic `set({ isOpen: true })` is gone: the drawer opens
+from the nav button or the toast action, nothing else. The store's hand-rolled
+`fetch` wrapper was dropped for the shared `api()` client, which already unwraps
+this envelope and was already tested. Toasts moved to top-center under the nav.
+
+Feedback is now three signals with one job each - badge for *where*, toast for
+*what* plus the next step, drawer only on request. The nav badge is `aria-hidden`
+and remounts per change to replay its animation; a visually hidden live region
+alongside it does the announcing, because the drawer's own qty and remove
+buttons raise no toast and would otherwise be silent.
+
+**Consequences:** the shop grid's quick-add is usable in a run now, which is what
+that button is for; the cost is one less push toward checkout on the product
+page, where the drawer used to surface the subtotal unprompted. Worth revisiting
+if add-to-checkout conversion drops. Three dev dependencies came in to test the
+button behaviour (see the Vitest ADR above).
+
+**Not done:** an Undo action on the toast. `remove()` exists and it would be
+cheap, but adding to a cart is not destructive and the drawer already reverses
+it. Also unchanged: the toast's "View cart" opens the drawer while the drawer
+footer's "View cart" navigates to `/cart` - same label, two destinations, left
+as a copy decision rather than folded into this change.

@@ -158,8 +158,8 @@ Computer peripheral shops feel like loud gamer marketplaces — RGB-saturated, s
 2. Scrolls past hero → product grid
 3. Clicks product card → `/product/[slug]`
 4. Reads specs, clicks "Add to cart"
-5. Cart drawer slides in from right with item + subtotal
-6. Continues shopping OR clicks "View cart" → `/cart`
+5. Nav cart badge ticks up; a toast confirms the product by name
+6. Continues shopping OR takes the toast's "View cart" action → drawer slides in from right with items + subtotal → `/cart`
 
 **2. Category browse**
 1. Visitor clicks "Keyboards" in nav

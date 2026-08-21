@@ -164,9 +164,23 @@ Restrained, warm-tinted (no blue shadow).
 - Skeleton tiles: warm sand pulse `1.4s ease-in-out infinite`.
 
 ### Toast notifications
-- Position: bottom-right desktop, bottom-center mobile.
-- Duration: 3.2s default.
-- Add-to-cart: "Added to cart" + product name + "View cart" CTA.
+- Position: top-center, both breakpoints, offset 76px to clear the 64px sticky nav.
+- Duration: 5s. These carry an action, and the reader has to notice it, aim, and click.
+- Add-to-cart: `Added - <product name>` with a "View cart" action that opens the drawer.
+- A failed add is a `toast.error` carrying the server's own reason ("Out of stock.", "Product not found.", "Too many requests.").
+
+Bottom-right is the usual default and it was wrong here. The cart drawer parks its own "View cart" footer in that corner, so the toast covered the control it was pointing at. Top-center is also nearer the cart button in the nav, which is the thing the toast is talking about, and nothing else in the layout occupies it.
+
+### Add-to-cart feedback
+Three signals, one job each:
+
+- **Nav badge** springs on change. Says *where* the item went. Read peripherally, no words.
+- **Toast** says *what* went and offers the next step.
+- **Cart drawer** opens only when asked - the nav button, or the toast action. It does not open on add.
+
+The drawer used to open on every add. That made it a second confirmation of something the toast had already said, and on the shop grid, where the quick-add button exists precisely so a shopper can add several things in a row, a modal drawer on every click fought the task.
+
+Announcing is done by a visually hidden live region in the nav, not by the badge - the badge is `aria-hidden` because it remounts on every change to replay its animation, and the drawer's own quantity and remove buttons raise no toast, so the live region is the only thing that reports those.
 
 ### Motion principles
 - Subtle scroll-fade-up on sections (10px → 0, opacity 0 → 1, 480ms, once).

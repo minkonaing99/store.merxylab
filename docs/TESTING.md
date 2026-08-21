@@ -1,6 +1,8 @@
 # Testing
 
-Vitest, Node environment, no jsdom. The risk in this codebase is logic — status transitions, money, phone normalisation, input guards — not markup.
+Vitest, Node environment by default. The risk in this codebase is logic - status transitions, money, phone normalisation, input guards - not markup.
+
+A handful of components hold decisions rather than markup, and those opt into a DOM per file with a `// @vitest-environment jsdom` docblock. The rest of the suite stays in Node and pays nothing for it.
 
 ## Commands
 
@@ -14,10 +16,12 @@ Vitest, Node environment, no jsdom. The risk in this codebase is logic — statu
 
 Tests sit **beside the code**, `src/lib/validators.test.ts` next to `src/lib/validators.ts`. Vitest finds them with no config, a rename moves both, and nothing imports them so they never reach the Next bundle.
 
-`vitest.config.mts` does two things worth knowing:
+`vitest.config.mts` does four things worth knowing:
 
 - Aliases `@/` and `@emails` so tests resolve the same paths the app does.
-- Stubs the `server-only` package (`src/test/server-only-stub.ts`). Without it, importing `admin-orders.ts` or `site-info.ts` throws — that package exists to blow up outside a React Server Component.
+- Stubs the `server-only` package (`src/test/server-only-stub.ts`). Without it, importing `admin-orders.ts` or `site-info.ts` throws - that package exists to blow up outside a React Server Component.
+- Collects `*.test.tsx` as well as `*.test.ts`.
+- Names the JSX runtime: `oxc: { jsx: { runtime: 'automatic' } }`. `tsconfig.json` says `jsx: preserve` because Next runs its own transform, and Vitest has no such downstream step. The knob is `oxc`, not `esbuild` - Vitest 4 transforms with rolldown, and the esbuild setting is accepted silently then ignored, leaving `Unexpected JSX expression` at parse time.
 
 ## What is covered
 
@@ -41,20 +45,27 @@ Tests sit **beside the code**, `src/lib/validators.test.ts` next to `src/lib/val
 | `api/v1/addresses/[id]/route.test.ts` | Ownership scoping, the confirmed-order address lock on both edit and delete, telegram/maps normalisation, cleared optionals stored as `null`. |
 | `api/v1/cart/items/[productId]/route.test.ts` | Slug guard, qty range, and that update/remove share the 60/min cart budget. |
 | `app/sitemap.test.ts` | Static routes still render when the catalog read throws — the case that used to fail the CI build. |
+| `lib/cart-store.test.ts` | **Add-to-cart honesty.** `add()` reports 409/404/429/network back to the caller instead of swallowing it, and never opens the drawer. Plus `fetch`/`setQty`/`remove`/`merge` resyncing from the server rather than keeping a stale cart after a failed mutation. |
+| `components/product/add-to-cart-button.test.tsx` | A failed add raises `toast.error` and never the confirmation; the drawer opens only when the toast action is taken; a burst of clicks collapses to one `add`; an out-of-stock button calls nothing. |
+| `components/product/card.test.tsx` | The same four for the grid quick-add, which is the surface where a shopper adds several things in a row. |
 
-Two of these were written after the bug they describe shipped — the COD status label and the `getStaleDays` default. That is the point of them.
+Three of these were written after the bug they describe shipped — the COD status label, the `getStaleDays` default, and the add button that confirmed a sold-out product as "Added". That is the point of them.
 
 ## What is deliberately not covered
 
 **Stock commit and release against a real database.** The branch logic inside the order `PATCH` transaction *is* now covered (`api/v1/admin/orders/[id]/route.test.ts`) with the driver mocked, including the `affectedRows === 0` refusal — the mock returns `[{ affectedRows }]` precisely because the route reads `res[0]`, not `res`, and that unwrapping has been wrong before. What is still untested is the actual SQL: whether MySQL really refuses the conditional `UPDATE` under concurrency. That needs a seeded database and a Playwright or integration run, worth building when order volume justifies it.
 
-**Components and pages.** No jsdom, no React Testing Library. Add them when a component holds logic worth asserting; today they mostly render props.
+**Most components and every page.** React Testing Library and jsdom are now installed, but they are pointed at the two components that hold a decision - the add button and the grid quick-add, which choose between confirming and reporting a failure, and which have to refuse a second click while the first is in flight. Everything else still mostly renders props, and rendering props back to yourself proves nothing.
+
+The bar for adding another: the component branches on something, or it guards against a user action that would otherwise double-fire. Not "it exists".
 
 **The remaining API routes** — wishlist, reviews, and the admin CRUD for products, divisions, payment methods, and settings. These are thin zod-then-write handlers behind a now-tested `requireAdmin()`, where a regression costs a 500 rather than money or data. Testing them would move the global percentage without adding much safety.
 
 ## Coverage
 
-The global number is ~42%, and the shape matters more than the figure: the report includes every DB and IO module, much of which is not unit-testable without integration setup. The routes where a silent regression costs money or leaks data are the ones carried high — checkout 91%, admin order status 97%, signup 100%, verify 100%, slip 97%, addresses 100%, `admin-guard` 100%, `rate-limit` 100%.
+The global number is ~57%, and the shape matters more than the figure: the report includes every DB and IO module, much of which is not unit-testable without integration setup. The routes where a silent regression costs money or leaks data are the ones carried high — checkout 91%, admin order status 97%, signup 100%, verify 100%, slip 97%, addresses 100%, `admin-guard` 100%, `rate-limit` 100%, and both add buttons at 93-94%.
+
+The report covers `src/lib/**`, `src/app/api/**`, and `src/components/product/**`. That last one is scoped to a directory rather than all of `src/components` on purpose: including forty untested components would drop the figure by ten points overnight and say nothing true about the risk. Widen it a directory at a time, as tests arrive.
 
 No thresholds are enforced yet. Add them once integration tests exist, otherwise every unrelated new file fails the build.
 
@@ -87,3 +98,8 @@ A second job runs **gitleaks** over the repository to catch committed credential
 2. Mock at the module boundary, not inside the unit — `vi.mock('@/db', ...)` beats threading a fake client through the function signature.
 3. If a route handler needs a request, build a real `Request`. They are plain functions; no server needed.
 4. Rate-limited routes keep state in a module-level Map — give each test its own `x-forwarded-for` or they bleed into each other.
+
+For a component, add `// @vitest-environment jsdom` as the first line and name the file `*.test.tsx`. Two things bite:
+
+- Mock the store and `sonner` rather than driving the real ones. `useCart` is used with a selector, so the fake is `useCart: (select) => select({ add, open })`, built with `vi.hoisted` because `vi.mock` factories are hoisted above the file.
+- Anything using `whileInView` reaches for an `IntersectionObserver` the moment it mounts, and jsdom has none. `ProductCard` does. Stub it inert; see `card.test.tsx`.
