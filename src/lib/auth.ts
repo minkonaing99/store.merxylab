@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { db } from '@/db'
 import { users, accounts, sessions, verificationTokens } from '@/db/schema/auth'
+import { reportError } from '@/lib/report-error'
 
 declare module 'next-auth' {
   interface Session {
@@ -120,6 +121,51 @@ export const { handlers, auth } = NextAuth({
         session.user.role = (token.role as 'customer' | 'admin') ?? 'customer'
       }
       return session
+    },
+  },
+  events: {
+    /**
+     * Carries the cookie cart into the account. This fires for every provider,
+     * which is the point: the old trigger was a line after `signIn()` in the
+     * password form, and Google leaves the page entirely, so anyone signing in
+     * with Google watched their basket empty itself.
+     *
+     * Imported lazily to keep `auth.ts` and `cart-session.ts` from importing
+     * each other at module scope - cart-session needs `auth()` to decide whose
+     * cart it is holding.
+     *
+     * A basket is not worth a failed sign-in, so nothing here is allowed to
+     * throw - including the reporting. `@auth/core` awaits this event before
+     * it attaches the session cookie to the response, so an exception escaping
+     * here does not just skip the merge: it fails the whole sign-in and sends
+     * a correct password to `/signin?error=Configuration` with no cookie set.
+     */
+    async signIn({ user }) {
+      if (!user?.id) return
+      try {
+        const { mergeGuestCartToUser } = await import('./cart-session')
+        await mergeGuestCartToUser(user.id)
+      } catch (error) {
+        try {
+          await reportError(error, { path: 'events.signIn', method: 'cart-merge' })
+        } catch {
+          // Reporting a failed merge must not be able to fail the login either.
+        }
+      }
+    },
+
+    /**
+     * Signing out drops the guest cart cookie too. Without this the browser
+     * keeps a guest identity the account has finished with, and the next
+     * person to sign in here inherits whatever it collects in between.
+     */
+    async signOut() {
+      try {
+        const { clearGuestSession } = await import('./cart-session')
+        await clearGuestSession()
+      } catch {
+        // A leftover cookie is not worth failing a sign-out over.
+      }
     },
   },
   trustHost: true,

@@ -107,7 +107,9 @@ export function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
     }
     // Left loading through the navigation, so the button does not flick back to
     // its resting state while the route is still resolving.
-    await fetch('/api/v1/cart/merge', { method: 'POST', credentials: 'same-origin' })
+    //
+    // The guest cart is merged by the NextAuth `signIn` event, which covers
+    // Google too. Doing it here as well would only cover this one form.
     router.push(callbackUrl)
     router.refresh()
   }

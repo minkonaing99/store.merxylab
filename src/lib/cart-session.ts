@@ -153,52 +153,76 @@ export async function removeCartItem(productId: string): Promise<void> {
     .where(and(eq(cartItems.cartId, cartId), eq(cartItems.productId, productId)))
 }
 
+/**
+ * Drops the guest cookie so signing out does not leave a cart identity behind
+ * for whoever signs in next on the same browser. The row it pointed at is
+ * already gone or already owned by the account that just left - `merge` either
+ * promotes the guest cart or deletes it - so nothing is orphaned by this.
+ */
+export async function clearGuestSession(): Promise<void> {
+  const jar = await cookies()
+  jar.delete(COOKIE_NAME)
+}
+
 export async function clearCart(): Promise<void> {
   const { cartId } = await getOrCreateCart()
   await db.delete(cartItems).where(eq(cartItems.cartId, cartId))
 }
 
-export async function mergeGuestCartToUser(): Promise<void> {
-  const session = await auth()
-  const userId = session?.user?.id
+/**
+ * Folds the cookie cart into the signed-in user's. Takes the id rather than
+ * reading the session, because the caller that matters is the NextAuth
+ * `signIn` event, which fires before the JWT cookie exists - `auth()` there
+ * answers null and the merge would quietly do nothing.
+ *
+ * One transaction, because this is a read, a fan of per-item writes and a
+ * delete. Run loose, a failure part way through leaves the guest cart still
+ * present with some of its lines already folded in, and the next attempt sums
+ * those quantities a second time.
+ */
+export async function mergeGuestCartToUser(userId: string): Promise<void> {
   if (!userId) return
 
   const jar = await cookies()
   const sid = jar.get(COOKIE_NAME)?.value
   if (!sid) return
 
-  const [guestCart] = await db
-    .select()
-    .from(carts)
-    .where(and(eq(carts.sessionId, sid), isNull(carts.userId)))
-    .limit(1)
-  if (!guestCart) return
+  await db.transaction(async (tx) => {
+    const [guestCart] = await tx
+      .select()
+      .from(carts)
+      .where(and(eq(carts.sessionId, sid), isNull(carts.userId)))
+      .limit(1)
+    if (!guestCart) return
 
-  const [userCart] = await db.select().from(carts).where(eq(carts.userId, userId)).limit(1)
+    const [userCart] = await tx.select().from(carts).where(eq(carts.userId, userId)).limit(1)
 
-  if (!userCart) {
-    // promote guest cart to user cart
-    await db.update(carts).set({ userId, sessionId: null }).where(eq(carts.id, guestCart.id))
-    return
-  }
-
-  // merge: sum qty per productId, cap at QTY_MAX
-  const guestItems = await db.select().from(cartItems).where(eq(cartItems.cartId, guestCart.id))
-  const userItems = await db.select().from(cartItems).where(eq(cartItems.cartId, userCart.id))
-  const userMap = new Map(userItems.map((i) => [i.productId, i.qty]))
-
-  for (const g of guestItems) {
-    const current = userMap.get(g.productId) ?? 0
-    const next = clampQty(current + g.qty, QTY_MIN, QTY_MAX)
-    if (current > 0) {
-      await db
-        .update(cartItems)
-        .set({ qty: next })
-        .where(and(eq(cartItems.cartId, userCart.id), eq(cartItems.productId, g.productId)))
-    } else {
-      await db.insert(cartItems).values({ cartId: userCart.id, productId: g.productId, qty: next })
+    if (!userCart) {
+      // promote guest cart to user cart
+      await tx.update(carts).set({ userId, sessionId: null }).where(eq(carts.id, guestCart.id))
+      return
     }
-  }
 
-  await db.delete(carts).where(eq(carts.id, guestCart.id))
+    // merge: sum qty per productId, cap at QTY_MAX
+    const guestItems = await tx.select().from(cartItems).where(eq(cartItems.cartId, guestCart.id))
+    const userItems = await tx.select().from(cartItems).where(eq(cartItems.cartId, userCart.id))
+    const userMap = new Map(userItems.map((i) => [i.productId, i.qty]))
+
+    for (const g of guestItems) {
+      const current = userMap.get(g.productId) ?? 0
+      const next = clampQty(current + g.qty, QTY_MIN, QTY_MAX)
+      if (current > 0) {
+        await tx
+          .update(cartItems)
+          .set({ qty: next })
+          .where(and(eq(cartItems.cartId, userCart.id), eq(cartItems.productId, g.productId)))
+      } else {
+        await tx
+          .insert(cartItems)
+          .values({ cartId: userCart.id, productId: g.productId, qty: next })
+      }
+    }
+
+    await tx.delete(carts).where(eq(carts.id, guestCart.id))
+  })
 }
