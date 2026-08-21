@@ -1,7 +1,7 @@
 import 'server-only'
 import { cookies } from 'next/headers'
 import { randomUUID } from 'node:crypto'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { carts, cartItems } from '@/db/schema/carts'
 import { products } from '@/db/schema/products'
@@ -188,11 +188,14 @@ export async function mergeGuestCartToUser(userId: string): Promise<void> {
   if (!sid) return
 
   await db.transaction(async (tx) => {
+    // Locked, so a second sign-in arriving on the same cookie waits here and
+    // then finds the cart already claimed rather than racing this one.
     const [guestCart] = await tx
       .select()
       .from(carts)
       .where(and(eq(carts.sessionId, sid), isNull(carts.userId)))
       .limit(1)
+      .for('update')
     if (!guestCart) return
 
     const [userCart] = await tx.select().from(carts).where(eq(carts.userId, userId)).limit(1)
@@ -203,24 +206,31 @@ export async function mergeGuestCartToUser(userId: string): Promise<void> {
       return
     }
 
-    // merge: sum qty per productId, cap at QTY_MAX
     const guestItems = await tx.select().from(cartItems).where(eq(cartItems.cartId, guestCart.id))
-    const userItems = await tx.select().from(cartItems).where(eq(cartItems.cartId, userCart.id))
-    const userMap = new Map(userItems.map((i) => [i.productId, i.qty]))
 
-    for (const g of guestItems) {
-      const current = userMap.get(g.productId) ?? 0
-      const next = clampQty(current + g.qty, QTY_MIN, QTY_MAX)
-      if (current > 0) {
-        await tx
-          .update(cartItems)
-          .set({ qty: next })
-          .where(and(eq(cartItems.cartId, userCart.id), eq(cartItems.productId, g.productId)))
-      } else {
-        await tx
-          .insert(cartItems)
-          .values({ cartId: userCart.id, productId: g.productId, qty: next })
-      }
+    if (guestItems.length > 0) {
+      /*
+       * One statement for the whole cart. The old shape read the account's
+       * lines and then ran a write per product, which is unbounded work -
+       * nothing caps how many products a cart holds - inside the sign-in
+       * event, against a ten-connection pool.
+       *
+       * The addition is left to the database rather than done here, so two
+       * merges landing on one account cannot both read the same before-value
+       * and write back the same after-value, losing one of the additions.
+       */
+      await tx
+        .insert(cartItems)
+        .values(
+          guestItems.map((g) => ({
+            cartId: userCart.id,
+            productId: g.productId,
+            qty: clampQty(g.qty, QTY_MIN, QTY_MAX),
+          })),
+        )
+        .onDuplicateKeyUpdate({
+          set: { qty: sql`least(${cartItems.qty} + values(qty), ${QTY_MAX})` },
+        })
     }
 
     await tx.delete(carts).where(eq(carts.id, guestCart.id))
