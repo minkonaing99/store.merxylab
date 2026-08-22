@@ -121,6 +121,7 @@ Restrained, warm-tinted (no blue shadow).
 - **Phase 4-7 additions:**
   - `HeartButton` — wishlist toggle, outline → filled accent, optimistic state
   - `StockBadge` — "In stock" (success), "Only N left" (warning), "Out of stock" (muted)
+  - `LineProblemBadge` — the same three states for a cart line that cannot be ordered, in error colour. Sibling to `StockBadge` and louder on purpose: that one is scarcity, this one is a blocked order.
   - `Stars` — 1-5 reading + interactive variants
   - `ReviewBlock` (replaces ReviewCard + ReviewForm separation) — average rating + count + write-review collapsible form + per-review article cards with verified badge
   - `AddressManager` — list rows + delete action + add-address form with named `Field` inputs
@@ -170,6 +171,15 @@ Restrained, warm-tinted (no blue shadow).
 - A failed add is a `toast.error` carrying the server's own reason ("Out of stock.", "Product not found.", "Too many requests.").
 
 Bottom-right is the usual default and it was wrong here. The cart drawer parks its own "View cart" footer in that corner, so the toast covered the control it was pointing at. Top-center is also nearer the cart button in the nav, which is the thing the toast is talking about, and nothing else in the layout occupies it.
+
+### Blocked cart lines
+A line the shop cannot fill is marked wherever it renders - the drawer, `/cart`, the checkout summary. Thumbnail drops to `opacity-45 grayscale`, the name greys, and `LineProblemBadge` states the reason in error colour: "Out of stock", "No longer available", "Only 2 left".
+
+Deliberately louder than `StockBadge`, which nudges a shopper who can still buy the thing. This one marks a line that is holding up the order, so it reads as a fault rather than as scarcity.
+
+Both ways forward shut while a line is marked: `/cart`'s Checkout link and checkout's Place order, each with one line of explanation under it. The `+` stepper stops at stock, so no button looks live while the route is about to refuse it.
+
+The checkout summary carries the fix rather than pointing at it - "Reduce to 2" where stock remains, "Remove" always - because that form holds a half-typed address and a trip to `/cart` loses it.
 
 ### Add-to-cart feedback
 Three signals, one job each:

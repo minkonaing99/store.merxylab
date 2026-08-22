@@ -3,6 +3,14 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: SemVer.
 
+### [0.18.0] - 2026-08-22
+- **The cart refuses what the shop cannot fill.** `POST /cart/items` checked `stockQty <= 0` and nothing else; `PATCH /cart/items/[productId]` checked nothing at all, so one unit in the warehouse and a quantity of 99 was accepted. Both enforce stock now, and adding is measured against the total the line would reach rather than the quantity requested, because `addCartItem` sums into what is already there.
+- **`isActive` is checked past the point of adding.** It was read when a product went into the cart and never again, so a product retired in `/admin` still ordered while stock remained.
+- **`POST /orders` names every refused line, in words.** It returned on the first one and answered `OUT_OF_STOCK:<productId>` in the `message` field, which `checkout-form.tsx` showed to the customer verbatim. The ids now ride in a `details` field on the error envelope - `fail()` gained an optional fourth argument - and the message is a sentence.
+- **Blocked lines are greyed in the drawer, `/cart` and checkout**, with the reason beside them, and the `+` stepper stops at stock. `/cart`'s Checkout link and checkout's Place order both shut while a line is marked. The checkout summary carries "Reduce to N" and "Remove" inline, so fixing a line does not cost a half-typed address.
+- **Guest carts and wishlists survive every sign-in.** The cart merge was a line after `await signIn()` in the password form, which the Google redirect never reached; it runs in the NextAuth `signIn` event now. The wishlist stays client-side because local storage is not visible to a server, and it no longer clears itself when the server refuses the merge. Both are dropped on sign-out so they cannot follow the next person into their account.
+- **The guest-cart merge is one locked, batched statement.** It was a read plus two writes per product inside the blocking sign-in callback, against a ten-connection pool, with no lock - so two sign-ins on one cookie could race and lose items silently.
+
 ### [0.17.2] - 2026-08-22 (docs only)
 - **`CHANGELOG.md` moved to the repo root.** It had been living as a section inside `docs/SETUP.md`, which was four documents in one file: 200 lines of setup, a duplicate testing doc, 200 lines of changelog, and 145 lines of June planning notes.
 - **`docs/SETUP.md` is setup again**, and points at `docs/TESTING.md`, `CHANGELOG.md` and `docs/DEPLOY.md` for the rest.

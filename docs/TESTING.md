@@ -43,7 +43,7 @@ Tests sit **beside the code**, `src/lib/validators.test.ts` next to `src/lib/val
 | `api/v1/auth/verify/route.test.ts` | Token match/miss, length guard, and the 10/hour limiter. |
 | `api/v1/orders/[id]/slip/route.test.ts` | Owner-or-admin read (including the revoked-admin case), non-slip stored values refused, upload size/MIME/decode guards, upstream failure leaves the order unadvanced, prior slip deleted on replace. |
 | `api/v1/addresses/[id]/route.test.ts` | Ownership scoping, the confirmed-order address lock on both edit and delete, telegram/maps normalisation, cleared optionals stored as `null`. |
-| `api/v1/cart/items/[productId]/route.test.ts` | Slug guard, qty range, and that update/remove share the 60/min cart budget. |
+| `api/v1/cart/items/[productId]/route.test.ts` | Slug guard, qty range, and that update/remove share the 60/min cart budget. Plus the stock refusal this route never had - and that emptying a line still works whatever the stock says, because removing is how a blocked cart gets fixed. |
 | `app/sitemap.test.ts` | Static routes still render when the catalog read throws — the case that used to fail the CI build. |
 | `lib/cart-store.test.ts` | **Add-to-cart honesty.** `add()` reports 409/404/429/network back to the caller instead of swallowing it, and never opens the drawer. Plus `fetch`/`setQty`/`remove`/`merge` resyncing from the server rather than keeping a stale cart after a failed mutation. |
 | `components/product/add-to-cart-button.test.tsx` | A failed add raises `toast.error` and never the confirmation; the drawer opens only when the toast action is taken; a burst of clicks collapses to one `add`; an out-of-stock button calls nothing. |
@@ -52,23 +52,27 @@ Tests sit **beside the code**, `src/lib/validators.test.ts` next to `src/lib/val
 | `components/cart-hydrator.test.tsx` | Rereads the cart whenever the session changes, including a cold load that resolves straight to signed in — the shape of a Google sign-in landing back on the site, and the one the original bug hid in. |
 | `components/wishlist/wishlist-hydrator.test.tsx` | The same cold-load case for the wishlist, which merges rather than reads because its guest data is in local storage and no server can see it. |
 | `lib/wishlist-store.test.ts` | The local list survives a refused merge (`fetch` resolves for a 500 as happily as for a 200), survives a request that never lands, and is cleared on sign-out so it cannot follow the next person into their account. |
+| `lib/cart-availability.test.ts` | **The one rule for whether a cart line can be ordered** - retired, sold out, or fewer left than asked for. Retired wins when both are true, since no restock fixes it. Negative stock reads as sold out, not as a shortfall. |
+| `api/v1/cart/items/route.test.ts` | **Adding.** Refused above stock, and counted against the total the line would reach rather than the quantity requested - adding sums into what is already there, so two-at-a-time was getting past a stock of three. Retired products answer 409, missing ones 404. |
 | `api/v1/wishlist/merge/route.test.ts` | Ids attach to the session user and never to a `userId` in the body, the whole list goes in one statement, non-slug ids and over-cap lists are refused, and a genuine write failure is no longer answered with `ok`. |
 
-Five of these were written after the bug they describe shipped — the COD status label, the `getStaleDays` default, the add button that confirmed a sold-out product as "Added", the Google sign-in that emptied the basket, and the wishlist merge that cleared local storage whether or not the server took the items. That is the point of them.
+Six of these were written after the bug they describe shipped — the COD status label, the `getStaleDays` default, the add button that confirmed a sold-out product as "Added", the Google sign-in that emptied the basket, the wishlist merge that cleared local storage whether or not the server took the items, and a cart that would hold five of a product the shop had two of. That is the point of them.
 
 ## What is deliberately not covered
 
 **Stock commit and release against a real database.** The branch logic inside the order `PATCH` transaction *is* now covered (`api/v1/admin/orders/[id]/route.test.ts`) with the driver mocked, including the `affectedRows === 0` refusal — the mock returns `[{ affectedRows }]` precisely because the route reads `res[0]`, not `res`, and that unwrapping has been wrong before. What is still untested is the actual SQL: whether MySQL really refuses the conditional `UPDATE` under concurrency. That needs a seeded database and a Playwright or integration run, worth building when order volume justifies it.
 
-**Most components and every page.** React Testing Library and jsdom are now installed, but they are pointed at the two components that hold a decision - the add button and the grid quick-add, which choose between confirming and reporting a failure, and which have to refuse a second click while the first is in flight. Everything else still mostly renders props, and rendering props back to yourself proves nothing.
+**Most components and every page.** React Testing Library and jsdom are now installed, but they are pointed only at the components that hold a decision - the two add buttons, which choose between confirming and reporting a failure and must refuse a second click mid-flight, and the two hydrators, which decide whether a sign-in merges or merely reads. Everything else still mostly renders props, and rendering props back to yourself proves nothing.
 
 The bar for adding another: the component branches on something, or it guards against a user action that would otherwise double-fire. Not "it exists".
+
+`checkout-form.tsx` now clears that bar and still has no test. It decides whether the order button is live, tells empty apart from unorderable, and re-reads the cart when the server refuses a line. It is also 700 lines with an address form in it, which is why it has not been done rather than why it should not be.
 
 **The remaining API routes** — wishlist, reviews, and the admin CRUD for products, divisions, payment methods, and settings. These are thin zod-then-write handlers behind a now-tested `requireAdmin()`, where a regression costs a 500 rather than money or data. Testing them would move the global percentage without adding much safety.
 
 ## Coverage
 
-The global number is ~61%, and the shape matters more than the figure: the report includes every DB and IO module, much of which is not unit-testable without integration setup. The routes where a silent regression costs money or leaks data are the ones carried high — checkout 91%, admin order status 97%, signup 100%, verify 100%, slip 97%, addresses 100%, `admin-guard` 100%, `rate-limit` 100%, and both add buttons at 93-94%.
+The global number is ~62%, and the shape matters more than the figure: the report includes every DB and IO module, much of which is not unit-testable without integration setup. The routes where a silent regression costs money or leaks data are the ones carried high — checkout 91%, admin order status 97%, signup 100%, verify 100%, slip 97%, addresses 100%, `admin-guard` 100%, `rate-limit` 100%, and both add buttons at 93-94%.
 
 The report covers `src/lib/**`, `src/app/api/**`, and `src/components/product/**`. That last one is scoped to a directory rather than all of `src/components` on purpose: including forty untested components would drop the figure by ten points overnight and say nothing true about the risk. Widen it a directory at a time, as tests arrive.
 

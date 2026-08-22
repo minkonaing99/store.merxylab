@@ -414,8 +414,8 @@ DB query in `unstable_cache` with a 60s revalidate and the `products` /
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/api/v1/cart` | Current cart (session-keyed) | No |
-| POST | `/api/v1/cart/items` | Add item `{productId, qty}` | No |
-| PATCH | `/api/v1/cart/items/[productId]` | Set qty `{qty}` | No |
+| POST | `/api/v1/cart/items` | Add item `{productId, qty}`. Refuses 409 when the line would exceed stock - checked against the total the line reaches, since adding sums into what is there | No |
+| PATCH | `/api/v1/cart/items/[productId]` | Set qty `{qty}`. Same 409. `qty: 0` empties the line and skips the check, since removing is how a blocked cart gets fixed | No |
 | DELETE | `/api/v1/cart/items/[productId]` | Remove item | No |
 | POST | `/api/v1/cart/merge` | Merge guest cart into user cart. Not on the sign-in path — the NextAuth `signIn` event does that server-side for every provider. Kept as an idempotent manual retry. | Yes |
 
@@ -526,6 +526,27 @@ methods and non-blocked divisions straight from the DB; `/shipping` uses
 ```
 
 Standard error codes: `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHENTICATED`, `FORBIDDEN`, `RATE_LIMITED`, `OUT_OF_STOCK`, `CONFLICT`, `INTERNAL`.
+
+Cart and checkout add three: `INSUFFICIENT_STOCK` and `UNAVAILABLE` from the cart write routes, and `CART_UNORDERABLE` from `POST /api/v1/orders`. The last one carries every refused line at once rather than the first:
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "CART_UNORDERABLE",
+    "message": "Only 2 of Keychron K2 Pro left.",
+    "details": {
+      "lines": [
+        { "productId": "keychron-k2-pro", "problem": { "kind": "insufficient", "available": 2 } },
+        { "productId": "premium-deskmat", "problem": { "kind": "out_of_stock" } }
+      ]
+    },
+    "status": 409
+  }
+}
+```
+
+`message` is a sentence for the customer; `details` is what the client acts on. Until 2026-08-22 this route answered `OUT_OF_STOCK:<productId>` in `message` and the checkout form put that on screen verbatim.
 
 ### Rate limiting
 Implemented in `src/lib/rate-limit.ts` — in-memory bucket, single instance. Swap to Upstash on horizontal scale.

@@ -646,3 +646,53 @@ alias form, so it stays until the deploy target rules MariaDB out.
 cookies into one account still race, but the upsert makes that a wrong total
 rather than a lost error, and it needs two browsers signing into one account
 within the same moment.
+
+### [2026-08-22] The cart refuses what the shop cannot fill, and says so early
+
+**Context:** the cart took more than existed. `POST /cart/items` checked
+`stockQty <= 0` and nothing else, so two on the shelf and a request for five
+went in. `PATCH /cart/items/[productId]` checked nothing at all - the zod
+ceiling of 99 was the only limit. Neither is where the money is, so nothing was
+oversold: `POST /orders` compared quantities and refused. But it refused at the
+last click, after an address had been typed.
+
+That refusal answered `OUT_OF_STOCK:vxe-dragonfly-r1-se` in the `message` field
+and `checkout-form.tsx` put it on screen verbatim. It also returned on the first
+bad line, so three dead lines meant three attempts. And it compared quantities
+only - `isActive` was read when adding to the cart and never again, so a product
+retired in /admin still ordered while stock remained.
+
+**Decision:** one predicate in `src/lib/cart-availability.ts` answers "can this
+line be ordered" - retired, sold out, or fewer left than asked for, carrying the
+remainder so a fix can be offered as one button. It is structural rather than
+importing `CartLine`, because that type is declared either side of the
+server/client boundary and both shapes satisfy it.
+
+Naming the rule once is the point. The inconsistency it replaces existed because
+nothing named it: one route grew a check, its sibling never did, and a third
+compared a different field.
+
+Both cart write routes enforce it. Adding is checked against the total the line
+would reach, not the quantity requested, because `addCartItem` sums into what is
+there. The order route returns every refused line at once in a new `details`
+field on the error envelope - `fail()` gained an optional fourth argument - so
+`message` can go back to being a sentence for a person.
+
+Blocked lines are greyed everywhere a line renders, the `+` stops at stock, and
+both ways forward shut: `/cart`'s Checkout link and checkout's Place order. The
+checkout summary carries the fix inline rather than sending someone back to
+`/cart`, because that form holds a half-typed address.
+
+**Consequences:** the failure is now early and legible. It is not prevented -
+stock is not reserved and this changes nothing about that. Two customers can
+still hold valid carts for the last unit, and the conditional decrement at
+payment confirmation remains the only thing that arbitrates them. Everything
+here is about not wasting the customer's time.
+
+**Not done:** `POST /cart/items` reads then writes with no lock between, so two
+requests landing together can both pass and leave the line above stock. Closing
+it means holding a row lock across `addCartItem`, changing that function's
+signature and every caller. Left because the cart is not the enforcement point,
+and a cart that has overshot now arrives at a checkout built to show it and
+offer the reduction. Said so in the route, so the next reader does not assume
+the check is atomic.
