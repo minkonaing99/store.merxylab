@@ -5,11 +5,14 @@ import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Minus, Plus, Trash2 } from 'lucide-react'
 import { useCart, useCartSubtotal } from '@/lib/cart-store'
+import { lineProblem } from '@/lib/cart-availability'
+import { LineProblemBadge } from '@/components/cart/line-problem-badge'
 import { formatMmk } from '@/lib/money'
 import { cartSavings } from '@/lib/pricing'
 import { Price } from '@/components/product/price'
 import { useEffect } from 'react'
 import { PHOTO_BASE } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 export function CartDrawer() {
   const isOpen = useCart((s) => s.isOpen)
@@ -87,10 +90,15 @@ export function CartDrawer() {
                 <ul className="space-y-5">
                   {items.map((item) => {
                     const p = item.product
+                    const problem = lineProblem(item)
+                    const atStockCeiling = item.qty >= p.stockQty
                     return (
                       <li key={p.id} className="flex gap-4">
                         <div
-                          className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-[var(--radius)]"
+                          className={cn(
+                            'relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-[var(--radius)]',
+                            problem && 'opacity-45 grayscale',
+                          )}
                           style={{ background: p.swatch }}
                         >
                           {p.hasPhotos && (
@@ -120,7 +128,11 @@ export function CartDrawer() {
                               <Trash2 size={14} strokeWidth={1.5} />
                             </button>
                           </div>
-                          <p className="mt-0.5 text-[12px] text-muted line-clamp-1">{p.tagline}</p>
+                          {problem ? (
+                            <LineProblemBadge problem={problem} className="mt-1 self-start" />
+                          ) : (
+                            <p className="mt-0.5 text-[12px] text-muted line-clamp-1">{p.tagline}</p>
+                          )}
                           <div className="mt-auto flex items-center justify-between pt-3">
                             <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-cream px-1.5 py-1">
                               <button
@@ -133,10 +145,22 @@ export function CartDrawer() {
                               <span className="min-w-[1ch] text-center text-[13px] tabular-nums">
                                 {item.qty}
                               </span>
+                              {/*
+                                Capped rather than left to fail. The route now
+                                refuses a quantity above stock, so an uncapped
+                                "+" is a button that looks live and answers
+                                with an error.
+                              */}
                               <button
                                 onClick={() => setQty(p.id, item.qty + 1)}
+                                disabled={atStockCeiling}
                                 aria-label="Increase qty"
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-ink-soft hover:bg-line"
+                                className={cn(
+                                  'inline-flex h-6 w-6 items-center justify-center rounded-full text-ink-soft',
+                                  atStockCeiling
+                                    ? 'cursor-not-allowed opacity-40'
+                                    : 'hover:bg-line',
+                                )}
                               >
                                 <Plus size={12} />
                               </button>

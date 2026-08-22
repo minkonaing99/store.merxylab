@@ -8,6 +8,9 @@ import { formatMmk } from '@/lib/money'
 import { cartSavings } from '@/lib/pricing'
 import { Price } from '@/components/product/price'
 import { PHOTO_BASE } from '@/lib/types'
+import { canOrderCart, lineProblem } from '@/lib/cart-availability'
+import { LineProblemBadge } from '@/components/cart/line-problem-badge'
+import { cn } from '@/lib/utils'
 
 export default function CartPage() {
   const items = useCart((s) => s.items)
@@ -15,6 +18,7 @@ export default function CartPage() {
   const remove = useCart((s) => s.remove)
   const subtotal = useCartSubtotal()
   const savings = cartSavings(items)
+  const canCheckout = canOrderCart(items)
 
   return (
     <section className="container-prose py-16 md:py-20">
@@ -41,10 +45,14 @@ export default function CartPage() {
           <ul className="divide-y divide-line border-y border-line">
             {items.map((item) => {
               const p = item.product
+              const problem = lineProblem(item)
               return (
                 <li key={p.id} className="flex gap-5 py-6">
                   <div
-                    className="relative h-[120px] w-[120px] shrink-0 overflow-hidden rounded-[var(--radius)]"
+                    className={cn(
+                      'relative h-[120px] w-[120px] shrink-0 overflow-hidden rounded-[var(--radius)]',
+                      problem && 'opacity-45 grayscale',
+                    )}
                     style={{ background: p.swatch }}
                   >
                     {p.hasPhotos && (
@@ -71,7 +79,11 @@ export default function CartPage() {
                         size="text-[16px]"
                       />
                     </div>
-                    <p className="mt-1 text-[13px] text-muted">{p.tagline}</p>
+                    {problem ? (
+                      <LineProblemBadge problem={problem} className="mt-1.5 self-start" />
+                    ) : (
+                      <p className="mt-1 text-[13px] text-muted">{p.tagline}</p>
+                    )}
 
                     <div className="mt-auto flex items-center justify-between pt-4">
                       <div className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-cream px-1.5 py-1">
@@ -85,10 +97,21 @@ export default function CartPage() {
                         <span className="min-w-[1.5ch] text-center text-[14px] tabular-nums">
                           {item.qty}
                         </span>
+                        {/*
+                          Capped: the route refuses a quantity above stock, so
+                          an uncapped "+" is a live-looking button that only
+                          ever answers with an error.
+                        */}
                         <button
                           onClick={() => setQty(p.id, item.qty + 1)}
+                          disabled={item.qty >= p.stockQty}
                           aria-label="Increase qty"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ink-soft hover:bg-line"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-full text-ink-soft',
+                            item.qty >= p.stockQty
+                              ? 'cursor-not-allowed opacity-40'
+                              : 'hover:bg-line',
+                          )}
                         >
                           <Plus size={13} />
                         </button>
@@ -130,12 +153,31 @@ export default function CartPage() {
               </div>
             </dl>
 
-            <Link
-              href="/checkout"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink py-3.5 text-[14px] font-medium text-cream transition-colors hover:bg-accent"
-            >
-              Checkout
-            </Link>
+            {/*
+              Blocked here rather than at checkout. They have to fix it either
+              way, and stopping them now saves typing an address into a form
+              that is going to refuse them.
+            */}
+            {canCheckout ? (
+              <Link
+                href="/checkout"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink py-3.5 text-[14px] font-medium text-cream transition-colors hover:bg-accent"
+              >
+                Checkout
+              </Link>
+            ) : (
+              <>
+                <span
+                  aria-disabled
+                  className="mt-6 inline-flex w-full cursor-not-allowed items-center justify-center rounded-[var(--radius-pill)] bg-line py-3.5 text-[14px] font-medium text-muted"
+                >
+                  Checkout
+                </span>
+                <p className="mt-2 text-center text-[12px] text-[var(--color-error)]">
+                  Remove or reduce the marked items to continue.
+                </p>
+              </>
+            )}
           </aside>
         </div>
       )}

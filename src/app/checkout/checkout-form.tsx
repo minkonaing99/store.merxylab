@@ -1,10 +1,16 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatMmk } from '@/lib/money'
+import { useCart } from '@/lib/cart-store'
+import { cartSavings, cartSubtotal } from '@/lib/pricing'
+import { canOrderCart, lineProblem } from '@/lib/cart-availability'
+import { LineProblemBadge } from '@/components/cart/line-problem-badge'
 import { Price } from '@/components/product/price'
+import { cn } from '@/lib/utils'
 import { PhoneField, SelectField, TextField, TextAreaField } from '@/components/ui/field'
 import {
   MAPS_URL_HINT,
@@ -155,7 +161,29 @@ export function CheckoutForm({
     : addresses.find((a) => a.id === selectedAddressId)?.divisionId ?? ''
   const division = divisions.find((d) => d.id === activeDivisionId)
   const deliveryFee = division?.deliveryFeeMmk ?? 0
-  const total = subtotal + deliveryFee
+  /*
+   * The props are the server's snapshot at render. Once the store has caught
+   * up it becomes the source, so a line fixed here - or re-read after the
+   * server refuses one - is reflected without a round trip through the page.
+   */
+  const storeItems = useCart((s) => s.items)
+  const cartHydrated = useCart((s) => s.hydrated)
+  const setQty = useCart((s) => s.setQty)
+  const removeLine = useCart((s) => s.remove)
+  const refreshCart = useCart((s) => s.fetch)
+
+  const liveLines = cartHydrated ? storeItems : lines
+  const liveSubtotal = cartHydrated ? cartSubtotal(liveLines) : subtotal
+  const liveSavings = cartHydrated ? cartSavings(liveLines) : savings
+  /*
+   * Empty is held apart from unorderable. `canOrderCart` refuses both, and
+   * removing the last bad line here would otherwise leave the button dead
+   * under a message telling the shopper to remove items that are already gone.
+   */
+  const cartEmpty = liveLines.length === 0
+  const cartOrderable = canOrderCart(liveLines)
+
+  const total = liveSubtotal + deliveryFee
 
   const codEligible = Boolean(division?.codAllowed) && total <= COD_CAP_MMK
   const visibleMethods = useMemo(
@@ -249,6 +277,17 @@ export function CheckoutForm({
     })
     setLoading(false)
     if (!res.ok || !res.data?.orderId) {
+      /*
+       * Stock is not reserved, so it can run out between this page rendering
+       * and this click. Re-reading is what makes the refusal legible: without
+       * it the summary still shows the line as fine, the button stays live,
+       * and the next click fails identically.
+       */
+      if (res.error?.code === 'CART_UNORDERABLE') {
+        await refreshCart()
+        toast.error(res.error.message ?? 'Something in your cart just sold out.')
+        return
+      }
       toast(res.error?.message ?? 'Order failed.')
       return
     }
@@ -327,11 +366,25 @@ export function CheckoutForm({
             />
             <button
               onClick={placeOrder}
-              disabled={loading}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink py-3.5 text-[14px] font-medium text-cream transition-colors hover:bg-accent disabled:opacity-60"
+              disabled={loading || !cartOrderable}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-[var(--radius-pill)] bg-ink py-3.5 text-[14px] font-medium text-cream transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Placing order…' : `Place order - ${formatMmk(total)}`}
             </button>
+            {cartEmpty ? (
+              <p className="mt-2 text-center text-[12px] text-muted">
+                Your cart is empty.{' '}
+                <Link href="/shop" className="text-accent underline underline-offset-4">
+                  Back to the shop
+                </Link>
+              </p>
+            ) : (
+              !cartOrderable && (
+                <p className="mt-2 text-center text-[12px] text-[var(--color-error)]">
+                  Remove or reduce the marked items in your summary to continue.
+                </p>
+              )
+            )}
           </section>
         )}
       </div>
@@ -339,29 +392,60 @@ export function CheckoutForm({
       <aside className="rounded-[var(--radius-lg)] border border-line bg-surface p-6 md:p-8">
         <h2 className="font-display text-[22px]">Summary</h2>
         <ul className="mt-4 space-y-2">
-          {lines.map((l) => (
-            <li key={l.productId} className="flex items-center justify-between text-[13px]">
-              <span className="text-ink-soft">
-                {l.qty} × {l.product.name}
-              </span>
-              <Price
-                priceMmk={l.product.priceMmk * l.qty}
-                salePriceMmk={
-                  l.product.salePriceMmk === null ? null : l.product.salePriceMmk * l.qty
-                }
-                size="text-[13px]"
-              />
-            </li>
-          ))}
+          {liveLines.map((l) => {
+            const problem = lineProblem(l)
+            return (
+              <li key={l.productId} className="text-[13px]">
+                <div className="flex items-center justify-between">
+                  <span className={cn('text-ink-soft', problem && 'text-muted line-through')}>
+                    {l.qty} × {l.product.name}
+                  </span>
+                  <Price
+                    priceMmk={l.product.priceMmk * l.qty}
+                    salePriceMmk={
+                      l.product.salePriceMmk === null ? null : l.product.salePriceMmk * l.qty
+                    }
+                    size="text-[13px]"
+                  />
+                </div>
+                {problem && (
+                  /*
+                   * Fixed here rather than back on /cart. This form holds a
+                   * half-typed address, and sending someone away to fix a line
+                   * loses it.
+                   */
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <LineProblemBadge problem={problem} />
+                    {problem.kind === 'insufficient' && (
+                      <button
+                        type="button"
+                        onClick={() => setQty(l.productId, problem.available)}
+                        className="text-[12px] font-medium text-accent underline underline-offset-4"
+                      >
+                        Reduce to {problem.available}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeLine(l.productId)}
+                      className="text-[12px] font-medium text-muted underline underline-offset-4 hover:text-error"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
         <div className="mt-4 flex items-center justify-between text-[13px]">
           <span className="text-ink-soft">Subtotal</span>
-          <span className="price text-ink">{formatMmk(subtotal)}</span>
+          <span className="price text-ink">{formatMmk(liveSubtotal)}</span>
         </div>
-        {savings > 0 && (
+        {liveSavings > 0 && (
           <div className="mt-1 flex items-center justify-between text-[13px]">
             <span className="text-ink-soft">You save</span>
-            <span className="price text-[var(--color-accent)]">-{formatMmk(savings)}</span>
+            <span className="price text-[var(--color-accent)]">-{formatMmk(liveSavings)}</span>
           </div>
         )}
         <div className="mt-1 flex items-center justify-between text-[13px]">
