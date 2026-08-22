@@ -16,6 +16,7 @@ export interface CartLine {
     swatch: string
     hasPhotos: boolean
     stockQty: number
+    isActive: boolean
   }
 }
 

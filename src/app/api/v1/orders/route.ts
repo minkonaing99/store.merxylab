@@ -11,6 +11,11 @@ import { paymentMethods } from '@/db/schema/payment-methods'
 import { auth } from '@/lib/auth'
 import { optionalMapsUrl, optionalTelegram, phoneField } from '@/lib/address-fields'
 import { getCartLines, clearCart } from '@/lib/cart-session'
+import {
+  unorderableLines,
+  type AvailabilityLine,
+  type UnorderableLine,
+} from '@/lib/cart-availability'
 import { sendMail } from '@/lib/mail'
 import { maskEmail } from '@/lib/mask'
 import { formatMmk } from '@/lib/money'
@@ -25,6 +30,30 @@ import { OrderPlaced } from '@emails/order-placed'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COD_CAP_MMK = 500_000
 const ORDER_EXPIRY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * A sentence for the customer. Names the product while there is only one to
+ * name, and counts them once naming them all would be a paragraph.
+ */
+function unorderableMessage(
+  lines: readonly (AvailabilityLine & { product: { name: string } })[],
+  unorderable: readonly UnorderableLine[],
+): string {
+  if (unorderable.length > 1) {
+    return `${unorderable.length} items in your cart are no longer available.`
+  }
+  const [only] = unorderable
+  if (!only) return 'Your cart is no longer available.'
+  const name = lines.find((l) => l.productId === only.productId)?.product.name ?? 'An item'
+  switch (only.problem.kind) {
+    case 'unavailable':
+      return `${name} is no longer available.`
+    case 'out_of_stock':
+      return `${name} just sold out.`
+    case 'insufficient':
+      return `Only ${only.problem.available} of ${name} left.`
+  }
+}
 
 const newAddressSchema = z.object({
   label: z.string().min(1).max(40),
@@ -185,10 +214,16 @@ export async function POST(req: Request): Promise<NextResponse> {
   // physical inventory at payment confirmation (admin flips to `paid` for
   // wallet, `confirmed` for COD). Avoids "ghost reservations" when checkout
   // succeeds but slip upload fails or customer abandons.
-  for (const l of lines) {
-    if (l.product.stockQty < l.qty) {
-      return fail('OUT_OF_STOCK', `OUT_OF_STOCK:${l.productId}`, 409)
-    }
+  //
+  // Every bad line, not the first: the customer fixes the cart in one pass
+  // instead of resubmitting to discover the next one. `isActive` is checked
+  // here too - it used to be read when adding to the cart and never again, so
+  // a product retired in /admin still ordered while stock remained.
+  const unorderable = unorderableLines(lines)
+  if (unorderable.length > 0) {
+    return fail('CART_UNORDERABLE', unorderableMessage(lines, unorderable), 409, {
+      lines: unorderable,
+    })
   }
 
   const orderId = randomUUID()

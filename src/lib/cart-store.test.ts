@@ -14,6 +14,7 @@ const LINE: CartLine = {
     swatch: '#111111',
     hasPhotos: true,
     stockQty: 4,
+    isActive: true,
   },
 }
 

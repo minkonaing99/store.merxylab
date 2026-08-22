@@ -29,7 +29,13 @@ const sendTelegram = vi.fn<(text: string) => Promise<void>>(async () => {})
 interface CartLine {
   productId: string
   qty: number
-  product: { name: string; priceMmk: number; salePriceMmk: number | null; stockQty: number }
+  product: {
+    name: string
+    priceMmk: number
+    salePriceMmk: number | null
+    stockQty: number
+    isActive: boolean
+  }
 }
 
 vi.mock('@/lib/auth', () => ({ auth: async () => session }))
@@ -112,7 +118,14 @@ function line(over: Partial<CartLine['product']> & { qty?: number } = {}): CartL
   return {
     productId: 'p1',
     qty,
-    product: { name: 'Signet', priceMmk: 15_000, salePriceMmk: null, stockQty: 10, ...product },
+    product: {
+      name: 'Signet',
+      priceMmk: 15_000,
+      salePriceMmk: null,
+      stockQty: 10,
+      isActive: true,
+      ...product,
+    },
   }
 }
 
@@ -318,15 +331,76 @@ describe('POST /api/v1/orders', () => {
     expect((await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))).status).toBe(400)
   })
 
+  /*
+   * The message used to be `OUT_OF_STOCK:p1`, and the checkout form put it in
+   * front of the customer verbatim. The id belongs in `details`, where the
+   * client can act on it; the message is for reading.
+   */
   it('refuses a line the stock cannot cover, naming the product', async () => {
     cartLines = [line({ qty: 5, stockQty: 2 })]
     selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
     const res = await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
 
     expect(res.status).toBe(409)
-    const body = (await res.json()) as { error: { code: string; message: string } }
-    expect(body.error.code).toBe('OUT_OF_STOCK')
-    expect(body.error.message).toBe('OUT_OF_STOCK:p1')
+    const body = (await res.json()) as {
+      error: { code: string; message: string; details: { lines: unknown[] } }
+    }
+    expect(body.error.code).toBe('CART_UNORDERABLE')
+    expect(body.error.message).toBe('Only 2 of Signet left.')
+    expect(body.error.details.lines).toEqual([
+      { productId: 'p1', problem: { kind: 'insufficient', available: 2 } },
+    ])
+    expect(inserts).toHaveLength(0)
+  })
+
+  it('refuses a sold-out line in words a customer can read', async () => {
+    cartLines = [line({ qty: 1, stockQty: 0 })]
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    const res = await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.message).toBe('Signet just sold out.')
+    expect(inserts).toHaveLength(0)
+  })
+
+  /*
+   * `isActive` was checked when adding to the cart and nowhere afterwards, so
+   * a product retired in /admin still ordered as long as stock remained.
+   */
+  it('refuses a product retired since it was added, even with stock on hand', async () => {
+    cartLines = [line({ qty: 1, stockQty: 50, isActive: false })]
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    const res = await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error.message).toBe('Signet is no longer available.')
+    expect(body.error.details.lines).toEqual([
+      { productId: 'p1', problem: { kind: 'unavailable' } },
+    ])
+    expect(inserts).toHaveLength(0)
+  })
+
+  /*
+   * Every bad line in one answer. Returning only the first meant a customer
+   * with three dead lines fixed one, resubmitted, and met the next.
+   */
+  it('reports every unorderable line at once, not just the first', async () => {
+    cartLines = [
+      { ...line({ qty: 5, stockQty: 2 }), productId: 'a' },
+      { ...line({ qty: 1, stockQty: 9 }), productId: 'b' },
+      { ...line({ qty: 1, stockQty: 0 }), productId: 'c' },
+    ]
+    selects = [[SAVED_ADDRESS], [YANGON], [WALLET]]
+    const res = await POST(request({ shippingAddressId: ADDRESS_ID, paymentMethodId: 'kbz' }))
+
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error.details.lines).toEqual([
+      { productId: 'a', problem: { kind: 'insufficient', available: 2 } },
+      { productId: 'c', problem: { kind: 'out_of_stock' } },
+    ])
+    expect(body.error.message).toBe('2 items in your cart are no longer available.')
     expect(inserts).toHaveLength(0)
   })
 

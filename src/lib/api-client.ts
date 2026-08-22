@@ -3,6 +3,8 @@
 interface ApiError {
   code?: string
   message?: string
+  /** Machine-readable specifics for the client to act on. See `fail()`. */
+  details?: unknown
 }
 
 export interface ApiResult<T> {

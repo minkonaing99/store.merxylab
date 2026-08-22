@@ -25,6 +25,7 @@ export interface CartLine {
     swatch: string
     hasPhotos: boolean
     stockQty: number
+    isActive: boolean
   }
 }
 
@@ -85,6 +86,7 @@ export async function getCartLines(): Promise<CartLine[]> {
       swatch: products.swatch,
       hasPhotos: products.hasPhotos,
       stockQty: products.stockQty,
+      isActive: products.isActive,
     })
     .from(cartItems)
     .innerJoin(products, eq(products.id, cartItems.productId))
@@ -103,6 +105,7 @@ export async function getCartLines(): Promise<CartLine[]> {
       swatch: r.swatch,
       hasPhotos: Boolean(r.hasPhotos),
       stockQty: r.stockQty,
+      isActive: Boolean(r.isActive),
     },
   }))
 }

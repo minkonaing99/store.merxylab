@@ -28,6 +28,7 @@ const CART = [
       swatch: '#3D342A',
       hasPhotos: true,
       stockQty: 10,
+      isActive: true,
     },
   },
   {
@@ -43,6 +44,7 @@ const CART = [
       swatch: '#4A3E33',
       hasPhotos: true,
       stockQty: 10,
+      isActive: true,
     },
   },
 ]
@@ -156,8 +158,9 @@ describe('subtotal parity across every money path', () => {
   it('quotes the same subtotal everywhere and charges exactly that', async () => {
     const ctx = { params: Promise.resolve({ productId: 'keychron-k2-pro' }) }
 
-    // The add route does a live stock read before it answers.
-    selects = [[{ stockQty: 10, isActive: true }]]
+    // The add and update routes each do a live stock read before answering.
+    const IN_STOCK = [{ stockQty: 10, isActive: true }]
+    selects = [IN_STOCK, IN_STOCK]
 
     const quoted = [
       await subtotalOf(await cartGet()),
