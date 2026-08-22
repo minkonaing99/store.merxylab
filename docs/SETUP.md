@@ -198,6 +198,70 @@ npm run email:dev         # react-email preview server on :3030
 
 ---
 
+## SMTP + Google OAuth
+
+Both are optional to run the app, and required before verification emails or
+Google sign-in work. Folded in from `docs/AUTH-SETUP.md`, which was deleted -
+`docs/DEPLOY.md` still points here for the production redirect URI.
+
+### SMTP (Hostinger Webmail)
+
+hPanel -> Emails -> Email Accounts -> Create email account. The Business plan
+gives five; `noreply@` for transactional sends is enough to start.
+
+| Setting | Value |
+| --- | --- |
+| SMTP host | `smtp.hostinger.com` |
+| SMTP port | `465` (TLS) - preferred, `587` STARTTLS as fallback |
+| Username | the full email address |
+| Password | the mailbox password |
+
+```env
+SMTP_HOST="smtp.hostinger.com"
+SMTP_PORT="465"
+SMTP_USER="noreply@your-domain.com"
+SMTP_PASS="<the mailbox password>"
+EMAIL_FROM="merxylab <noreply@your-domain.com>"
+```
+
+Restart `npm run dev` after. A different mail provider works the same way with
+its own host and port.
+
+Without SMTP, verify an account by hand: set `email_verified` to the current
+timestamp on the `users` row in Drizzle Studio.
+
+### Google OAuth client
+
+1. [console.cloud.google.com](https://console.cloud.google.com/) -> new project.
+2. **APIs & Services -> OAuth consent screen**. External. App name, support
+   email, developer contact. Leave scopes at the defaults - Google adds
+   `userinfo.email`, `userinfo.profile` and `openid`, which is all this needs.
+   Add your own address under test users while the app is in Testing.
+3. **APIs & Services -> Credentials -> Create Credentials -> OAuth client ID**.
+   Application type Web application.
+   - Authorised JavaScript origins: `http://localhost:3000`, and the production
+     origin when there is one.
+   - Authorised redirect URIs: `http://localhost:3000/api/auth/callback/google`,
+     and `https://your-domain.com/api/auth/callback/google` for production.
+4. Copy the client id and secret from the dialog.
+
+```env
+AUTH_GOOGLE_ID="<ends in .apps.googleusercontent.com>"
+AUTH_GOOGLE_SECRET="<the client secret>"
+```
+
+The signin page shows "Continue with Google" on its own once both are present -
+the `hasGoogle` flag in `src/lib/auth.ts`.
+
+A failing redirect is almost always the URI in step 3 not matching exactly:
+`http` against `https`, or a trailing slash.
+
+Going to production: add the production origin and redirect URI to the same
+client, set `AUTH_URL` to the production URL, and **Publish app** on the consent
+screen when non-test users need it.
+
+---
+
 ## Elsewhere
 
 - Tests: `docs/TESTING.md` — what is covered, what is not, and how to add one.

@@ -129,7 +129,7 @@ Deleting a product: toggle **Active** off — this removes it from `/shop` witho
 
 ## See also
 
-- `docs/AUTH-SETUP.md` — Auth.js + SMTP env vars
+- `docs/SETUP.md` — Auth.js + SMTP env vars
 - `docs/DEPLOY.md` — Hostinger Business shared deploy
 - `docs/SCHEMA.md` — DB schema (`orders.status` enum, `site_settings` keys)
 - `docs/CONTENT-PAGES.md` — customer-facing static pages + Burmese locales

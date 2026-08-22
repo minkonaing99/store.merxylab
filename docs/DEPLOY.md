@@ -12,8 +12,8 @@ End-to-end deploy from local to your Hostinger Business plan. Single host runs t
 - SSH access enabled (hPanel → Advanced → SSH Access).
 - Node.js 20+ available (hPanel → Advanced → Node.js).
 - MySQL database created (hPanel → Databases → MySQL Databases).
-- SMTP mailbox set up (see `docs/AUTH-SETUP.md`).
-- Google OAuth client set up (optional, see `docs/AUTH-SETUP.md`).
+- SMTP mailbox set up (see `docs/SETUP.md`).
+- Google OAuth client set up (optional, see `docs/SETUP.md`).
 - Local repo at the version you want to ship; `npm run build` runs clean.
 
 ---
@@ -145,7 +145,7 @@ OAuth callback URLs in Google Cloud must use `https://your-domain.com/api/auth/c
 
 ## 7. Add Google OAuth production redirect
 
-Repeat the steps in `docs/AUTH-SETUP.md` section 2.A.4, adding to the same OAuth client:
+Repeat the credentials step in `docs/SETUP.md` (SMTP + Google OAuth), adding to the same OAuth client:
 - Authorized origins: `https://your-domain.com`
 - Authorized redirect URIs: `https://your-domain.com/api/auth/callback/google`
 
