@@ -1,253 +1,108 @@
-# DEPLOY — Hostinger Business shared (Node.js + MySQL + SMTP)
+# DEPLOY — what uses what
 
-End-to-end deploy from local to your Hostinger Business plan. Single host runs the Next.js app (via Phusion Passenger), MySQL, and SMTP.
+Hostinger Business shared. One host runs the Next.js app under Phusion Passenger, MySQL, and SMTP. Reference, not a walkthrough — the steps are obvious, the values and the traps are not.
 
-`next.config.ts` already has `output: 'standalone'` so the build produces a minimal runtime tree.
+## hPanel app slot
 
----
+hPanel → Advanced → Node.js.
 
-## 0. Prereqs
+| Setting | Value |
+| --- | --- |
+| Node.js version | 20.x |
+| Application mode | Production |
+| Application root | `domains/your-domain.com/merxylab` — outside `public_html` unless you want files served raw. Passenger routes the domain either way. |
+| Application URL | your domain or subdomain |
+| Startup file | `server.js` |
 
-- Hostinger Business plan with a domain attached.
-- SSH access enabled (hPanel → Advanced → SSH Access).
-- Node.js 20+ available (hPanel → Advanced → Node.js).
-- MySQL database created (hPanel → Databases → MySQL Databases).
-- SMTP mailbox set up (see `docs/SETUP.md`).
-- Google OAuth client set up (optional, see `docs/SETUP.md`).
-- Local repo at the version you want to ship; `npm run build` runs clean.
+Port allocation is internal; Passenger maps it.
 
----
+## Environment variables
 
-## 1. Create production MySQL database
+hPanel → Node.js → your app → Environment variables, one row each.
 
-In hPanel:
-1. Databases → **MySQL Databases** → **Create new database**.
-2. Database name: `merxylab-store` (or similar).
-3. Username: `merxylab` (or similar — do **not** use `root` in prod).
-4. Password: generate a strong unique one. Save it in your password manager.
-5. After creation, hPanel shows the host (usually `localhost`) and assigned port (often `3306`).
+| Key | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | `mysql://merxylab:PASS@localhost:3306/merxylab-store` |
+| `AUTH_SECRET` | `openssl rand -base64 32` — **fresh, never the dev value** |
+| `AUTH_URL` | `https://your-domain.com` |
+| `AUTH_TRUST_HOST` | `1` |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | from Google Cloud, optional |
+| `SMTP_HOST` / `SMTP_PORT` | `smtp.hostinger.com` / `465` |
+| `SMTP_USER` / `SMTP_PASS` | mailbox address and password |
+| `EMAIL_FROM` | `merxylab <noreply@your-domain.com>` |
+| `BANK_PAYMENT_INSTRUCTIONS` | bank line carrying a `{orderId}` token |
+| `NEXT_PUBLIC_SITE_URL` | `https://your-domain.com` |
 
-Note: hyphen in `merxylab-store` requires backticks in raw SQL. Drizzle handles this fine via the connection URL.
+Saving restarts Passenger. Credentials for SMTP and the OAuth client: `docs/SETUP.md`.
 
----
+## Build and bundle
 
-## 2. Push schema to prod MySQL
-
-Two options. Pick **A** for simplicity (run migrations from your laptop pointed at prod).
-
-### A. Remote import from local
-1. Enable remote MySQL in hPanel → Databases → Remote MySQL. Whitelist your laptop's IP.
-2. Import the bootstrap script straight into prod:
-   ```bash
-   mysql -h PROD_HOST -u merxylab -p merxylab-store < docs/db-bootstrap.sql
-   ```
-3. Seed if you want catalog data immediately:
-   ```bash
-   DATABASE_URL="mysql://merxylab:PROD_PASSWORD@PROD_HOST:3306/merxylab-store" \
-     # (catalog seed is already inside docs/db-bootstrap.sql)
-   ```
-4. **Disable remote MySQL after** to reduce surface. Only re-enable for ad-hoc admin.
-
-### B. SSH + on-host migrate
-1. SSH to host: `ssh user@your-domain.com`.
-2. Clone the repo to a build dir (`~/build/merxylab-store`).
-3. Install deps + run migrations from there with the prod `DATABASE_URL` exported.
-
----
-
-## 3. Prepare the Node.js app slot in hPanel
-
-1. hPanel → Advanced → **Node.js** → **Create application**.
-2. Settings:
-   - **Node.js version**: 20.x (or latest 20 available).
-   - **Application mode**: Production.
-   - **Application root**: `domains/your-domain.com/public_html/merxylab` (or whichever path you want — pick something **outside** `public_html` if you don't want files served raw; Passenger maps the app port to the domain regardless).
-   - **Application URL**: `your-domain.com` (or a subdomain).
-   - **Application startup file**: `server.js`.
-3. Click Create. hPanel allocates a port internally and routes the domain to it via Passenger.
-
----
-
-## 4. Build locally + upload artifact
-
-Build is small thanks to `output: 'standalone'`.
+`next.config.ts` sets `output: 'standalone'`, so the runtime tree is small but split across three places that have to be reassembled:
 
 ```bash
-# from project root
-npm ci
-npm run build
-```
+npm ci && npm run build
 
-> **npm only.** There is no `pnpm-lock.yaml` - the project is npm-only (ADR-09). If one reappears, delete it: its presence makes Next's auto-installer shell out to pnpm, which is absent on Hostinger (`spawn pnpm ENOENT`).
->
-> **Prod-only installs.** When the build runs server-side with a production-only install (no devDependencies), `next build` must not need eslint or the type checker. `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` are set in `next.config.mjs`, and `typescript` / `@types/react` / `@types/node` live in `dependencies` (Next's TS setup check requires them). Run `npm run lint` + `npm run typecheck` locally before pushing - the host build skips both.
-
-This produces `.next/standalone/` (the minimal runtime) plus `.next/static/` and `public/`.
-
-Bundle for upload:
-
-```bash
 mkdir -p deploy
 cp -r .next/standalone/. deploy/
 cp -r public deploy/public
 cp -r .next/static deploy/.next/static
-# copy migrations in case you re-run them on the host:
-cp -r src/db/migrations deploy/db-migrations
-```
 
-The standalone build embeds `node_modules` it actually uses. The startup file is `deploy/server.js`.
-
-Upload via:
-
-```bash
 rsync -avz --delete deploy/ user@your-domain.com:/home/user/domains/your-domain.com/merxylab/
 ```
 
-(Adjust the remote path to match the **Application root** you chose in step 3.)
+Then restart from hPanel → Node.js → Restart.
 
----
+**Two traps worth the ink:**
 
-## 5. Configure env vars in hPanel
+- **npm only.** No `pnpm-lock.yaml` should exist (ADR-09). If one reappears, delete it — its presence makes Next's auto-installer shell out to pnpm, which is not on Hostinger, and the build dies with `spawn pnpm ENOENT`.
+- **Prod-only installs have no devDependencies**, so `next build` must not need eslint or the type checker. `eslint.ignoreDuringBuilds` and `typescript.ignoreBuildErrors` are set, and `typescript` / `@types/react` / `@types/node` sit in `dependencies` because Next's TS setup check demands them. The host build therefore checks nothing — run `npm run lint` and `npm run typecheck` locally first.
 
-hPanel → Node.js → your app → **Environment variables**. Add each as a separate row:
+## Database
 
-| Key                       | Value                                                                 |
-|---------------------------|-----------------------------------------------------------------------|
-| `NODE_ENV`                | `production`                                                          |
-| `DATABASE_URL`            | `mysql://merxylab:PROD_PASSWORD@localhost:3306/merxylab-store`        |
-| `AUTH_SECRET`             | output of `openssl rand -base64 32` — **fresh, not dev secret**       |
-| `AUTH_URL`                | `https://your-domain.com`                                             |
-| `AUTH_TRUST_HOST`         | `1`                                                                    |
-| `AUTH_GOOGLE_ID`          | from Google Cloud (optional)                                          |
-| `AUTH_GOOGLE_SECRET`      | from Google Cloud (optional)                                          |
-| `SMTP_HOST`               | `smtp.hostinger.com`                                                  |
-| `SMTP_PORT`               | `465`                                                                 |
-| `SMTP_USER`               | `noreply@your-domain.com`                                             |
-| `SMTP_PASS`               | mailbox password                                                      |
-| `EMAIL_FROM`              | `merxylab <noreply@your-domain.com>`                                  |
-| `BANK_PAYMENT_INSTRUCTIONS` | your bank line w/ `{orderId}` token                                  |
-| `NEXT_PUBLIC_SITE_URL`    | `https://your-domain.com`                                             |
+Create in hPanel → Databases → MySQL. Don't use `root`. A hyphen in the name (`merxylab-store`) needs backticks in raw SQL; Drizzle is fine via the URL.
 
-Click **Save**. hPanel restarts Passenger.
+Schema, from your laptop with Remote MySQL temporarily whitelisted:
 
-Sanity check secrets — `AUTH_SECRET` must be a fresh value generated for prod. **Never reuse the dev `AUTH_SECRET` or dev MySQL password**.
+```bash
+mysql -h PROD_HOST -u merxylab -p merxylab-store < docs/db-bootstrap.sql
+```
 
----
+That file carries the catalog seed too. **Turn Remote MySQL off afterwards.**
 
-## 6. Wire SSL (free Let's Encrypt)
+**There is no migration runner.** A schema change is a hand-written `ALTER`, or a one-off script following `scripts/cancel-expired-orders.ts`. Keep it backward-compatible across the restart window: a destructive change ships in two passes — code that stops referencing the column, then the drop.
 
-1. hPanel → SSL → **Install certificate** for `your-domain.com` and `www.your-domain.com`.
-2. Enable **Force HTTPS** so requests always use TLS.
+## Drizzle Studio against production
 
-OAuth callback URLs in Google Cloud must use `https://your-domain.com/api/auth/callback/google`.
-
----
-
-## 7. Add Google OAuth production redirect
-
-Repeat the credentials step in `docs/SETUP.md` (SMTP + Google OAuth), adding to the same OAuth client:
-- Authorized origins: `https://your-domain.com`
-- Authorized redirect URIs: `https://your-domain.com/api/auth/callback/google`
-
-If the OAuth consent screen is still in **Testing** mode, click **Publish app** for production users to sign in without being on the test-user list.
-
----
-
-## 8. Photos: upload to host
-
-Photos live on Cloudflare R2, not the app filesystem. Upload them per product in
-`/admin/products` → expand a row → **Edit photos**. The server writes a 1600px hero
-and a 600px thumb per slot and flips `has_photos` itself.
-
-Nothing to rsync, and no `public/products/` folder to keep in sync. Deploys do not
-touch product imagery.
-
----
-
-## 9. First boot smoke test
-
-After hPanel restarts the Node app:
-
-1. Visit `https://your-domain.com/` → homepage loads with MMK prices.
-2. `/shop`, `/product/mxk-65-walnut` → catalog from prod DB.
-3. `/signup` with a real email → verification email lands.
-4. Sign in → `/account` accessible.
-5. Add to cart → `/checkout` → place order → `/order/[id]` shows bank instructions; email arrives.
-6. `npm run db:studio` locally against prod (via SSH tunnel) shows the new order row.
-
-If a step fails, hPanel → Node.js → app → **Logs** has stdout/stderr.
-
----
-
-## 10. Drizzle Studio against prod (safely)
-
-Studio should **never** be exposed publicly. Tunnel it:
+Never expose it. Tunnel:
 
 ```bash
 ssh -L 3307:127.0.0.1:3306 user@your-domain.com
-# in another terminal:
 DATABASE_URL="mysql://merxylab:PASS@127.0.0.1:3307/merxylab-store" npm run db:studio
 ```
 
-This forwards your laptop's `localhost:3307` to the host's MySQL through SSH. Open `https://local.drizzle.studio` as normal.
+## SSL and OAuth
 
----
+hPanel → SSL → install for apex and `www`, then Force HTTPS. The Google OAuth client needs the production origin and `https://your-domain.com/api/auth/callback/google` added to the same client, and **Publish app** on the consent screen once non-test users need to sign in.
 
-## 11. Backup
+## Photos
 
-hPanel → Files → **Backups** has daily auto-backup on Business plans. Add a weekly off-host mysqldump for belt-and-braces:
+On Cloudflare R2, not the app filesystem. Uploaded per product through `/admin/products` → Edit photos; the server writes a 1600px hero and a 600px thumb and flips `has_photos` itself. Nothing to rsync, and deploys never touch imagery.
 
-```bash
-# crontab on host (hPanel → Advanced → Cron Jobs), weekly:
-0 3 * * 0 mysqldump --no-tablespaces -u merxylab -p"PASS" \`merxylab-store\` | gzip > ~/backups/merxylab-$(date +\%F).sql.gz
+## Backups
+
+Business plans have daily auto-backup in hPanel → Files → Backups. Weekly off-host dump, via hPanel → Advanced → Cron Jobs:
+
+```
+0 3 * * 0 mysqldump --no-tablespaces -u merxylab -p"PASS" merxylab-store | gzip > ~/backups/merxylab-$(date +\%F).sql.gz
 ```
 
-Keep at least 4 weekly backups before rotating.
+Keep four before rotating.
 
----
+## When something breaks
 
-## 12. Rolling updates
-
-For each new release:
-
-```bash
-git pull
-npm ci
-npm run build
-# Schema changed? Apply the ALTER by hand or with a one-off script in scripts/
-# following the pattern in scripts/cancel-expired-orders.ts. No migration runner.
-# rebuild deploy bundle
-rsync -avz --delete deploy/ user@your-domain.com:/home/user/domains/your-domain.com/merxylab/
-# hPanel → Node.js → app → Restart
-```
-
-Migrations should always be backward-compatible during the window between the old runtime and the new runtime starting up. If a migration is destructive (drop column), ship in two steps: deploy code that no longer references the column, then a follow-up migration that drops it.
-
----
-
-## 13. Observability + alerts
-
-- Vercel-style analytics not available — use Hostinger access logs (`logs/access.log`).
-- For app errors, write to stdout (`console.error`); Passenger captures stdout in **Node.js → Logs**.
-- For uptime, point an external monitor (UptimeRobot free tier) at `https://your-domain.com/`.
-- Future: drop Sentry SDK in for tracebacks if traffic warrants.
-
----
-
-## 14. Smoke checklist after deploy
-
-- [ ] HTTPS green (SSL active, force-https on).
-- [ ] Homepage Lighthouse mobile perf > 90.
-- [ ] Sign-up email arrives within 60s.
-- [ ] Google OAuth lands on `/account`.
-- [ ] Cart persists across reload (cookie).
-- [ ] Place order → email sent → `/order/[id]` shows bank ref.
-- [ ] Drizzle Studio (via SSH tunnel) shows expected rows.
-- [ ] hPanel auto-backup is enabled and ran in the last 24h.
-- [ ] No secrets in stdout logs.
+hPanel → Node.js → app → **Logs** captures stdout and stderr. Server faults also reach the owner Telegram chat through `src/instrumentation.ts`, so the logs are for detail rather than for noticing. Access logs are at `logs/access.log`. Uptime wants an external monitor.
 
 ## CI
 
-`.github/workflows/ci.yml` gates every push and PR: typecheck, lint, test, build, plus a gitleaks secret scan. Nothing deploys from CI — Hostinger deploy stays manual (see above). Treat a red check as a blocked merge, not a blocked deploy.
-
-Build in CI uses dummy `DATABASE_URL` / `AUTH_SECRET` values. Real secrets live only in the host's environment panel and `.env.local`, never in the repo.
+`.github/workflows/ci.yml` runs typecheck, lint, test, build and a gitleaks scan on every push and PR. **Nothing deploys from CI** — deploy is manual. A red check blocks a merge, not a deploy. CI builds against dummy `DATABASE_URL` and `AUTH_SECRET`; real secrets live only in the hPanel environment panel and `.env.local`.

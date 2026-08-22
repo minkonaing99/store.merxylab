@@ -7,6 +7,7 @@ Versioning: SemVer.
 - **Deleted `docs/user-testing.md`.** A 445-line manual test suite, unedited since 17 August, carrying a "prerequisites that currently block two suites" section and a "known issues - do not re-report" list. Both are claims that go false without anyone noticing, and neither had been checked against the app in a month.
 - **Deleted `docs/AUTH-SETUP.md`.** Its SMTP mailbox and Google OAuth client steps moved into `docs/SETUP.md` first - they were the only copy in the repo, and `docs/DEPLOY.md` sent readers to them from three places. Those references, and one in `docs/ADMIN.md`, now point at `SETUP.md`.
 - Docs folder is 16 files, down from 19.
+- **`docs/DEPLOY.md` rewritten as a reference, 253 lines to 108.** It was a walkthrough for someone who had never deployed it. What is kept is what cannot be guessed: the hPanel app-slot values, the env table, the three-directory reassembly a `standalone` build needs, the pnpm-ENOENT and prod-install traps, the SSH tunnel, the backup cron, and the fact that there is no migration runner. The click-by-click hPanel navigation and the two smoke checklists are gone.
 
 ### [0.18.0] - 2026-08-22
 - **The cart refuses what the shop cannot fill.** `POST /cart/items` checked `stockQty <= 0` and nothing else; `PATCH /cart/items/[productId]` checked nothing at all, so one unit in the warehouse and a quantity of 99 was accepted. Both enforce stock now, and adding is measured against the total the line would reach rather than the quantity requested, because `addCartItem` sums into what is already there.
