@@ -73,4 +73,6 @@ Written for a solo operator who will read it in six months, not for a portfolio 
 | `docs/ADMIN.md` | Operator surface and the daily order queue |
 | `docs/DESIGN.md`, `docs/brand.md` | Design system, tokens, type scale, brand rules |
 | `docs/TESTING.md` | What is covered, what is not, and why |
+| `docs/SETUP.md`, `docs/DEPLOY.md` | Running it locally, and putting it on the host |
 | `docs/order-workflow.html` | Interactive diagram of the full order lifecycle |
+| `CHANGELOG.md` | Release history |
